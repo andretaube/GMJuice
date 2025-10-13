@@ -111,11 +111,17 @@ struct RecordingView: View {
         
                 if old < 5 && new >= 5 {
                     modelContext.insert(vm.stringRun)
+                    if let shot = vm.stringRun.orderedStringShots.last {
+                        Announcer.shared.speakTime(seconds: shot.now)
+                    }
                     try modelContext.save()
                 }
 
                 else if new > 5 && new > old {
                     modelContext.insert(vm.stringRun)
+                    if let shot = vm.stringRun.orderedStringShots.last {
+                        Announcer.shared.speakTime(seconds: shot.now)
+                    }
                     try modelContext.save()
                 }
 

@@ -10,7 +10,8 @@ import SwiftData
 enum Division: String, CaseIterable, Codable, Identifiable, Hashable {
     case RFPI, RFPO
     case RFRI, RFRO
-    case CO, LTD, OPN, PROD, SS, REV, ISR
+    case CO, LTD, OPN, PROD, SS
+    case ISR, OSR
     case PCCI, PCCO
 
     var id: String { rawValue }
@@ -26,7 +27,7 @@ enum Division: String, CaseIterable, Codable, Identifiable, Hashable {
         case .OPN:  return "OPN (Open)"
         case .PROD: return "PROD (Production)"
         case .SS:   return "SS (Single Stack)"
-        case .REV:  return "REV (Revolver)"
+        case .OSR:  return "OSR (Open Sight Revolver)"
         case .ISR:  return "ISR (Iron Sight Revolver)"
         case .PCCI: return "PCCI (PCC Iron)"
         case .PCCO: return "PCCO (PCC Open)"
