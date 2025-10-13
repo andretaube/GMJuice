@@ -12,6 +12,7 @@ import Combine
 struct StringRowView: View {
     let run: StringRun
     let index: Int
+    let isBest: Bool
 
     var body: some View {
         let shots = run.orderedStringShots
@@ -19,48 +20,54 @@ struct StringRowView: View {
         HStack(alignment: .top, spacing: 12) {
             // Left: ID (timestamp of first shot if available, else start)
             VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text("#\(index)")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                    if isBest {
+                        Image(systemName: "trophy.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.yellow)
+                            .accessibilityLabel("Best run")
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
                 Text(timestampString(run.date))
                     .font(.headline)
-                Text("#\(index)")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
             }
             .frame(minWidth: 20, alignment: .leading)
             .padding(.top, 2)
 
-            // Middle: two rows with aligned columns using Grid
-//            Group {
-                if shots.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("No shots yet").foregroundStyle(.secondary)
-                        Text(" ").hidden() // keep right column vertically aligned
-                    }
-                } else {
-                    // Horizontal scroll if many columns
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
-                            // Row 1: shot times (offsets)
-                            GridRow {
-                                ForEach(shots) { (shot) in
-                                    Text(timeString(shot.now))
-                                        .monospacedDigit()
-                                        .gridColumnAlignment(.trailing)
-                                }
-                            }
-                            // Row 2: split times (no "+")
-                            GridRow {
-                                ForEach(shots) { (shot) in
-                                    Text(timeString(shot.split))
-                                        .monospacedDigit()
-                                        .foregroundStyle(.secondary)
-                                        .gridColumnAlignment(.trailing)
-                                }
+            if shots.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("No shots yet").foregroundStyle(.secondary)
+                    Text(" ").hidden() // keep right column vertically aligned
+                }
+            } else {
+                // Horizontal scroll if many columns
+                ScrollView(.horizontal, showsIndicators: false) {
+                    Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                        // Row 1: shot times (offsets)
+                        GridRow {
+                            ForEach(shots) { (shot) in
+                                Text(timeString(shot.now))
+                                    .monospacedDigit()
+                                    .gridColumnAlignment(.trailing)
                             }
                         }
-                        .padding(.vertical, 2)
+                        // Row 2: split times (no "+")
+                        GridRow {
+                            ForEach(shots) { (shot) in
+                                Text(timeString(shot.split))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.secondary)
+                                    .gridColumnAlignment(.trailing)
+                            }
+                        }
                     }
+                    .padding(.vertical, 2)
                 }
-//            }
+            }
 
             Spacer(minLength: 8)
 

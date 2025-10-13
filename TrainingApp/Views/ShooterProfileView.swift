@@ -1,94 +1,77 @@
-//
-//  ShooterProfileView.swift
-//  TrainingApp
-//
-//  Created by Andre Taube on 10/11/25.
-//
-
 import SwiftUI
 import SwiftData
 
 struct ShooterProfileView: View {
     @Environment(\.modelContext) private var context
-    @Query var profiles: [ShooterProfile]
+    // We always want exactly one profile; fetch “all” and then ensure one.
+    @Query private var profiles: [ShooterProfile]
 
-    @State private var profile: ShooterProfile?
-
-    init() {
-        _profiles = Query(sort: [])
-    }
+    @State private var saveTask: Task<Void, Never>?
 
     var body: some View {
+        let p = ensureProfile()
+        @Bindable var profile = p
+
         Form {
             Section("Membership") {
-                TextField("USPSA Number (e.g., A12345)", text: Binding(
-                    get: { profile?.uspsaNumber ?? "" },
-                    set: { new in
-                        profile?.uspsaNumber = new
-                        autosave()
+                TextField("USPSA Number (e.g., A12345)", text: $profile.uspsaNumber)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                    .onChange(of: profile.uspsaNumber, initial: false) {
+                        debouncedSave()
                     }
-                ))
-                .textInputAutocapitalization(.characters)
-                .autocorrectionDisabled()
             }
 
             Section("Divisions & Class") {
-                ForEach(Division.allCases) { div in
+                ForEach(Array(Division.allCases), id: \.self) { div in
                     DivisionRow(
                         division: div,
-                        dp: Binding(
-                            get: { profile?.profile(for: div) },
-                            set: { _ in /* handled inside row */ }
-                        ),
+                        // Pass the optional DivisionProfile for this division
+                        dp: profile.profile(for: div),
                         ensure: {
-                            let result = profile?.ensureProfile(for: div)
-                            autosave()
-                            return result
+                            let r = profile.ensureProfile(for: div)
+                            debouncedSave()
+                            return r
                         },
                         remove: {
-                            profile?.removeDivision(div)
-                            autosave()
-                        }
+                            profile.removeDivision(div)
+                            debouncedSave()
+                        },
+                        saveNow: { saveNow() }
                     )
-                }
-            }
-
-            Section("Defaults") {
-                Picker("Default Division", selection: Binding(
-                    get: { profile?.defaultDivision ?? profile?.divisions.first?.division },
-                    set: { newValue in
-                        profile?.defaultDivision = newValue
-                        autosave()
-                    }
-                )) {
-                    Text("—").tag(Division?.none)
-                    ForEach(profile?.divisions.map(\.division) ?? [], id: \.self) { d in
-                        Text(d.rawValue).tag(Division?.some(d))
-                    }
                 }
             }
         }
         .navigationTitle("Shooter Profile")
-        .onAppear {
-            if let existing = profiles.first {
-                profile = existing
-            } else {
-                let p = ShooterProfile()
-                context.insert(p)           // create-on-first-run
-                try? context.save()
-                profile = p
+    }
+
+    // Ensure single instance; also clean up accidental duplicates
+    @MainActor
+    private func ensureProfile() -> ShooterProfile {
+        if let first = profiles.first {
+            if profiles.count > 1 {
+                for extra in profiles.dropFirst() { context.delete(extra) }
+                do { try context.save() } catch { print("Cleanup save failed: \(error)") }
             }
+            return first
+        }
+        let created = ShooterProfile()
+        context.insert(created)
+        do { try context.save() } catch { print("Initial save failed: \(error)") }
+        return created
+    }
+
+    // Debounced save
+    private func debouncedSave() {
+        saveTask?.cancel()
+        saveTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            saveNow()
         }
     }
 
-    // MARK: - Helpers
-
-    private func autosave() {
-        // If this is a brand-new profile not yet inserted, insert it first
-        if let p = profile, !profiles.contains(where: { $0 === p }) {
-            context.insert(p)
-        }
-        try? context.save()
+    private func saveNow() {
+        do { try context.save() } catch { print("Save failed: \(error)") }
     }
 }
 
@@ -96,52 +79,43 @@ private struct DivisionRow: View {
     @Environment(\.modelContext) private var context
 
     let division: Division
-    @Binding var dp: DivisionProfile?
-    let ensure: () -> DivisionProfile?
+    // Optional model instance for this division
+    var dp: DivisionProfile?
+    let ensure: () -> DivisionProfile
     let remove: () -> Void
+    let saveNow: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Toggle(division.displayName, isOn: Binding(
-                    get: { dp != nil },
-                    set: { isOn in
-                        if isOn {
-                            _ = ensure()
-                        } else {
-                            remove()
-                        }
-                        save()
+            Toggle(division.displayName, isOn: Binding(
+                get: { dp != nil },
+                set: { isOn in
+                    if isOn {
+                        _ = ensure()
+                    } else {
+                        remove()
                     }
-                ))
-            }
+                    saveNow()
+                }
+            ))
+
             if let bound = dp {
+                // Bind to the concrete model
+                @Bindable var b = bound
                 HStack {
                     Text("Class")
                     Spacer()
-                    Picker("", selection: Binding(
-                        get: { bound.classification },
-                        set: { newValue in
-                            bound.classification = newValue
-                            save()
-                        }
-                    )) {
-                        ForEach(ShooterClass.allCases, id: \.self) { cls in
-                            Text(cls.rawValue)
+                    Picker("", selection: $b.classification) {
+                        ForEach(ShooterClass.allCases) { cls in
+                            Text(cls.rawValue.uppercased()).tag(cls)
                         }
                     }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 280)
+                    .frame(maxWidth: 320)
                 }
-                .textInputAutocapitalization(.words)
-                .autocorrectionDisabled()
                 .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 4)
-    }
-
-    private func save() {
-        try? context.save()
     }
 }

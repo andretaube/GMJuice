@@ -10,10 +10,6 @@ import SwiftData
 @Model
 final class DivisionProfile {
     var division: Division
-    var classification: ShooterClass
-
-    init(division: Division, classification: ShooterClass = .U) {
-        self.division = division
-        self.classification = classification
-    }
+    var classification: ShooterClass = ShooterClass.U
+    init(division: Division) { self.division = division }
 }

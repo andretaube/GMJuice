@@ -8,6 +8,7 @@
 
 import SwiftData
 
-enum ShooterClass: String, CaseIterable, Codable {
+enum ShooterClass: String, CaseIterable, Hashable, Codable, Identifiable {
     case GM, M, A, B, C, D, U
+    var id: Self { self }
 }

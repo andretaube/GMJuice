@@ -9,11 +9,14 @@ import SwiftData
 
 @Model
 final class ShooterProfile {
-    var uspsaNumber: String?
-    var divisions: [DivisionProfile] = []
-    var defaultDivision: Division?   // used as initial “active” suggestion
+    // Make it non-optional so TextField binding is simple
+    var uspsaNumber: String = ""
 
-    init(uspsaNumber: String? = nil) {
+    // Persisted relationship to division profiles
+    @Relationship(deleteRule: .cascade)
+    var divisions: [DivisionProfile] = []
+
+    init(uspsaNumber: String = "") {
         self.uspsaNumber = uspsaNumber
     }
 
@@ -29,6 +32,5 @@ final class ShooterProfile {
     }
     func removeDivision(_ division: Division) {
         divisions.removeAll { $0.division == division }
-        if defaultDivision == division { defaultDivision = nil }
     }
 }

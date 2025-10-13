@@ -43,14 +43,17 @@ struct StageDayDetailView: View {
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
             }
+            
+            let bestRunID = strings.min(by: { $0.time < $1.time })?.id
 
             // RUNS
             ForEach(strings) { run in
                 // Keep newest-first order, but index should count from oldest (1..N)
                 if let pos = strings.firstIndex(where: { $0.id == run.id }) {
                     let idx = strings.count - pos
+                    let isBest = (run.id == bestRunID)
 
-                    StringRowView(run: run, index: idx)
+                    StringRowView(run: run, index: idx, isBest: isBest)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 deleteRun(run) // delete immediately (no confirmation)

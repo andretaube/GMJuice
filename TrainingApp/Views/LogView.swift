@@ -31,13 +31,24 @@ struct LogView: View {
                                                 divisionId: s.divisionId
                                             )
                                         } label: {
-                                            HStack {
-                                                Text("\(s.stageId) - \(s.name)")
+                                            HStack(spacing: 8) {
+                                                Text("\(s.stageId) – \(s.name)")
+                                                    .lineLimit(1)
+
                                                 Spacer()
-                                                Text(timeString(s.best))
-                                                    .monospacedDigit()
-                                                Text("· \(s.count)x")
-                                                    .foregroundStyle(.secondary)
+
+                                                Label {
+                                                    Text(timeString(s.best)).monospacedDigit()
+                                                } icon: {
+                                                    Image(systemName: "medal.fill") // or "trophy.circle.fill"
+                                                }
+                                                .labelStyle(.titleAndIcon)
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+
+                                                Text("×\(s.count)")
+                                                    .font(.subheadline.monospacedDigit())
+                                                    .foregroundStyle(.tertiary)
                                             }
                                         }
                                     }
