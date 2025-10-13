@@ -1,0 +1,10 @@
+# Treat project files as text for better merging
+*.pbxproj text eol=lf
+*.storyboard text eol=lf
+*.xib text eol=lf
+*.swift text eol=lf
+*.plist text eol=lf
+
+# Use union merge on pbxproj to reduce conflicts (not perfect, but helps)
+*.pbxproj merge=union
+

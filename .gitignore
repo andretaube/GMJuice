@@ -1,0 +1,53 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+*.xccheckout
+*.xcscmblueprint
+*.xcuserstate
+*.moved-aside
+*.xccoverage
+*.xcuserdatad*
+*.xcsettings
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.swiftpm/
+.build/
+
+# CocoaPods
+Pods/
+*.xcworkspace
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Logs & temp
+*.log
+*.sql
+*.sqlite
+*.swp
+*.tmp
+
+# App resources you don't want in git (customize these)
+# e.g. local test videos, exports, scratch assets:
+AppData/
+Recordings/
+Videos/
+Exports/
+
