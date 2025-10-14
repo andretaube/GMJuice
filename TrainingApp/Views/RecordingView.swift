@@ -9,6 +9,8 @@ struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     
+    @ObservedObject private var announcer = Announcer.shared
+    
     @StateObject private var vm: RecordingViewModel
 
     @MainActor
@@ -111,17 +113,23 @@ struct RecordingView: View {
         
                 if old < 5 && new >= 5 {
                     modelContext.insert(vm.stringRun)
-                    if let shot = vm.stringRun.orderedStringShots.last {
-                        Announcer.shared.speakTime(seconds: shot.now)
-                    }
+                    Announcer.shared.speak(text: timeString(vm.stringRun.time))
+                    
+                    Announcer.shared.speak(text: PeakBenchmarks.percentClass(
+                        division: division,
+                        stageCode: stage.code,
+                        lastShotTime: vm.stringRun.time))
+                    
                     try modelContext.save()
                 }
 
                 else if new > 5 && new > old {
                     modelContext.insert(vm.stringRun)
-                    if let shot = vm.stringRun.orderedStringShots.last {
-                        Announcer.shared.speakTime(seconds: shot.now)
-                    }
+                    Announcer.shared.speak(text: timeString(vm.stringRun.time))
+                    Announcer.shared.speak(text: PeakBenchmarks.percentClass(
+                        division: division,
+                        stageCode: stage.code,
+                        lastShotTime: vm.stringRun.time))
                     try modelContext.save()
                 }
 

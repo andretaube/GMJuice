@@ -15,6 +15,12 @@ struct TrainingApp: App {
     @Environment(\.scenePhase) private var scenePhase
     
     @StateObject private var bleManager = BLEManager.shared
+    @StateObject private var announcer = Announcer.shared
+    
+    @AppStorage("announcer_enabled") private var announcerEnabled = true
+    init() {
+        Announcer.shared.isEnabled = announcerEnabled
+    }
     
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([

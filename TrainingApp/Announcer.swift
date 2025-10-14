@@ -12,14 +12,33 @@ import AVFoundation
 final class Announcer: ObservableObject {
     static let shared = Announcer()
 
-    @Published var isEnabled = true
+    @Published var isEnabled: Bool {
+        didSet {
+            guard isEnabled != oldValue else { return }
+            defaults.set(isEnabled, forKey: key)
+            if !isEnabled, synth.isSpeaking {
+                synth.stopSpeaking(at: .immediate)
+            }
+        }
+    }
     @Published var speakOnSilent = true   // if true, plays even when ringer is off
     @Published var rate: Float = AVSpeechUtteranceDefaultSpeechRate
     @Published var voiceLanguage: String = "en-US" // or a specific identifier
 
+    
+    private let key = "announcer_enabled"
+    private let defaults = UserDefaults.standard
+    
     private let synth = AVSpeechSynthesizer()
 
-    private init() {}
+    private init() {
+        if defaults.object(forKey: key) != nil {
+            self.isEnabled = defaults.bool(forKey: key)
+        } else {
+            self.isEnabled = true // default
+            defaults.set(true, forKey: key)
+        }
+    }
 
     /// Call once at app start or before first speak.
     func configureAudioSession() {
@@ -38,29 +57,13 @@ final class Announcer: ObservableObject {
         }
     }
 
-    func speakTime(seconds: Double
-//                   ,
-//                   stageName: String? = nil,
-//                   runIndex: Int? = nil,
-//                   isPersonalBest: Bool = false
-    ) {
+    func speak(text: String) {
         guard isEnabled else { return }
-        guard seconds.isFinite, seconds > 0 else { return }
-
-        // Build phrase
-//        let timePhrase = Self.format(seconds: seconds)
-//        var parts: [String] = []
-//        if let idx = runIndex { parts.append("String \(idx)") }
-//        if let stage = stageName { parts.append(stage) }
-//        parts.append(timePhrase)
-//        if isPersonalBest { parts.append("New personal best!") }
-
-//        let text = parts.joined(separator: ", ")
 
         // Avoid piling up old utterances; keep the most recent
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
 
-        let u = AVSpeechUtterance(string: String(format: "%.2f", seconds) )
+        let u = AVSpeechUtterance(string: text)
         u.rate = rate
         if let voice = AVSpeechSynthesisVoice(language: voiceLanguage) {
             u.voice = voice
@@ -71,21 +74,7 @@ final class Announcer: ObservableObject {
     func stop() {
         synth.stopSpeaking(at: .immediate)
     }
-
-    // MARK: - Formatting
-
-//    /// "12.34 seconds" / "1 minute 02.15 seconds"
-//    private static func format(seconds: Double) -> String {
-//        let totalHundredths = Int((seconds * 100).rounded())
-//        let mins = totalHundredths / 6000
-//        let secs = (totalHundredths % 6000) / 100
-//        let hundredths = totalHundredths % 100
-//
-//        if mins > 0 {
-//            // Speak minutes and zero-padded seconds/hundredths
-//            return "\(mins) \(mins == 1 ? "minute" : "minutes") \(String(format: "%02d", secs)).\(String(format: "%02d", hundredths)) seconds"
-//        } else {
-//            return "\(secs).\(String(format: "%02d", hundredths)) seconds"
-//        }
-//    }
+    
+    func enable()  { isEnabled = true  }
+    func disable() { isEnabled = false }
 }

@@ -2,7 +2,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject private var ble = SettingsViewModel.shared
-
+    @ObservedObject private var announcer = Announcer.shared
+    
     var body: some View {
         NavigationStack {
             Form {
@@ -40,8 +41,13 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                     }
                 }
-            }
                 
+                Section("Preferences") {
+                    Toggle("Announcer", isOn: $announcer.isEnabled)
+                        .tint(.accentColor)
+                        .accessibilityLabel("Enable or disable spoken announcements")
+                }
+            }
         }
         .navigationTitle("BLE Debug")
         .toolbar {
