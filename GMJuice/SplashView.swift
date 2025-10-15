@@ -14,8 +14,8 @@ struct SplashView: View {
             VStack(spacing: 16) {
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 64, weight: .bold))
-                Text("Steel Challenge").font(.title.bold())
-                Text("Training Log").font(.title.bold())
+                Text("GM Juice").font(.title.bold())
+                Text("Steel Challenge Training").font(.title.bold())
                 ProgressView().padding(.top, 8)
             }
         }
