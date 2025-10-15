@@ -186,7 +186,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 65E4D80E2E971EC5006D3B3D /* Build configuration list for PBXProject "TrainingApp" */;
+			buildConfigurationList = 65E4D80E2E971EC5006D3B3D /* Build configuration list for PBXProject "GMJuice" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -396,7 +396,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"TrainingApp/Preview Content\"";
-				DEVELOPMENT_TEAM = UXCLGUH664;
+				DEVELOPMENT_TEAM = 2W7T76LY33;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "AMG Commander";
@@ -414,7 +414,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.andretaube.trainingapp.TrainingApp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.andretaube.gmjuice;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -430,7 +430,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"TrainingApp/Preview Content\"";
-				DEVELOPMENT_TEAM = UXCLGUH664;
+				DEVELOPMENT_TEAM = 2W7T76LY33;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "AMG Commander";
@@ -448,7 +448,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.andretaube.trainingapp.TrainingApp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.andretaube.gmjuice;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -531,7 +531,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		65E4D80E2E971EC5006D3B3D /* Build configuration list for PBXProject "TrainingApp" */ = {
+		65E4D80E2E971EC5006D3B3D /* Build configuration list for PBXProject "GMJuice" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				65E4D8372E971EC6006D3B3D /* Debug */,
