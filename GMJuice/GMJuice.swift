@@ -1,6 +1,6 @@
 //
-//  TrainingAppApp.swift
-//  TrainingApp
+//  GMJuiceApp.swift
+//  GMJuice
 //
 //  Created by Andre Taube on 10/6/25.
 //
@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct TrainingApp: App {
+struct GMJuice: App {
     
     @StateObject private var bootstrap = AppInitializer()
     @Environment(\.scenePhase) private var scenePhase

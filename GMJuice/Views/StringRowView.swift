@@ -1,6 +1,6 @@
 //
 //  StringRowView.swift
-//  TrainingApp
+//  GMJuice
 //
 //  Created by Andre Taube on 10/6/25.
 //

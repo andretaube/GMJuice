@@ -1,6 +1,6 @@
 //
 //  RecordingViewModel.swift
-//  TrainingApp
+//  GMJuice
 //
 
 import Foundation

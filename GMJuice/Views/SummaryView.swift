@@ -1,6 +1,6 @@
 //
 //  SummaryRow.swift
-//  TrainingApp
+//  GMJuice
 //
 //  Created by Andre Taube on 10/7/25.
 //

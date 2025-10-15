@@ -1,6 +1,6 @@
 //
 //  Announcer.swift
-//  TrainingApp
+//  GMJuice
 //
 //  Created by Andre Taube on 10/12/25.
 //
