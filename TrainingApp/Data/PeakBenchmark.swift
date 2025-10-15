@@ -220,18 +220,38 @@ public struct PeakTable: Codable {
         let percent = (peakPerString / lastShotTime) * 100.0
 
         let rounded = percent.isFinite ? percent.rounded() : 0
-        return String(format: "%.0f%% (%@)", rounded, grade(for: percent))
+        return String(format: "%.0f%% (%@)", rounded, PeakTable.shooterClassString(percentage: percent))
+    }
+    
+    func percent(division: Division,
+                 stageCode: String,
+                 time: Double) -> Double {
+        // Caller should ensure ≥5 shots; we just compute.
+        guard time > 0,
+              let bm = get(division: division, stageCode: stageCode),
+              bm.strings > 0 else { return 0.0 }
+
+        // Compare your single-string total time to the peak per-string pace.
+        let peakPerString = bm.peakTime / Double(bm.strings)
+        let percent = (peakPerString / time) * 100.0
+
+        let rounded = percent.isFinite ? percent.rounded() : 0
+        return rounded
     }
 
-    private func grade(for percent: Double) -> String {
-        switch percent {
-        case 95...:   return "GM"
-        case 85..<95: return "M"
-        case 75..<85: return "A"
-        case 60..<75: return "B"
-        case 40..<60: return "C"
-        case 2..<40:  return "D"
-        default:      return "U"
+    static func shooterClassString(percentage: Double) -> String {
+        return shooterClass(percentage: percentage).rawValue
+    }
+    
+    static func shooterClass(percentage: Double) -> ShooterClass {
+        switch percentage {
+        case 95...:   return .GM
+        case 85..<95: return .M
+        case 75..<85: return .A
+        case 60..<75: return .B
+        case 40..<60: return .C
+        case 2..<40:  return .D
+        default:      return .U
         }
     }
 }

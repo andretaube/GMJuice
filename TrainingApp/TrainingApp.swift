@@ -24,6 +24,8 @@ struct TrainingApp: App {
     
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
+            ShooterProfile.self,
+            DivisionProfile.self,
             StringRun.self,
             StringShot.self
         ])

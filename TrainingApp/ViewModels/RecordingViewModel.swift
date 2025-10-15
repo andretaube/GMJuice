@@ -15,7 +15,8 @@ public class RecordingViewModel: ObservableObject {
     
     @Published var stringRun: StringRun
     @Published var counter: Int = 0
-    
+    @Published var allRuns: [StringRun] = []
+
 
     private let ble = BLEManager.shared
     
@@ -36,6 +37,9 @@ public class RecordingViewModel: ObservableObject {
     }
     
     func startString() {
+        if !stringRun.stringShots.isEmpty {
+            allRuns.append(stringRun)
+        }
         stringRun = StringRun(stageId: self.stageId, divisionId: self.divisionId)
         counter += 1
     }
@@ -44,5 +48,37 @@ public class RecordingViewModel: ObservableObject {
         let stringShot = StringShot(now: now, split: split, first: first)
         stringRun.time = now
         stringRun.stringShots.append(stringShot)
+    }
+    
+    func bestTime() -> Double? {
+        allRuns
+            .filter { $0.time > 0 }
+            .map(\.time)
+            .min()
+    }
+
+    func bestFirstShot() -> Double? {
+        allRuns
+            .compactMap { run in
+                run.stringShots.first?.first
+            }
+            .filter { $0 > 0 }
+            .min()
+    }
+    
+    func worstTime() -> Double? {
+        allRuns
+            .filter { $0.time > 0 }
+            .map(\.time)
+            .max()
+    }
+
+    func worstFirstShot() -> Double? {
+        allRuns
+            .compactMap { run in
+                run.stringShots.first?.first
+            }
+            .filter { $0 > 0 }
+            .max()
     }
 }

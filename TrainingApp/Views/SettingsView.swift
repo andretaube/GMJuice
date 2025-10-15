@@ -48,12 +48,7 @@ struct SettingsView: View {
                         .accessibilityLabel("Enable or disable spoken announcements")
                 }
             }
-        }
-        .navigationTitle("BLE Debug")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Image(systemName: "ladybug")
-            }
+            .navigationTitle("Settings")
         }
         .onAppear {
             BLEManager.shared.startScanning()

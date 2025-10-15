@@ -12,37 +12,39 @@ struct ShooterProfileView: View {
         let p = ensureProfile()
         @Bindable var profile = p
 
-        Form {
-            Section("Membership") {
-                TextField("USPSA Number (e.g., A12345)", text: $profile.uspsaNumber)
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                    .onChange(of: profile.uspsaNumber, initial: false) {
-                        debouncedSave()
+        NavigationStack {
+            Form {
+                Section("Membership") {
+                    TextField("USPSA Number (e.g., A12345)", text: $profile.uspsaNumber)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .onChange(of: profile.uspsaNumber, initial: false) {
+                            debouncedSave()
+                        }
+                }
+                
+                Section("Divisions & Class") {
+                    ForEach(Array(Division.allCases), id: \.self) { div in
+                        DivisionRow(
+                            division: div,
+                            // Pass the optional DivisionProfile for this division
+                            dp: profile.profile(for: div),
+                            ensure: {
+                                let r = profile.ensureProfile(for: div)
+                                debouncedSave()
+                                return r
+                            },
+                            remove: {
+                                profile.removeDivision(div)
+                                debouncedSave()
+                            },
+                            saveNow: { saveNow() }
+                        )
                     }
-            }
-
-            Section("Divisions & Class") {
-                ForEach(Array(Division.allCases), id: \.self) { div in
-                    DivisionRow(
-                        division: div,
-                        // Pass the optional DivisionProfile for this division
-                        dp: profile.profile(for: div),
-                        ensure: {
-                            let r = profile.ensureProfile(for: div)
-                            debouncedSave()
-                            return r
-                        },
-                        remove: {
-                            profile.removeDivision(div)
-                            debouncedSave()
-                        },
-                        saveNow: { saveNow() }
-                    )
                 }
             }
+            .navigationTitle("Shooter Profile")
         }
-        .navigationTitle("Shooter Profile")
     }
 
     // Ensure single instance; also clean up accidental duplicates
