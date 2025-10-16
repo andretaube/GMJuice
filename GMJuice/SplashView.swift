@@ -10,17 +10,19 @@ import SwiftUI
 struct SplashView: View {
     var body: some View {
         ZStack {
-            Color(.systemBackground).ignoresSafeArea()
-            VStack(spacing: 16) {
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 64, weight: .bold))
-                Text("GM Juice").font(.title.bold())
-                Text("Steel Challenge Training").font(.title.bold())
-                ProgressView().padding(.top, 8)
+            GeometryReader { geo in
+                let imageWidth = geo.size.width * 0.356
+                Image("GMJuiceRound")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: imageWidth)
+                    .position(x: geo.size.width / 2, y: geo.size.height / 2)
             }
         }
-        // Accessibility: announce loading state
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Loading")
+        .ignoresSafeArea()
     }
+}
+
+#Preview {
+    SplashView()
 }
