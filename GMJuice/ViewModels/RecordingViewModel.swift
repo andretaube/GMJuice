@@ -37,27 +37,29 @@ public class RecordingViewModel: ObservableObject {
     }
     
     func startString() {
-        if !stringRun.stringShots.isEmpty {
-            allRuns.append(stringRun)
-        }
         stringRun = StringRun(stageId: self.stageId, divisionId: self.divisionId)
         counter += 1
     }
 
-    func recordShot(now: Double, split: Double, first: Double) {
+    func recordShot(now: Decimal, split: Decimal, first: Decimal) {
+        
+        if !stringRun.stringShots.isEmpty {
+            allRuns.append(stringRun)
+        }
+        
         let stringShot = StringShot(now: now, split: split, first: first)
         stringRun.time = now
         stringRun.stringShots.append(stringShot)
     }
     
-    func bestTime() -> Double? {
+    func bestTime() -> Decimal? {
         allRuns
             .filter { $0.time > 0 }
             .map(\.time)
             .min()
     }
 
-    func bestFirstShot() -> Double? {
+    func bestFirstShot() -> Decimal? {
         allRuns
             .compactMap { run in
                 run.stringShots.first?.first
@@ -66,14 +68,14 @@ public class RecordingViewModel: ObservableObject {
             .min()
     }
     
-    func worstTime() -> Double? {
+    func worstTime() -> Decimal? {
         allRuns
             .filter { $0.time > 0 }
             .map(\.time)
             .max()
     }
 
-    func worstFirstShot() -> Double? {
+    func worstFirstShot() -> Decimal? {
         allRuns
             .compactMap { run in
                 run.stringShots.first?.first

@@ -38,7 +38,7 @@ struct LogView: View {
                                                 Spacer()
 
                                                 Label {
-                                                    Text(timeString(s.best)).monospacedDigit()
+                                                    Text("\(s.best)").monospacedDigit()
                                                 } icon: {
                                                     Image(systemName: "medal.fill") // or "trophy.circle.fill"
                                                 }
@@ -134,14 +134,6 @@ struct LogView: View {
         return dayStart.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
     }
 
-    private func timeString(_ t: Double) -> String {
-        let m = Int(t) / 60
-        let s = Int(t) % 60
-        let h = Int((t - floor(t)) * 100)
-        return m > 0 ? String(format: "%d:%02d.%02d", m, s, h)
-                     : String(format: "%d.%02d", s, h)
-    }
-
     private func displayName(for divisionId: String) -> String {
         Division(rawValue: divisionId)?.displayName ?? divisionId
     }
@@ -163,7 +155,7 @@ struct LogView: View {
         let stageId: String
         let divisionId: String
         let name: String
-        let best: Double
+        let best: Decimal
         let count: Int
     }
 }

@@ -50,7 +50,7 @@ struct StringRowView: View {
                         // Row 1: shot times (offsets)
                         GridRow {
                             ForEach(shots) { (shot) in
-                                Text(timeString(shot.now))
+                                Text("\(shot.now)")
                                     .monospacedDigit()
                                     .gridColumnAlignment(.trailing)
                             }
@@ -58,7 +58,7 @@ struct StringRowView: View {
                         // Row 2: split times (no "+")
                         GridRow {
                             ForEach(shots) { (shot) in
-                                Text(timeString(shot.split))
+                                Text("\(shot.split)")
                                     .monospacedDigit()
                                     .foregroundStyle(.secondary)
                                     .gridColumnAlignment(.trailing)
@@ -72,7 +72,7 @@ struct StringRowView: View {
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text(timeString(run.time))
+                Text("\(run.time)")
                     .font(.headline).bold()
                     .frame(minWidth: 10, alignment: .trailing)
                     .padding(.top, 2)

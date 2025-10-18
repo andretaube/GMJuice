@@ -33,12 +33,12 @@ struct StageDayDetailView: View {
                 Section("Summary") {
                     SummaryView(
                         total: summary.totalCount,
-                        fastestRun: timeString(summary.fastestRun),
-                        avgRun: timeString(summary.avgRun),
-                        slowestRun: timeString(summary.slowestRun),
-                        fastestFirstShot: timeString(summary.fastestFirstShot),
-                        avgFirstShot: timeString(summary.avgFirstShot),
-                        slowestFirstShot: timeString(summary.slowestFirstShot)
+                        fastestRun: summary.fastestRun,
+                        avgRun: summary.avgRun,
+                        slowestRun: summary.slowestRun,
+                        fastestFirstShot: summary.fastestFirstShot,
+                        avgFirstShot: summary.avgFirstShot,
+                        slowestFirstShot: summary.slowestFirstShot
                     )
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
@@ -81,26 +81,26 @@ struct StageDayDetailView: View {
     // MARK: - Summary
 
     private var summary: (totalCount: Int,
-                          fastestRun: Double,
-                          avgRun: Double,
-                          slowestRun: Double,
-                          fastestFirstShot: Double,
-                          avgFirstShot: Double,
-                          slowestFirstShot: Double) {
+                          fastestRun: Decimal,
+                          avgRun: Decimal,
+                          slowestRun: Decimal,
+                          fastestFirstShot: Decimal,
+                          avgFirstShot: Decimal,
+                          slowestFirstShot: Decimal) {
 
         // Totals use last shot's 'now'
-        let totals: [Double] = strings.compactMap { $0.orderedStringShots.last?.now }
+        let totals: [Decimal] = strings.compactMap { $0.orderedStringShots.last?.now }
 
         // First-shot times use first shot's 'first'
-        let firsts: [Double] = strings.compactMap { $0.orderedStringShots.first?.first }
+        let firsts: [Decimal] = strings.compactMap { $0.orderedStringShots.first?.first }
 
         let totalCount = strings.count
         let fastestRun = totals.min() ?? 0
         let slowestRun = totals.max() ?? 0
         let fastestFirst = firsts.min() ?? 0
         let slowestFirst = firsts.max() ?? 0
-        let avgRun = totals.isEmpty ? 0 : totals.reduce(0, +) / Double(totals.count)
-        let avgFirst = firsts.isEmpty ? 0 : firsts.reduce(0, +) / Double(firsts.count)
+        let avgRun = (totals.isEmpty ? 0 : totals.reduce(0, +) / Decimal(totals.count)).rounded(toPlaces: 2)
+        let avgFirst = (firsts.isEmpty ? 0 : firsts.reduce(0, +) / Decimal(firsts.count)).rounded(toPlaces: 2)
 
         return (totalCount, fastestRun, avgRun, slowestRun, fastestFirst, avgFirst, slowestFirst)
     }
@@ -109,15 +109,6 @@ struct StageDayDetailView: View {
 
     private func titleDate(_ d: Date) -> String {
         d.formatted(.dateTime.month(.abbreviated).day().year())
-    }
-
-    private func timeString(_ t: Double) -> String {
-        let totalHundredths = Int((t * 100).rounded())
-        let m = totalHundredths / 6000
-        let s = (totalHundredths % 6000) / 100
-        let h = totalHundredths % 100
-        return m > 0 ? String(format: "%d:%02d.%02d", m, s, h)
-                     : String(format: "%d.%02d", s, h)
     }
 
     // MARK: - Deletion helpers
@@ -137,5 +128,18 @@ struct StageDayDetailView: View {
             do { try modelContext.save() }
             catch { print("Failed to delete StringRun: \(error)") }
         }
+    }
+}
+
+extension Decimal {
+    func rounded(toPlaces places: Int) -> Decimal {
+        var result = Decimal()
+        
+        // Use `withUnsafePointer` to safely get a pointer to the non-mutable `self`.
+        withUnsafePointer(to: self) { numberPointer in
+            NSDecimalRound(&result, numberPointer, places, .plain)
+        }
+        
+        return result
     }
 }

@@ -30,7 +30,7 @@ final class BLEManager: NSObject, ObservableObject {
     var onConnectFailed: ((CBPeripheral, Error?) -> Void)?
     var onDisconnected: ((CBPeripheral, Error?) -> Void)?
     var onBeep: (() -> Void)?
-    var onShot: ((Double, Double, Double) -> Void)?
+    var onShot: ((Decimal, Decimal, Decimal) -> Void)?
     var onStopWaiting: (() -> Void)?
 
     
@@ -135,9 +135,9 @@ final class BLEManager: NSObject, ObservableObject {
         guard data.count >= 2 else { return }
         let bytes = [UInt8](data)
         
-        var timeNow: Double?
-        var timeSplit: Double?
-        var timeFirst: Double?
+        var timeNow: Decimal?
+        var timeSplit: Decimal?
+        var timeFirst: Decimal?
 
         let type = bytes[0]
         
@@ -177,8 +177,17 @@ final class BLEManager: NSObject, ObservableObject {
         }
     }
     
-    private func convertData(high: UInt8, low: UInt8) -> Double {
-        Double((Int(high) << 8) | Int(low)) / 100.0
+    private func convertData(high: UInt8, low: UInt8) -> Decimal {
+        // Combine the bytes into a single integer.
+        let combinedValue = (Int(high) << 8) | Int(low)
+        
+        // Initialize a Decimal from the integer value.
+        let decimalValue = Decimal(combinedValue)
+        
+        // Perform division using another Decimal value.
+        let divisor = Decimal(100)
+        
+        return decimalValue / divisor
     }
 
 }

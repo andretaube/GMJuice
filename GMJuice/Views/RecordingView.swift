@@ -31,9 +31,6 @@ struct RecordingView: View {
 
     var body: some View {
         
-        let classification = profiles.first?
-            .profile(for: division)?
-            .classification ?? .U
         ZStack {
             VStack(spacing: 8) {
                 HStack(alignment: .top, spacing: 8) { // row 1
@@ -52,9 +49,7 @@ struct RecordingView: View {
                             )
                             
                             Text(text).font(.title.bold())
-                            
-                            performanceIcon(for: time, classification: classification)
-                                .padding(.top, 4)
+        
                         } else {
                             Text(" ").font(.title.bold())
                         }
@@ -66,7 +61,7 @@ struct RecordingView: View {
                     // Column 2: Big Timer
                     let time = vm.stringRun.time
                     GeometryReader { geo in
-                        Text(timeString(time))
+                        Text(Format.formatTime(time))
                             .monospacedDigit()
                             .font(.system(size: geo.size.height * 1.0, weight: .bold)) // scale with height
                             .lineLimit(1)
@@ -79,27 +74,31 @@ struct RecordingView: View {
                     // Column 3
                     VStack(alignment: .trailing, spacing: 2) {
                         if let bestTime = vm.bestTime() {
-                            Text("🏁 Run: \(timeString(bestTime))")
+                            Text("Fastest").font(.title3.bold()).underline()
+                            Text("Time: \(Format.formatTime(bestTime))")
                                 .font(.title3.bold())
                                 .monospacedDigit()
                         }
                         if let bestFirstShot = vm.bestFirstShot() {
-                            Text("⚡️ 1st: \(timeString(bestFirstShot))")
+                            Text("1st: \(Format.formatTime(bestFirstShot))")
                                 .font(.title3.bold())
                                 .monospacedDigit()
                         }
                         
                         Spacer().frame(height: 15)
-                        
-                        if let worstTime = vm.worstTime() {
-                            Text("🐌 Run: \(timeString(worstTime))")
-                                .font(.title3.bold())
-                                .monospacedDigit()
-                        }
-                        if let worstFirstShot = vm.worstFirstShot() {
-                            Text("💤 1st: \(timeString(worstFirstShot))")
-                                .font(.title3.bold())
-                                .monospacedDigit()
+
+                        if vm.counter > 1 {
+                            if let worstTime = vm.worstTime() {
+                                Text("Slowest").font(.title3.bold()).underline()
+                                Text("Run: \(Format.formatTime(worstTime))")
+                                    .font(.title3.bold())
+                                    .monospacedDigit()
+                            }
+                            if let worstFirstShot = vm.worstFirstShot() {
+                                Text("1st: \(Format.formatTime(worstFirstShot))")
+                                    .font(.title3.bold())
+                                    .monospacedDigit()
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -116,12 +115,12 @@ struct RecordingView: View {
                                 
                                 VStack(spacing: 8) {
                                     // Top: cumulative offset
-                                    Text(timeString(shot.now))
+                                    Text("\(Format.formatTime(shot.now))")
                                         .font(.headline.bold())
                                         .monospacedDigit()
                                     
                                     // Bottom: split
-                                    Text(timeString(shot.split))
+                                    Text("\(Format.formatTime(shot.split))")
                                         .font(.headline)
                                         .monospacedDigit()
                                 }
@@ -142,7 +141,7 @@ struct RecordingView: View {
                     if new >= 5 {
                         modelContext.insert(vm.stringRun)
                         
-                        Announcer.shared.speak(text: timeString(vm.stringRun.time))
+                        Announcer.shared.speak(text: "\(vm.stringRun.time)")
                         
                         Announcer.shared.speak(text: PeakBenchmarks.percentClass(
                             division: division,
@@ -157,41 +156,6 @@ struct RecordingView: View {
             }
         }
     }
-
-
-    // MARK: - Helpers
-
-    private func timeString(_ t: Double) -> String {
-        let minutes = Int(t) / 60
-        let seconds = Int(t) % 60
-        let hundredths = Int((t - floor(t)) * 100)
-        if minutes > 0 {
-            return String(format: "%d:%02d.%02d", minutes, seconds, hundredths)
-        } else {
-            return String(format: "%d.%02d", seconds, hundredths)
-        }
-    }
-    
-    @ViewBuilder
-    private func performanceIcon(for time: Double, classification: ShooterClass) -> some View {
-        let percent = PeakBenchmarks.percent(
-            division: division,
-            stageCode: stage.code,
-            time: time
-        )
-
-        let stringClass = PeakTable.shooterClass(percentage: percent)
-        
-        if ( stringClass > classification ) {
-            Text("🏆").font(.system(size: 50)).fixedSize()
-        } else if ( classification == stringClass) {
-            Text("🥈").font(.system(size: 50)).fixedSize()
-        }
-        else {
-            Text("💀").font(.system(size: 50)).fixedSize()
-        }
-    }
-
 }
 
 

@@ -148,23 +148,23 @@ public var PeakBenchmarks: PeakTable = {
 /// Benchmark for a division+stage: e.g. strings: 4, peakTime: 8.75 (seconds)
 public struct PeakBenchmark: Codable, Hashable {
     public var strings: Int
-    public var peakTime: Double   // total time for `strings` strings
+    public var peakTime: Decimal   // total time for `strings` strings
 
-    public init(strings: Int, peakTime: Double) {
+    public init(strings: Int, peakTime: Decimal) {
         self.strings = strings
         self.peakTime = peakTime
     }
 
     /// Average time per string (lower is better).
-    public var stringPace: Double {
+    public var stringPace: Decimal {
         guard strings > 0 else { return 0 }
-        return peakTime / Double(strings)
+        return peakTime / Decimal(strings)
     }
 
     /// Strings per second (higher is better).
-    public var stringsPerSecond: Double {
+    public var stringsPerSecond: Decimal {
         guard peakTime > 0 else { return 0 }
-        return Double(strings) / peakTime
+        return Decimal(strings) / peakTime
     }
 }
 
@@ -200,50 +200,77 @@ public struct PeakTable: Codable {
 
     // MARK: - Mutation helpers
 
-    mutating func set(division: Division, stageCode: String, strings: Int, peakTime: Double) {
+    mutating func set(division: Division, stageCode: String, strings: Int, peakTime: Decimal) {
         self[division, stageCode] = PeakBenchmark(strings: strings, peakTime: peakTime)
     }
 
     // MARK: - Single-string classification (pass last shot time)
 
     /// Returns something like "87% (A)" for a single-string performance vs the peak pace.
-    func percentClass(division: Division,
-                             stageCode: String,
-                             lastShotTime: Double) -> String {
-        // Caller should ensure ≥5 shots; we just compute.
+    func percentClass(division: Division, stageCode: String, lastShotTime: Decimal) -> String {
+        // Check for valid time, existing benchmark, and non-zero strings.
         guard lastShotTime > 0,
               let bm = get(division: division, stageCode: stageCode),
-              bm.strings > 0 else { return "" }
+              bm.strings > 0 else {
+            return ""
+        }
 
-        // Compare your single-string total time to the peak per-string pace.
-        let peakPerString = bm.peakTime / Double(bm.strings)
-        let percent = (peakPerString / lastShotTime) * 100.0
-
-        let rounded = percent.isFinite ? percent.rounded() : 0
-        return String(format: "%.0f%% (%@)", rounded, PeakTable.shooterClassString(percentage: percent))
+        // Perform all arithmetic using Decimal to maintain precision.
+        let stringsDecimal = Decimal(bm.strings)
+        let peakPerString = bm.peakTime / stringsDecimal
+        
+        // Ensure you're not dividing by zero.
+        guard lastShotTime != 0 else {
+            return ""
+        }
+        
+        let rawPercent = (peakPerString / lastShotTime) * 100
+        
+        // Round the final Decimal to a whole number using NSDecimalRound.
+        var roundedPercent = Decimal()
+        var rawPercentValue = rawPercent
+        NSDecimalRound(&roundedPercent, &rawPercentValue, 0, .plain)
+        
+        // Convert the rounded Decimal to a Double for the string formatting.
+        let roundedDouble = (roundedPercent as NSDecimalNumber).doubleValue
+        
+        // Pass the Double to String(format:).
+        return String(format: "%.0f%% (%@)", roundedDouble, PeakTable.shooterClassString(percentage: roundedPercent))
     }
+
     
-    func percent(division: Division,
-                 stageCode: String,
-                 time: Double) -> Double {
-        // Caller should ensure ≥5 shots; we just compute.
+    func percent(division: Division, stageCode: String, time: Decimal) -> Decimal {
+        // Check for valid time, existing benchmark, and non-zero strings.
         guard time > 0,
               let bm = get(division: division, stageCode: stageCode),
-              bm.strings > 0 else { return 0.0 }
+              bm.strings > 0 else {
+            return 0
+        }
 
-        // Compare your single-string total time to the peak per-string pace.
-        let peakPerString = bm.peakTime / Double(bm.strings)
-        let percent = (peakPerString / time) * 100.0
-
-        let rounded = percent.isFinite ? percent.rounded() : 0
-        return rounded
+        // Perform all arithmetic using Decimal to maintain precision.
+        let stringsDecimal = Decimal(bm.strings)
+        let peakPerString = bm.peakTime / stringsDecimal
+        
+        // Ensure you're not dividing by zero.
+        guard time != 0 else {
+            return 0
+        }
+        
+        let rawPercent = (peakPerString / time) * 100
+        
+        // Round the final result using the NSDecimalRound API for control.
+        var roundedPercent = Decimal()
+        var rawPercentValue = rawPercent
+        NSDecimalRound(&roundedPercent, &rawPercentValue, 0, .plain)
+        
+        return roundedPercent
     }
 
-    static func shooterClassString(percentage: Double) -> String {
+    static func shooterClassString(percentage: Decimal) -> String {
         return shooterClass(percentage: percentage).rawValue
     }
     
-    static func shooterClass(percentage: Double) -> ShooterClass {
+    static func shooterClass(percentage: Decimal) -> ShooterClass {
         switch percentage {
         case 95...:   return .GM
         case 85..<95: return .M
