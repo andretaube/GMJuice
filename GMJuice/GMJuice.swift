@@ -23,17 +23,15 @@ struct GMJuice: App {
     }
     
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            ShooterProfile.self,
-            DivisionProfile.self,
-            StringRun.self,
-            StringShot.self
-        ])
-                
+        // Use the latest versioned schema and provide the migration plan
+        let schema = Schema(versionedSchema: Schema001.self)
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
+        
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(
+                for: schema,
+                configurations: [modelConfiguration]
+            )
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
