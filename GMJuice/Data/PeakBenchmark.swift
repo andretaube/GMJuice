@@ -12,134 +12,134 @@ public var PeakBenchmarks: PeakTable = {
     var t = PeakTable()
 
     // MARK: - RFPO (Rimfire Pistol Open)
-    t.set(division: .RFPO, stageCode: "SC-101", strings: 4, peakTime: 8.75)
-    t.set(division: .RFPO, stageCode: "SC-102", strings: 4, peakTime: 7.50)
-    t.set(division: .RFPO, stageCode: "SC-103", strings: 4, peakTime: 7.00)
-    t.set(division: .RFPO, stageCode: "SC-104", strings: 3, peakTime: 11.50) // Outer Limits = 3
-    t.set(division: .RFPO, stageCode: "SC-105", strings: 4, peakTime: 8.50)
-    t.set(division: .RFPO, stageCode: "SC-106", strings: 4, peakTime: 9.50)
-    t.set(division: .RFPO, stageCode: "SC-107", strings: 4, peakTime: 10.00)
-    t.set(division: .RFPO, stageCode: "SC-108", strings: 4, peakTime: 7.50)
+    t.set(division: .RFPO, stageCode: "SC-101", peakTime: 8.75)
+    t.set(division: .RFPO, stageCode: "SC-102", peakTime: 7.50)
+    t.set(division: .RFPO, stageCode: "SC-103", peakTime: 7.00)
+    t.set(division: .RFPO, stageCode: "SC-104", peakTime: 11.50) // Outer Limits = 3
+    t.set(division: .RFPO, stageCode: "SC-105", peakTime: 8.50)
+    t.set(division: .RFPO, stageCode: "SC-106", peakTime: 9.50)
+    t.set(division: .RFPO, stageCode: "SC-107", peakTime: 10.00)
+    t.set(division: .RFPO, stageCode: "SC-108", peakTime: 7.50)
 
     // MARK: - RFPI (Rimfire Pistol Iron)
-    t.set(division: .RFPI, stageCode: "SC-101", strings: 4, peakTime: 10.50)
-    t.set(division: .RFPI, stageCode: "SC-102", strings: 4, peakTime: 9.00)
-    t.set(division: .RFPI, stageCode: "SC-103", strings: 4, peakTime: 8.00)
-    t.set(division: .RFPI, stageCode: "SC-104", strings: 3, peakTime: 13.00)
-    t.set(division: .RFPI, stageCode: "SC-105", strings: 4, peakTime: 9.25)
-    t.set(division: .RFPI, stageCode: "SC-106", strings: 4, peakTime: 11.00)
-    t.set(division: .RFPI, stageCode: "SC-107", strings: 4, peakTime: 11.00)
-    t.set(division: .RFPI, stageCode: "SC-108", strings: 4, peakTime: 8.25)
+    t.set(division: .RFPI, stageCode: "SC-101", peakTime: 10.50)
+    t.set(division: .RFPI, stageCode: "SC-102", peakTime: 9.00)
+    t.set(division: .RFPI, stageCode: "SC-103", peakTime: 8.00)
+    t.set(division: .RFPI, stageCode: "SC-104", peakTime: 13.00)
+    t.set(division: .RFPI, stageCode: "SC-105", peakTime: 9.25)
+    t.set(division: .RFPI, stageCode: "SC-106", peakTime: 11.00)
+    t.set(division: .RFPI, stageCode: "SC-107", peakTime: 11.00)
+    t.set(division: .RFPI, stageCode: "SC-108", peakTime: 8.25)
 
     // MARK: - RFRO (Rimfire Rifle Open)
-    t.set(division: .RFRO, stageCode: "SC-101", strings: 4, peakTime: 9.50)
-    t.set(division: .RFRO, stageCode: "SC-102", strings: 4, peakTime: 7.00)
-    t.set(division: .RFRO, stageCode: "SC-103", strings: 4, peakTime: 7.00)
-    t.set(division: .RFRO, stageCode: "SC-104", strings: 3, peakTime: 10.75)
-    t.set(division: .RFRO, stageCode: "SC-105", strings: 4, peakTime: 8.50)
-    t.set(division: .RFRO, stageCode: "SC-106", strings: 4, peakTime: 9.00)
-    t.set(division: .RFRO, stageCode: "SC-107", strings: 4, peakTime: 9.00)
-    t.set(division: .RFRO, stageCode: "SC-108", strings: 4, peakTime: 7.00)
+    t.set(division: .RFRO, stageCode: "SC-101", peakTime: 9.50)
+    t.set(division: .RFRO, stageCode: "SC-102", peakTime: 7.00)
+    t.set(division: .RFRO, stageCode: "SC-103", peakTime: 7.00)
+    t.set(division: .RFRO, stageCode: "SC-104", peakTime: 10.75)
+    t.set(division: .RFRO, stageCode: "SC-105", peakTime: 8.50)
+    t.set(division: .RFRO, stageCode: "SC-106", peakTime: 9.00)
+    t.set(division: .RFRO, stageCode: "SC-107", peakTime: 9.00)
+    t.set(division: .RFRO, stageCode: "SC-108", peakTime: 7.00)
 
     // MARK: - RFRI (Rimfire Rifle Iron)
-    t.set(division: .RFRI, stageCode: "SC-101", strings: 4, peakTime: 9.75)
-    t.set(division: .RFRI, stageCode: "SC-102", strings: 4, peakTime: 7.50)
-    t.set(division: .RFRI, stageCode: "SC-103", strings: 4, peakTime: 7.50)
-    t.set(division: .RFRI, stageCode: "SC-104", strings: 3, peakTime: 12.00)
-    t.set(division: .RFRI, stageCode: "SC-105", strings: 4, peakTime: 9.00)
-    t.set(division: .RFRI, stageCode: "SC-106", strings: 4, peakTime: 9.75)
-    t.set(division: .RFRI, stageCode: "SC-107", strings: 4, peakTime: 10.00)
-    t.set(division: .RFRI, stageCode: "SC-108", strings: 4, peakTime: 7.50)
+    t.set(division: .RFRI, stageCode: "SC-101", peakTime: 9.75)
+    t.set(division: .RFRI, stageCode: "SC-102", peakTime: 7.50)
+    t.set(division: .RFRI, stageCode: "SC-103", peakTime: 7.50)
+    t.set(division: .RFRI, stageCode: "SC-104", peakTime: 12.00)
+    t.set(division: .RFRI, stageCode: "SC-105", peakTime: 9.00)
+    t.set(division: .RFRI, stageCode: "SC-106", peakTime: 9.75)
+    t.set(division: .RFRI, stageCode: "SC-107", peakTime: 10.00)
+    t.set(division: .RFRI, stageCode: "SC-108", peakTime: 7.50)
 
     // MARK: - PCCO (PCC Open)
-    t.set(division: .PCCO, stageCode: "SC-101", strings: 4, peakTime: 9.50)
-    t.set(division: .PCCO, stageCode: "SC-102", strings: 4, peakTime: 7.00)
-    t.set(division: .PCCO, stageCode: "SC-103", strings: 4, peakTime: 7.00)
-    t.set(division: .PCCO, stageCode: "SC-104", strings: 3, peakTime: 11.25)
-    t.set(division: .PCCO, stageCode: "SC-105", strings: 4, peakTime: 8.75)
-    t.set(division: .PCCO, stageCode: "SC-106", strings: 4, peakTime: 9.00)
-    t.set(division: .PCCO, stageCode: "SC-107", strings: 4, peakTime: 9.50)
-    t.set(division: .PCCO, stageCode: "SC-108", strings: 4, peakTime: 7.50)
+    t.set(division: .PCCO, stageCode: "SC-101", peakTime: 9.50)
+    t.set(division: .PCCO, stageCode: "SC-102", peakTime: 7.00)
+    t.set(division: .PCCO, stageCode: "SC-103", peakTime: 7.00)
+    t.set(division: .PCCO, stageCode: "SC-104", peakTime: 11.25)
+    t.set(division: .PCCO, stageCode: "SC-105", peakTime: 8.75)
+    t.set(division: .PCCO, stageCode: "SC-106", peakTime: 9.00)
+    t.set(division: .PCCO, stageCode: "SC-107", peakTime: 9.50)
+    t.set(division: .PCCO, stageCode: "SC-108", peakTime: 7.50)
 
     // MARK: - PCCI (PCC Iron)
-    t.set(division: .PCCI, stageCode: "SC-101", strings: 4, peakTime: 10.75)
-    t.set(division: .PCCI, stageCode: "SC-102", strings: 4, peakTime: 8.50)
-    t.set(division: .PCCI, stageCode: "SC-103", strings: 4, peakTime: 7.75)
-    t.set(division: .PCCI, stageCode: "SC-104", strings: 3, peakTime: 12.25)
-    t.set(division: .PCCI, stageCode: "SC-105", strings: 4, peakTime: 9.50)
-    t.set(division: .PCCI, stageCode: "SC-106", strings: 4, peakTime: 10.50)
-    t.set(division: .PCCI, stageCode: "SC-107", strings: 4, peakTime: 11.00)
-    t.set(division: .PCCI, stageCode: "SC-108", strings: 4, peakTime: 8.00)
+    t.set(division: .PCCI, stageCode: "SC-101", peakTime: 10.75)
+    t.set(division: .PCCI, stageCode: "SC-102", peakTime: 8.50)
+    t.set(division: .PCCI, stageCode: "SC-103", peakTime: 7.75)
+    t.set(division: .PCCI, stageCode: "SC-104", peakTime: 12.25)
+    t.set(division: .PCCI, stageCode: "SC-105", peakTime: 9.50)
+    t.set(division: .PCCI, stageCode: "SC-106", peakTime: 10.50)
+    t.set(division: .PCCI, stageCode: "SC-107", peakTime: 11.00)
+    t.set(division: .PCCI, stageCode: "SC-108", peakTime: 8.00)
 
     // MARK: - CO (Carry Optics)
-    t.set(division: .CO, stageCode: "SC-101", strings: 4, peakTime: 12.50)
-    t.set(division: .CO, stageCode: "SC-102", strings: 4, peakTime: 9.75)
-    t.set(division: .CO, stageCode: "SC-103", strings: 4, peakTime: 10.00)
-    t.set(division: .CO, stageCode: "SC-104", strings: 3, peakTime: 13.75)
-    t.set(division: .CO, stageCode: "SC-105", strings: 4, peakTime: 11.00)
-    t.set(division: .CO, stageCode: "SC-106", strings: 4, peakTime: 12.75)
-    t.set(division: .CO, stageCode: "SC-107", strings: 4, peakTime: 13.00)
-    t.set(division: .CO, stageCode: "SC-108", strings: 4, peakTime: 9.75)
+    t.set(division: .CO, stageCode: "SC-101", peakTime: 12.50)
+    t.set(division: .CO, stageCode: "SC-102", peakTime: 9.75)
+    t.set(division: .CO, stageCode: "SC-103", peakTime: 10.00)
+    t.set(division: .CO, stageCode: "SC-104", peakTime: 13.75)
+    t.set(division: .CO, stageCode: "SC-105", peakTime: 11.00)
+    t.set(division: .CO, stageCode: "SC-106", peakTime: 12.75)
+    t.set(division: .CO, stageCode: "SC-107", peakTime: 13.00)
+    t.set(division: .CO, stageCode: "SC-108", peakTime: 9.75)
 
     // MARK: - LTD (Limited)
-    t.set(division: .LTD, stageCode: "SC-101", strings: 4, peakTime: 12.50)
-    t.set(division: .LTD, stageCode: "SC-102", strings: 4, peakTime: 9.50)
-    t.set(division: .LTD, stageCode: "SC-103", strings: 4, peakTime: 9.50)
-    t.set(division: .LTD, stageCode: "SC-104", strings: 3, peakTime: 13.50)
-    t.set(division: .LTD, stageCode: "SC-105", strings: 4, peakTime: 10.50)
-    t.set(division: .LTD, stageCode: "SC-106", strings: 4, peakTime: 12.50)
-    t.set(division: .LTD, stageCode: "SC-107", strings: 4, peakTime: 12.50)
-    t.set(division: .LTD, stageCode: "SC-108", strings: 4, peakTime: 9.50)
+    t.set(division: .LTD, stageCode: "SC-101", peakTime: 12.50)
+    t.set(division: .LTD, stageCode: "SC-102", peakTime: 9.50)
+    t.set(division: .LTD, stageCode: "SC-103", peakTime: 9.50)
+    t.set(division: .LTD, stageCode: "SC-104", peakTime: 13.50)
+    t.set(division: .LTD, stageCode: "SC-105", peakTime: 10.50)
+    t.set(division: .LTD, stageCode: "SC-106", peakTime: 12.50)
+    t.set(division: .LTD, stageCode: "SC-107", peakTime: 12.50)
+    t.set(division: .LTD, stageCode: "SC-108", peakTime: 9.50)
 
     // MARK: - OPN (Open)
-    t.set(division: .OPN, stageCode: "SC-101", strings: 4, peakTime: 11.25)
-    t.set(division: .OPN, stageCode: "SC-102", strings: 4, peakTime: 9.50)
-    t.set(division: .OPN, stageCode: "SC-103", strings: 4, peakTime: 8.50)
-    t.set(division: .OPN, stageCode: "SC-104", strings: 3, peakTime: 12.50)
-    t.set(division: .OPN, stageCode: "SC-105", strings: 4, peakTime: 10.50)
-    t.set(division: .OPN, stageCode: "SC-106", strings: 4, peakTime: 11.25)
-    t.set(division: .OPN, stageCode: "SC-107", strings: 4, peakTime: 11.50)
-    t.set(division: .OPN, stageCode: "SC-108", strings: 4, peakTime: 8.50)
+    t.set(division: .OPN, stageCode: "SC-101", peakTime: 11.25)
+    t.set(division: .OPN, stageCode: "SC-102", peakTime: 9.50)
+    t.set(division: .OPN, stageCode: "SC-103", peakTime: 8.50)
+    t.set(division: .OPN, stageCode: "SC-104", peakTime: 12.50)
+    t.set(division: .OPN, stageCode: "SC-105", peakTime: 10.50)
+    t.set(division: .OPN, stageCode: "SC-106", peakTime: 11.25)
+    t.set(division: .OPN, stageCode: "SC-107", peakTime: 11.50)
+    t.set(division: .OPN, stageCode: "SC-108", peakTime: 8.50)
 
     // MARK: - PROD (Production)
-    t.set(division: .PROD, stageCode: "SC-101", strings: 4, peakTime: 13.00)
-    t.set(division: .PROD, stageCode: "SC-102", strings: 4, peakTime: 10.00)
-    t.set(division: .PROD, stageCode: "SC-103", strings: 4, peakTime: 10.00)
-    t.set(division: .PROD, stageCode: "SC-104", strings: 3, peakTime: 14.00)
-    t.set(division: .PROD, stageCode: "SC-105", strings: 4, peakTime: 11.50)
-    t.set(division: .PROD, stageCode: "SC-106", strings: 4, peakTime: 13.00)
-    t.set(division: .PROD, stageCode: "SC-107", strings: 4, peakTime: 13.00)
-    t.set(division: .PROD, stageCode: "SC-108", strings: 4, peakTime: 10.00)
+    t.set(division: .PROD, stageCode: "SC-101", peakTime: 13.00)
+    t.set(division: .PROD, stageCode: "SC-102", peakTime: 10.00)
+    t.set(division: .PROD, stageCode: "SC-103", peakTime: 10.00)
+    t.set(division: .PROD, stageCode: "SC-104", peakTime: 14.00)
+    t.set(division: .PROD, stageCode: "SC-105", peakTime: 11.50)
+    t.set(division: .PROD, stageCode: "SC-106", peakTime: 13.00)
+    t.set(division: .PROD, stageCode: "SC-107", peakTime: 13.00)
+    t.set(division: .PROD, stageCode: "SC-108", peakTime: 10.00)
 
     // MARK: - SS (Single Stack)
-    t.set(division: .SS, stageCode: "SC-101", strings: 4, peakTime: 13.25)
-    t.set(division: .SS, stageCode: "SC-102", strings: 4, peakTime: 10.50)
-    t.set(division: .SS, stageCode: "SC-103", strings: 4, peakTime: 10.25)
-    t.set(division: .SS, stageCode: "SC-104", strings: 3, peakTime: 14.75)
-    t.set(division: .SS, stageCode: "SC-105", strings: 4, peakTime: 11.75)
-    t.set(division: .SS, stageCode: "SC-106", strings: 4, peakTime: 13.50)
-    t.set(division: .SS, stageCode: "SC-107", strings: 4, peakTime: 13.50)
-    t.set(division: .SS, stageCode: "SC-108", strings: 4, peakTime: 10.50)
+    t.set(division: .SS, stageCode: "SC-101", peakTime: 13.25)
+    t.set(division: .SS, stageCode: "SC-102", peakTime: 10.50)
+    t.set(division: .SS, stageCode: "SC-103", peakTime: 10.25)
+    t.set(division: .SS, stageCode: "SC-104", peakTime: 14.75)
+    t.set(division: .SS, stageCode: "SC-105", peakTime: 11.75)
+    t.set(division: .SS, stageCode: "SC-106", peakTime: 13.50)
+    t.set(division: .SS, stageCode: "SC-107", peakTime: 13.50)
+    t.set(division: .SS, stageCode: "SC-108", peakTime: 10.50)
 
     // MARK: - ISR (Iron Sight Revolver)
-    t.set(division: .ISR, stageCode: "SC-101", strings: 4, peakTime: 13.50)
-    t.set(division: .ISR, stageCode: "SC-102", strings: 4, peakTime: 12.00)
-    t.set(division: .ISR, stageCode: "SC-103", strings: 4, peakTime: 10.50)
-    t.set(division: .ISR, stageCode: "SC-104", strings: 3, peakTime: 15.75)
-    t.set(division: .ISR, stageCode: "SC-105", strings: 4, peakTime: 13.00)
-    t.set(division: .ISR, stageCode: "SC-106", strings: 4, peakTime: 14.25)
-    t.set(division: .ISR, stageCode: "SC-107", strings: 4, peakTime: 14.00)
-    t.set(division: .ISR, stageCode: "SC-108", strings: 4, peakTime: 11.00)
+    t.set(division: .ISR, stageCode: "SC-101", peakTime: 13.50)
+    t.set(division: .ISR, stageCode: "SC-102", peakTime: 12.00)
+    t.set(division: .ISR, stageCode: "SC-103", peakTime: 10.50)
+    t.set(division: .ISR, stageCode: "SC-104", peakTime: 15.75)
+    t.set(division: .ISR, stageCode: "SC-105", peakTime: 13.00)
+    t.set(division: .ISR, stageCode: "SC-106", peakTime: 14.25)
+    t.set(division: .ISR, stageCode: "SC-107", peakTime: 14.00)
+    t.set(division: .ISR, stageCode: "SC-108", peakTime: 11.00)
 
     // MARK: - OSR (Open Sight Revolver)
-    t.set(division: .OSR, stageCode: "SC-101", strings: 4, peakTime: 12.25)
-    t.set(division: .OSR, stageCode: "SC-102", strings: 4, peakTime: 10.50)
-    t.set(division: .OSR, stageCode: "SC-103", strings: 4, peakTime: 10.00)
-    t.set(division: .OSR, stageCode: "SC-104", strings: 3, peakTime: 14.25)
-    t.set(division: .OSR, stageCode: "SC-105", strings: 4, peakTime: 12.75)
-    t.set(division: .OSR, stageCode: "SC-106", strings: 4, peakTime: 13.50)
-    t.set(division: .OSR, stageCode: "SC-107", strings: 4, peakTime: 12.75)
-    t.set(division: .OSR, stageCode: "SC-108", strings: 4, peakTime: 10.50)
+    t.set(division: .OSR, stageCode: "SC-101", peakTime: 12.25)
+    t.set(division: .OSR, stageCode: "SC-102", peakTime: 10.50)
+    t.set(division: .OSR, stageCode: "SC-103", peakTime: 10.00)
+    t.set(division: .OSR, stageCode: "SC-104", peakTime: 14.25)
+    t.set(division: .OSR, stageCode: "SC-105", peakTime: 12.75)
+    t.set(division: .OSR, stageCode: "SC-106", peakTime: 13.50)
+    t.set(division: .OSR, stageCode: "SC-107", peakTime: 12.75)
+    t.set(division: .OSR, stageCode: "SC-108", peakTime: 10.50)
 
     return t
 
@@ -200,14 +200,17 @@ public struct PeakTable: Codable {
 
     // MARK: - Mutation helpers
 
-    mutating func set(division: Division, stageCode: String, strings: Int, peakTime: Decimal) {
-        self[division, stageCode] = PeakBenchmark(strings: strings, peakTime: peakTime)
+    mutating func set(division: Division, stageCode: String, peakTime: Decimal) {
+        guard let stage = getStage(for: stageCode) else { return }
+        
+                
+        self[division, stageCode] = PeakBenchmark(strings: stage.strings, peakTime: peakTime)
     }
 
     // MARK: - Single-string classification (pass last shot time)
 
     /// Returns something like "87% (A)" for a single-string performance vs the peak pace.
-    func percentClass(division: Division, stageCode: String, lastShotTime: Decimal) -> String {
+    func percentClassThisString(division: Division, stageCode: String, lastShotTime: Decimal) -> String {
         // Check for valid time, existing benchmark, and non-zero strings.
         guard lastShotTime > 0,
               let bm = get(division: division, stageCode: stageCode),
@@ -237,6 +240,55 @@ public struct PeakTable: Codable {
         // Pass the Double to String(format:).
         return String(format: "%.0f%% (%@)", roundedDouble, PeakTable.shooterClassString(percentage: roundedPercent))
     }
+    
+    func percentClass(division: Division, stageCode: String, stageTimes: [Decimal]) -> String {
+        // Validate benchmark
+        guard let bm = get(division: division, stageCode: stageCode),
+              bm.strings > 0 else {
+            return ""
+        }
+        
+        // Keep only valid, positive times
+        let valid = stageTimes.filter { $0 > 0 }
+        guard !valid.isEmpty else { return "" }
+
+        // If user hasn’t completed enough strings, don’t classify
+        guard valid.count >= bm.strings + 1 else { return "" }
+
+        // Take the last N attempts for this stage (N = bm.strings, e.g. 4 or 5)
+        let recent = Array(valid.suffix(bm.strings + 1))
+
+        // Drop one slowest if we have 4 or 5; else use all
+        let totalTime: Decimal = {
+            let sum = recent.reduce(0, +)
+            if recent.count >= 4, let slowest = recent.max() {
+                return sum - slowest
+            } else {
+                return sum
+            }
+        }()
+
+        guard totalTime > 0 else { return "" }
+
+        // Calculate percent classification
+        let rawPercent = (bm.peakTime / totalTime) * 100
+
+        // Round to nearest whole number
+        var roundedPercent = Decimal()
+        var raw = rawPercent
+        NSDecimalRound(&roundedPercent, &raw, 0, .plain)
+
+        let roundedDouble = (roundedPercent as NSDecimalNumber).doubleValue
+
+        // Return formatted string
+        return String(
+            format: "%.0f%% (%@)",
+            roundedDouble,
+            PeakTable.shooterClassString(percentage: roundedPercent)
+        )
+    }
+
+
 
     
     func percent(division: Division, stageCode: String, time: Decimal) -> Decimal {

@@ -79,7 +79,7 @@ struct StringRowView: View {
                 
                 if shots.count >= 5, let last = shots.last {
                     if let division = Division(rawValue: run.divisionId) {
-                        let text = PeakBenchmarks.percentClass(
+                        let text = PeakBenchmarks.percentClassThisString(
                             division: division,
                             stageCode: run.stageId,
                             lastShotTime: last.now);

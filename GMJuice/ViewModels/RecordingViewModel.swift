@@ -83,4 +83,11 @@ public class RecordingViewModel: ObservableObject {
             .filter { $0 > 0 }
             .max()
     }
+    
+    func times() -> [Decimal] {
+        allRuns
+            .map(\.time)          // extract each run’s total time
+            .filter { $0 > 0 }    // only valid (non-zero) times
+    }
+    
 }

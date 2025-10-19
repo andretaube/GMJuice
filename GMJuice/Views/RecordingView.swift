@@ -40,18 +40,37 @@ struct RecordingView: View {
                         Text("#\(vm.counter)")
                             .font(.title.bold())
                         
-                        if vm.stringRun.stringShots.count >= 5 {
-                            let time = vm.stringRun.time
-                            let text = PeakBenchmarks.percentClass(
-                                division: division,
-                                stageCode: stage.code,
-                                lastShotTime: time
-                            )
+                        let time = vm.stringRun.time
+                        
+                        
+                        let text = PeakBenchmarks.percentClassThisString(
+                            division: division,
+                            stageCode: stage.code,
+                            lastShotTime: time
+                        )
+                        if text != "" {
+                            infoTitle(icon: .init(systemName: "stopwatch"),
+                                      label: "Current Run",
+                                      color: Color.green)
+                            Text(text)
+                                .font(.system(.title2, weight: .bold))
+                        }
+
+                        let text2 = PeakBenchmarks.percentClass(
+                            division: division,
+                            stageCode: stage.code,
+                            stageTimes: vm.times()
+                        )
+
+                        if text2 != "" {
+                            Spacer().frame(height: 8)
                             
-                            Text(text).font(.title.bold())
-        
-                        } else {
-                            Text(" ").font(.title.bold())
+                            infoTitle(icon: .init(systemName: "stopwatch"),
+                                      label: stage.strings == 5 ? "Best 4 of Last 5" : "Best 3 of Last 4",
+                                      color: Color.blue)
+                            
+                            Text(text2)
+                                .font(.system(.title2, weight: .bold))
                         }
                         
                     }
@@ -74,14 +93,14 @@ struct RecordingView: View {
                     // Column 3
                     VStack(alignment: .trailing, spacing: 2) {
                         if let bestTime = vm.bestTime() {
-                            Text("Fastest").font(.title3.bold()).underline()
+                            infoTitle(icon: .init(systemName: "thermometer.high"), label: "Fastest", color: Color.green)
                             Text("Time: \(Format.formatTime(bestTime))")
-                                .font(.title3.bold())
+                                .font(.system(.subheadline, weight: .medium))
                                 .monospacedDigit()
                         }
                         if let bestFirstShot = vm.bestFirstShot() {
                             Text("1st: \(Format.formatTime(bestFirstShot))")
-                                .font(.title3.bold())
+                                .font(.system(.subheadline, weight: .medium))
                                 .monospacedDigit()
                         }
                         
@@ -89,17 +108,18 @@ struct RecordingView: View {
 
                         if vm.counter > 1 {
                             if let worstTime = vm.worstTime() {
-                                Text("Slowest").font(.title3.bold()).underline()
-                                Text("Run: \(Format.formatTime(worstTime))")
-                                    .font(.title3.bold())
+                                infoTitle(icon: .init(systemName: "thermometer.low"), label: "Slowest", color: Color.red)
+                                Text("Time: \(Format.formatTime(worstTime))")
+                                    .font(.system(.subheadline, weight: .medium))
                                     .monospacedDigit()
                             }
                             if let worstFirstShot = vm.worstFirstShot() {
                                 Text("1st: \(Format.formatTime(worstFirstShot))")
-                                    .font(.title3.bold())
+                                    .font(.system(.subheadline, weight: .medium))
                                     .monospacedDigit()
                             }
                         }
+                        
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     
@@ -143,7 +163,7 @@ struct RecordingView: View {
                         
                         Announcer.shared.speak(text: "\(vm.stringRun.time)")
                         
-                        Announcer.shared.speak(text: PeakBenchmarks.percentClass(
+                        Announcer.shared.speak(text: PeakBenchmarks.percentClassThisString(
                             division: division,
                             stageCode: stage.code,
                             lastShotTime: vm.stringRun.time))
@@ -156,6 +176,25 @@ struct RecordingView: View {
             }
         }
     }
+    
+    @ViewBuilder
+    private func infoTitle(icon: Image, label: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            icon
+            Text(label)
+        }
+        .font(.system(.subheadline, weight: .medium))
+        .foregroundStyle(color)
+    }
+
+    
+    private func calculateProgressWidth(geometry: GeometryProxy, current: Double, maxValue: Double) -> CGFloat {
+        guard maxValue > 0 else { return 0 }
+        let progress = min(max(current / maxValue, 0), 1)
+        return geometry.size.width * CGFloat(progress)
+    }
+    
+    
 }
 
 
@@ -182,11 +221,11 @@ struct RecordingView_Previews: PreviewProvider {
         )
                 
         // Example run with a few shots
-        let sampleRun = StringRun(stageId: Stage.preview.code, divisionId: Division.preview.rawValue)
-        sampleRun.time = 2.36
-        sampleRun.date = Date()
+        let sampleRun1 = StringRun(stageId: Stage.preview.code, divisionId: Division.preview.rawValue)
+        sampleRun1.time = 2.36
+        sampleRun1.date = Date()
 
-        sampleRun.stringShots = [
+        sampleRun1.stringShots = [
             StringShot(now: 0.75, split: 0.75, first: 0.75),
             StringShot(now: 1.32, split: 0.57, first: 0.75),
             StringShot(now: 1.86, split: 0.54, first: 0.75),
@@ -209,10 +248,12 @@ struct RecordingView_Previews: PreviewProvider {
         ]
                 
         let vm = RecordingViewModel(stageId: Stage.preview.code, divisionId: Division.preview.rawValue)
-        vm.stringRun = sampleRun
-        vm.counter = 2
-        vm.allRuns = [sampleRun, sampleRun2]
+        vm.allRuns = [sampleRun1, sampleRun1, sampleRun1, sampleRun2, sampleRun1, sampleRun1, sampleRun2, sampleRun1]
 
+        vm.stringRun = vm.allRuns.last!
+        vm.counter = vm.allRuns.count
+
+        
         // Mute the announcer in previews
         Announcer.shared.isEnabled = false
 
