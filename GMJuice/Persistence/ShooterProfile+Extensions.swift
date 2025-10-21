@@ -9,13 +9,26 @@ extension ShooterProfile {
     func profile(for division: Division) -> DivisionProfile? {
         divisions.first { $0.division == division }
     }
+    
     func ensureProfile(for division: Division) -> DivisionProfile {
         if let existing = profile(for: division) { return existing }
         let dp = DivisionProfile(division: division)
         divisions.append(dp)
         return dp
     }
+    
     func removeDivision(_ division: Division) {
         divisions.removeAll { $0.division == division }
+    }
+    
+    // Get classification for a specific division
+    func classification(for division: Division) -> ShooterClass {
+        return profile(for: division)?.classification ?? .U
+    }
+    
+    // Set classification for a specific division
+    func setClassification(_ classification: ShooterClass, for division: Division) {
+        let divisionProfile = ensureProfile(for: division)
+        divisionProfile.classification = classification
     }
 }

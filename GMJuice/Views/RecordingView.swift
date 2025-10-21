@@ -12,11 +12,10 @@ struct RecordingView: View {
     @ObservedObject private var announcer = Announcer.shared
     
     @StateObject private var vm: RecordingViewModel
-    
-    @Query private var profiles: [ShooterProfile]
 
     @MainActor
     init(stage: Stage, division: Division, vm: RecordingViewModel? = nil) {
+        
         self.stage = stage
         self.division = division
         
@@ -32,6 +31,7 @@ struct RecordingView: View {
     var body: some View {
         
         ZStack {
+            
             VStack(spacing: 8) {
                 HStack(alignment: .top, spacing: 8) { // row 1
                     
@@ -92,6 +92,8 @@ struct RecordingView: View {
                     
                     // Column 3
                     VStack(alignment: .trailing, spacing: 2) {
+                        timerConnectionStatus()
+                        
                         if let bestTime = vm.bestTime() {
                             infoTitle(icon: .init(systemName: "thermometer.high"), label: "Fastest", color: Color.green)
                             Text("Time: \(Format.formatTime(bestTime))")
@@ -161,18 +163,28 @@ struct RecordingView: View {
                     if new >= 5 {
                         modelContext.insert(vm.stringRun)
                         
-                        Announcer.shared.speak(text: "\(vm.stringRun.time)")
-                        
-                        Announcer.shared.speak(text: PeakBenchmarks.percentClassThisString(
-                            division: division,
-                            stageCode: stage.code,
-                            lastShotTime: vm.stringRun.time))
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            Announcer.shared.speak(text: "\(vm.stringRun.time)")
+                        }
                         
                         try modelContext.save()
                     }
                 } catch {
                     print("Failed to save StringRun: \(error.localizedDescription)")
                 }
+            }
+            .onAppear() {
+                UIApplication.shared.isIdleTimerDisabled = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if vm.connectionStatus == .Disconnected {
+                        Announcer.shared.speak(text: "Timer is not connected")
+                    } else {
+                        Announcer.shared.speak(text: "\(stage.name), \(division)")
+                    }
+                }
+            }
+            .onDisappear() {
+                UIApplication.shared.isIdleTimerDisabled = false
             }
         }
     }
@@ -186,6 +198,16 @@ struct RecordingView: View {
         .font(.system(.subheadline, weight: .medium))
         .foregroundStyle(color)
     }
+    
+    @ViewBuilder
+    private func timerConnectionStatus() -> some View {
+        Image(systemName: "timer")
+            .foregroundColor(
+                vm.connectionStatus == .Connected ? .green :
+                vm.connectionStatus == .Disconnected ? .red :
+                vm.connectionStatus == .Connecting ? .orange : .gray
+            )
+    }
 
     
     private func calculateProgressWidth(geometry: GeometryProxy, current: Double, maxValue: Double) -> CGFloat {
@@ -193,7 +215,6 @@ struct RecordingView: View {
         let progress = min(max(current / maxValue, 0), 1)
         return geometry.size.width * CGFloat(progress)
     }
-    
     
 }
 

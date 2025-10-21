@@ -42,10 +42,25 @@ struct SettingsView: View {
                     }
                 }
                 
-                Section("Preferences") {
-                    Toggle("Announcer", isOn: $announcer.isEnabled)
-                        .tint(.accentColor)
-                        .accessibilityLabel("Enable or disable spoken announcements")
+                // In your settings view
+                Section("Voice") {
+                    Toggle("Announcements Enabled", isOn: $announcer.isEnabled)
+                    
+                    Toggle("Speak on Silent", isOn: $announcer.speakOnSilent)
+                                        
+                    // Add voice picker button
+                    NavigationLink {
+                        VoicePickerView()
+                    } label: {
+                        HStack {
+                            Text("Voice")
+                            Spacer()
+                            if let voice = announcer.currentVoice() {
+                                Text(voice.name)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle("Settings")

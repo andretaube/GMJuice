@@ -16,7 +16,7 @@ final class SettingsViewModel: ObservableObject {
     @Published var devices: [Device] = []
     @Published var savedId: UUID?
     @Published var savedName: String = "None"
-    @Published var connectionStatus: String = "";
+    @Published var connectionStatus: String = ""
     
     private var bag = Set<AnyCancellable>()
     
@@ -26,6 +26,19 @@ final class SettingsViewModel: ObservableObject {
             .map { $0.map { Device(id: $0.identifier, name: $0.name ?? "") } }
             .receive(on: RunLoop.main)
             .assign(to: \.devices, on: self)
+            .store(in: &bag)
+        
+        // Subscribe to BLE connection status
+        ble.$connectionStatus
+            .map { status in
+                switch status {
+                case .Connected: return "Connected"
+                case .Disconnected: return "Disconnected"
+                case .Connecting: return "Connecting..."
+                }
+            }
+            .receive(on: RunLoop.main)
+            .assign(to: \.connectionStatus, on: self)
             .store(in: &bag)
                 
         self.savedId = ble.savedId()
@@ -38,38 +51,5 @@ final class SettingsViewModel: ObservableObject {
                 self.savedName = self.ble.savedName()
             }
         }
-        
-        ble.onConnecting = { [weak self] _ in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
-                self.connectionStatus = "Connecting..."
-            }
-        }
-        
-        ble.onConnected = { [weak self] _ in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
-                self.connectionStatus = "Connected"
-            }
-        }
-        
-        ble.onDisconnected = { [weak self] _, _ in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
-                self.connectionStatus = "Disconnected"
-            }
-        }
-        
-        ble.onConnectFailed = { [weak self] _, error in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
-                self.connectionStatus = "Failed: \(error?.localizedDescription ?? "unknown")"
-            }
-        }
-
-        
-        
     }
-    
-    
 }

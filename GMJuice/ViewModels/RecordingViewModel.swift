@@ -16,9 +16,10 @@ public class RecordingViewModel: ObservableObject {
     @Published var stringRun: StringRun
     @Published var counter: Int = 0
     @Published var allRuns: [StringRun] = []
-
+    @Published var connectionStatus: BLEConnectionStatus = .Disconnected
 
     private let ble = BLEManager.shared
+    private var cancellables = Set<AnyCancellable>()
     
     init(stageId: String, divisionId: String) {
         
@@ -26,6 +27,12 @@ public class RecordingViewModel: ObservableObject {
         
         self.stageId = stageId
         self.divisionId = divisionId
+        
+        // Subscribe to BLE connection status changes
+        ble.$connectionStatus
+            .receive(on: RunLoop.main)
+            .assign(to: \.connectionStatus, on: self)
+            .store(in: &cancellables)
         
         ble.onBeep = {[weak self] in
             self?.startString()
@@ -86,8 +93,7 @@ public class RecordingViewModel: ObservableObject {
     
     func times() -> [Decimal] {
         allRuns
-            .map(\.time)          // extract each run’s total time
+            .map(\.time)          // extract each run's total time
             .filter { $0 > 0 }    // only valid (non-zero) times
     }
-    
 }

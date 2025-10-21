@@ -7,6 +7,12 @@
 import Foundation
 import CoreBluetooth
 
+enum BLEConnectionStatus {
+    case Connected
+    case Disconnected
+    case Connecting
+}
+
 final class BLEManager: NSObject, ObservableObject {
     public static let shared = BLEManager()
     
@@ -17,6 +23,7 @@ final class BLEManager: NSObject, ObservableObject {
     
     private var central: CBCentralManager!
     @Published var discoveredDevices: [CBPeripheral] = []
+    @Published var connectionStatus: BLEConnectionStatus = BLEConnectionStatus.Disconnected
     
     // MARK: - Persistence keys
     private let savedUUIDKey = "ble_saved_uuid"
@@ -32,7 +39,6 @@ final class BLEManager: NSObject, ObservableObject {
     var onBeep: (() -> Void)?
     var onShot: ((Decimal, Decimal, Decimal) -> Void)?
     var onStopWaiting: (() -> Void)?
-
     
     private var notifyChar: CBCharacteristic?
     private var writeChar:  CBCharacteristic?
@@ -51,17 +57,15 @@ final class BLEManager: NSObject, ObservableObject {
     func connectSavedOrScan() {
         if let savedUUID = savedId(),
            let p = central.retrievePeripherals(withIdentifiers: [savedUUID]).first {
-            print("Connecting to saved device \(savedUUID)")
             current = p
             current?.delegate = self
+            connectionStatus = .Connecting
             onConnecting?(p)
             central.connect(p, options: [
                 CBConnectPeripheralOptionNotifyOnConnectionKey: true,
                 CBConnectPeripheralOptionNotifyOnDisconnectionKey: true,
                 CBConnectPeripheralOptionNotifyOnNotificationKey: true
             ])
-        } else {
-            print("No saved devices to connect to")
         }
     }
     
@@ -69,7 +73,6 @@ final class BLEManager: NSObject, ObservableObject {
     
     public func startScanning() {
         guard central.state == .poweredOn else {
-            print("Central not powered on, cannot scan yet.")
             return
         }
         
@@ -78,16 +81,13 @@ final class BLEManager: NSObject, ObservableObject {
             withServices: nil
             
         )
-        
-        print("Started scanning for BLE devices...")
-        
+
         central.retrieveConnectedPeripherals(withServices: [TIMER_SERVICE])
     }
     
     public func stopScanning() {
         central.stopScan()
         discoveredDevices.removeAll()
-        print ("Scan stopped")
     }
     
     public func connect(savedUUID: UUID?) {
@@ -98,6 +98,7 @@ final class BLEManager: NSObject, ObservableObject {
         }
         current = p
         current?.delegate = self
+        connectionStatus = .Connecting
         onConnecting?(p)
         central.connect(p, options: [
             CBConnectPeripheralOptionNotifyOnConnectionKey: true,
@@ -201,12 +202,16 @@ extension BLEManager: CBCentralManagerDelegate {
             print("Bluetooth powered on.")
         case .poweredOff:
             print("Bluetooth powered off.")
+            connectionStatus = .Disconnected  // Add this line
         case .resetting:
             print("Bluetooth resetting...")
+            connectionStatus = .Disconnected  // Add this line
         case .unauthorized:
             print("Bluetooth unauthorized.")
+            connectionStatus = .Disconnected  // Add this line
         case .unsupported:
             print("Bluetooth unsupported on this device.")
+            connectionStatus = .Disconnected  // Add this line
         case .unknown:
             fallthrough
         @unknown default:
@@ -232,6 +237,7 @@ extension BLEManager: CBCentralManagerDelegate {
     }
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        connectionStatus = .Connected
         onConnected?(peripheral)
         // Typically discover services next:
         peripheral.discoverServices(nil)
@@ -240,12 +246,14 @@ extension BLEManager: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager,
                         didFailToConnect peripheral: CBPeripheral,
                         error: Error?) {
+        connectionStatus = .Disconnected
         onConnectFailed?(peripheral, error)
     }
     
     func centralManager(_ central: CBCentralManager,
                         didDisconnectPeripheral peripheral: CBPeripheral,
                         error: Error?) {
+        connectionStatus = .Disconnected
         onDisconnected?(peripheral, error)
         // If this was your current device, clear it or auto-retry as desired
         if current?.identifier == peripheral.identifier { current = nil }
