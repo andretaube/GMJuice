@@ -206,29 +206,6 @@ public struct PeakTable: Codable {
                 
         self[division, stageCode] = PeakBenchmark(strings: stage.strings, peakTime: peakTime)
     }
-
-    // MARK: - Single-string classification (pass last shot time)
-
-    /// Returns something like "87% (A)" for a single-string performance vs the peak pace.
-//    func percentClassThisString(division: Division, stageCode: String, time: Decimal) -> String {
-//        let percent = percent(division: division, stageCode: stageCode, time: time)
-//        let percentDouble = NSDecimalNumber(decimal: percent).doubleValue
-//        let shooterClass = ShooterClass.shooterClass(percentage: percent)
-//        
-//        return String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue)
-//    }
-//    
-//    func percentClass(division: Division, stageCode: String, stageTimes: [Decimal]) -> String {
-//        let roundedPercent = percent(division: division, stageCode: stageCode, times: stageTimes)
-//        
-//        guard roundedPercent > 0 else { return "" }
-//
-//        // Return formatted string
-//        let percentDouble = NSDecimalNumber(decimal: roundedPercent).doubleValue
-//        let shooterClass = ShooterClass.shooterClass(percentage: roundedPercent)
-//        
-//        return String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue)
-//    }
     
     func percent(division: Division, stageCode: String, times: [Decimal]) -> Decimal {
         // Validate benchmark
