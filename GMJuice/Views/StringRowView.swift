@@ -77,14 +77,9 @@ struct StringRowView: View {
                     .frame(minWidth: 10, alignment: .trailing)
                     .padding(.top, 2)
                 
-                if shots.count >= 5, let last = shots.last {
+                if shots.count >= 5 {
                     if let division = Division(rawValue: run.divisionId) {
-                        let text = PeakBenchmarks.percentClassThisString(
-                            division: division,
-                            stageCode: run.stageId,
-                            lastShotTime: last.now);
-                        Text(text)
-                            .font(.headline.bold())
+                        percentClass(division: division, stageCode: run.stageId, time: run.time)
                     }
                 } else {
                     Text(" ").font(.headline.bold())
@@ -93,6 +88,15 @@ struct StringRowView: View {
         }
         .contentShape(Rectangle())
         .padding(.vertical, 6)
+    }
+    
+    @ViewBuilder
+    private func percentClass(division: Division, stageCode: String, time: Decimal) -> some View {
+        let pct = PeakBenchmarks.percent(division: division, stageCode: stageCode, time: time)
+        let percentDouble = NSDecimalNumber(decimal: pct).doubleValue
+        let shooterClass = ShooterClass.shooterClass(percentage: pct)
+        
+        Text(String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue))
     }
 
     // Helpers

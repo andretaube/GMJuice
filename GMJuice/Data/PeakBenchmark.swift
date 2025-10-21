@@ -210,127 +210,67 @@ public struct PeakTable: Codable {
     // MARK: - Single-string classification (pass last shot time)
 
     /// Returns something like "87% (A)" for a single-string performance vs the peak pace.
-    func percentClassThisString(division: Division, stageCode: String, lastShotTime: Decimal) -> String {
-        // Check for valid time, existing benchmark, and non-zero strings.
-        guard lastShotTime > 0,
-              let bm = get(division: division, stageCode: stageCode),
-              bm.strings > 0 else {
-            return ""
-        }
-
-        // Perform all arithmetic using Decimal to maintain precision.
-        let stringsDecimal = Decimal(bm.strings)
-        let peakPerString = bm.peakTime / stringsDecimal
-        
-        // Ensure you're not dividing by zero.
-        guard lastShotTime != 0 else {
-            return ""
-        }
-        
-        let rawPercent = (peakPerString / lastShotTime) * 100
-        
-        // Round the final Decimal to a whole number using NSDecimalRound.
-        var roundedPercent = Decimal()
-        var rawPercentValue = rawPercent
-        NSDecimalRound(&roundedPercent, &rawPercentValue, 0, .plain)
-        
-        // Convert the rounded Decimal to a Double for the string formatting.
-        let roundedDouble = (roundedPercent as NSDecimalNumber).doubleValue
-        
-        // Pass the Double to String(format:).
-        return String(format: "%.0f%% (%@)", roundedDouble, PeakTable.shooterClassString(percentage: roundedPercent))
-    }
+//    func percentClassThisString(division: Division, stageCode: String, time: Decimal) -> String {
+//        let percent = percent(division: division, stageCode: stageCode, time: time)
+//        let percentDouble = NSDecimalNumber(decimal: percent).doubleValue
+//        let shooterClass = ShooterClass.shooterClass(percentage: percent)
+//        
+//        return String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue)
+//    }
+//    
+//    func percentClass(division: Division, stageCode: String, stageTimes: [Decimal]) -> String {
+//        let roundedPercent = percent(division: division, stageCode: stageCode, times: stageTimes)
+//        
+//        guard roundedPercent > 0 else { return "" }
+//
+//        // Return formatted string
+//        let percentDouble = NSDecimalNumber(decimal: roundedPercent).doubleValue
+//        let shooterClass = ShooterClass.shooterClass(percentage: roundedPercent)
+//        
+//        return String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue)
+//    }
     
-    func percentClass(division: Division, stageCode: String, stageTimes: [Decimal]) -> String {
+    func percent(division: Division, stageCode: String, times: [Decimal]) -> Decimal {
         // Validate benchmark
         guard let bm = get(division: division, stageCode: stageCode),
               bm.strings > 0 else {
-            return ""
+            return 0
         }
         
         // Keep only valid, positive times
-        let valid = stageTimes.filter { $0 > 0 }
-        guard !valid.isEmpty else { return "" }
+        let recent = Array(times.suffix(bm.strings))
+        
+        // If user hasn't completed enough strings, don't classify
+        guard recent.count == bm.strings else { return 0 }
+        
+        let slowest = recent.max() ?? 0
+        let totalTime = recent.reduce(0, +) - slowest
 
-        // If user hasn’t completed enough strings, don’t classify
-        guard valid.count >= bm.strings + 1 else { return "" }
+        guard totalTime > 0 else { return 0 }
 
-        // Take the last N attempts for this stage (N = bm.strings, e.g. 4 or 5)
-        let recent = Array(valid.suffix(bm.strings + 1))
-
-        // Drop one slowest if we have 4 or 5; else use all
-        let totalTime: Decimal = {
-            let sum = recent.reduce(0, +)
-            if recent.count >= 4, let slowest = recent.max() {
-                return sum - slowest
-            } else {
-                return sum
-            }
-        }()
-
-        guard totalTime > 0 else { return "" }
-
-        // Calculate percent classification
         let rawPercent = (bm.peakTime / totalTime) * 100
-
-        // Round to nearest whole number
-        var roundedPercent = Decimal()
-        var raw = rawPercent
-        NSDecimalRound(&roundedPercent, &raw, 0, .plain)
-
-        let roundedDouble = (roundedPercent as NSDecimalNumber).doubleValue
-
-        // Return formatted string
-        return String(
-            format: "%.0f%% (%@)",
-            roundedDouble,
-            PeakTable.shooterClassString(percentage: roundedPercent)
-        )
-    }
-
-
-
-    
-    func percent(division: Division, stageCode: String, time: Decimal) -> Decimal {
-        // Check for valid time, existing benchmark, and non-zero strings.
-        guard time > 0,
-              let bm = get(division: division, stageCode: stageCode),
-              bm.strings > 0 else {
-            return 0
-        }
-
-        // Perform all arithmetic using Decimal to maintain precision.
-        let stringsDecimal = Decimal(bm.strings)
-        let peakPerString = bm.peakTime / stringsDecimal
         
-        // Ensure you're not dividing by zero.
-        guard time != 0 else {
-            return 0
-        }
-        
-        let rawPercent = (peakPerString / time) * 100
-        
-        // Round the final result using the NSDecimalRound API for control.
         var roundedPercent = Decimal()
         var rawPercentValue = rawPercent
         NSDecimalRound(&roundedPercent, &rawPercentValue, 0, .plain)
         
         return roundedPercent
     }
-
-    static func shooterClassString(percentage: Decimal) -> String {
-        return shooterClass(percentage: percentage).rawValue
-    }
     
-    static func shooterClass(percentage: Decimal) -> ShooterClass {
-        switch percentage {
-        case 95...:   return .GM
-        case 85..<95: return .M
-        case 75..<85: return .A
-        case 60..<75: return .B
-        case 40..<60: return .C
-        case 2..<40:  return .D
-        default:      return .U
+    func percent(division: Division, stageCode: String, time: Decimal) -> Decimal {
+        guard time > 0,
+              let bm = get(division: division, stageCode: stageCode),
+              bm.strings > 0 else {
+            return 0
         }
+        
+        let peakPerUnit = bm.peakTime / Decimal(bm.strings - 1)
+        let rawPercent = (peakPerUnit / time) * 100
+        
+        var roundedPercent = Decimal()
+        var rawPercentValue = rawPercent
+        NSDecimalRound(&roundedPercent, &rawPercentValue, 0, .plain)
+        
+        return roundedPercent
     }
 }

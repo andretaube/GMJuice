@@ -12,6 +12,11 @@ struct RecordingView: View {
     @ObservedObject private var announcer = Announcer.shared
     
     @StateObject private var vm: RecordingViewModel
+    
+    @Query private var shooterProfiles: [ShooterProfile]
+    private var shooter: ShooterProfile? {
+        shooterProfiles.first
+    }
 
     @MainActor
     init(stage: Stage, division: Division, vm: RecordingViewModel? = nil) {
@@ -43,34 +48,23 @@ struct RecordingView: View {
                         let time = vm.stringRun.time
                         
                         
-                        let text = PeakBenchmarks.percentClassThisString(
-                            division: division,
-                            stageCode: stage.code,
-                            lastShotTime: time
-                        )
-                        if text != "" {
+                        if time > 0 {
                             infoTitle(icon: .init(systemName: "stopwatch"),
                                       label: "Current Run",
-                                      color: Color.green)
-                            Text(text)
-                                .font(.system(.title2, weight: .bold))
+                                      color: Color.blue)
+                            
+                            percentClass(division: division, stageCode: stage.code, time: time)
+                                                        
                         }
 
-                        let text2 = PeakBenchmarks.percentClass(
-                            division: division,
-                            stageCode: stage.code,
-                            stageTimes: vm.times()
-                        )
-
-                        if text2 != "" {
+                        if time > 0 {
                             Spacer().frame(height: 8)
                             
                             infoTitle(icon: .init(systemName: "stopwatch"),
                                       label: stage.strings == 5 ? "Best 4 of Last 5" : "Best 3 of Last 4",
                                       color: Color.blue)
                             
-                            Text(text2)
-                                .font(.system(.title2, weight: .bold))
+                            percentClass(division: division, stageCode: stage.code, times: vm.times())
                         }
                         
                     }
@@ -129,13 +123,15 @@ struct RecordingView: View {
                     
                 } // end of row 1
                 
-                HStack { // row 2
+                VStack(alignment: .leading, spacing: -12) { // row 2 - reduced spacing
+                    if vm.stringRun.orderedStringShots.count > 0 {
+                        infoTitle(icon: .init(systemName: "list.number"), label: "Shots / Splits", color: Color.blue)
+                    }
+                    
                     ScrollView(.horizontal, showsIndicators: false) {
-                        
                         HStack {
                             ForEach(vm.stringRun.orderedStringShots) { shot in
-                                
-                                VStack(spacing: 8) {
+                                VStack(spacing: 4) {
                                     // Top: cumulative offset
                                     Text("\(Format.formatTime(shot.now))")
                                         .font(.headline.bold())
@@ -146,16 +142,14 @@ struct RecordingView: View {
                                         .font(.headline)
                                         .monospacedDigit()
                                 }
-                                .padding(.horizontal, 10)
-                                .overlay(alignment: .leading) {
-                                }
+                                .padding(.horizontal, 4)
                             }
                         }
+                        .padding(.top, 0) // Add slight top padding to content
                     }
-                    .frame(height: 88) // a bit taller for two rows
-                    .padding(.bottom)
-                }
-            }// end of row 2
+                    .frame(height: 88)
+                }// end of row 2
+            }
             .navigationTitle("\(stage.name) – \(stage.code) - \(division)")
             .navigationBarTitleDisplayMode(.inline)
             .onChange(of: vm.stringRun.stringShots.count) { old, new in
@@ -176,7 +170,7 @@ struct RecordingView: View {
             .onAppear() {
                 UIApplication.shared.isIdleTimerDisabled = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    if vm.connectionStatus == .Disconnected {
+                    if vm.connectionStatus != .Connected {
                         Announcer.shared.speak(text: "Timer is not connected")
                     } else {
                         Announcer.shared.speak(text: "\(stage.name), \(division)")
@@ -191,12 +185,42 @@ struct RecordingView: View {
     
     @ViewBuilder
     private func infoTitle(icon: Image, label: String, color: Color) -> some View {
-        HStack(spacing: 4) {
+        HStack {
             icon
             Text(label)
         }
         .font(.system(.subheadline, weight: .medium))
         .foregroundStyle(color)
+    }
+    
+    @ViewBuilder
+    private func percentClass(division: Division, stageCode: String, time: Decimal) -> some View {
+        let pct = PeakBenchmarks.percent(division: division, stageCode: stageCode, time: time)
+        let percentDouble = NSDecimalNumber(decimal: pct).doubleValue
+        let shooterClass = ShooterClass.shooterClass(percentage: pct)
+        
+        HStack {
+            Text(String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue))
+            if let classification = shooter?.classification(for: division) {
+                stringReward(percent: pct, shooterClass: classification)
+                    .imageScale(.medium)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func percentClass(division: Division, stageCode: String, times: [Decimal]) -> some View {
+        let pct = PeakBenchmarks.percent(division: division, stageCode: stageCode, times: times)
+        let percentDouble = NSDecimalNumber(decimal: pct).doubleValue
+        let shooterClass = ShooterClass.shooterClass(percentage: pct)
+        
+        HStack {
+            Text(String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue))
+            if let classification = shooter?.classification(for: division) {
+                stringReward(percent: pct, shooterClass: classification)
+                    .imageScale(.medium)
+            }
+        }
     }
     
     @ViewBuilder
@@ -208,12 +232,28 @@ struct RecordingView: View {
                 vm.connectionStatus == .Connecting ? .orange : .gray
             )
     }
-
     
-    private func calculateProgressWidth(geometry: GeometryProxy, current: Double, maxValue: Double) -> CGFloat {
-        guard maxValue > 0 else { return 0 }
-        let progress = min(max(current / maxValue, 0), 1)
-        return geometry.size.width * CGFloat(progress)
+    @ViewBuilder
+    private func stringReward(
+        percent: Decimal,
+        shooterClass: ShooterClass
+    ) -> some View {
+        let threshold = shooterClass.percentThreshold
+        let nextClassThreshold = shooterClass.nextClassThreshold
+        
+        if percent >= nextClassThreshold {
+            // Shooting above your class level - trophy!
+            Image(systemName: "trophy.fill")
+                .foregroundStyle(.yellow)
+        } else if percent >= threshold {
+            // At your class level - thumbs up
+            Image(systemName: "hand.thumbsup.fill")
+                .foregroundStyle(.green)
+        } else {
+            // Below your class level - thumbs down
+            Image(systemName: "hand.thumbsdown.fill")
+                .foregroundStyle(.red)
+        }
     }
     
 }
@@ -240,10 +280,14 @@ struct RecordingView_Previews: PreviewProvider {
             for: StringRun.self, StringShot.self, ShooterProfile.self, DivisionProfile.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
+        
+        let shooterProfile = ShooterProfile(uspsaNumber: "A12345")
+        shooterProfile.setClassification(.M, for: .RFPO)
+        container.mainContext.insert(shooterProfile)
                 
         // Example run with a few shots
         let sampleRun1 = StringRun(stageId: Stage.preview.code, divisionId: Division.preview.rawValue)
-        sampleRun1.time = 2.36
+        sampleRun1.time = 2.12
         sampleRun1.date = Date()
 
         sampleRun1.stringShots = [
@@ -251,7 +295,7 @@ struct RecordingView_Previews: PreviewProvider {
             StringShot(now: 1.32, split: 0.57, first: 0.75),
             StringShot(now: 1.86, split: 0.54, first: 0.75),
             StringShot(now: 2.36, split: 0.50, first: 0.75),
-            StringShot(now: 2.56, split: 0.20, first: 0.75),
+            StringShot(now: 2.26, split: 0.20, first: 0.75),
         ]
         
         // bad run
@@ -269,7 +313,7 @@ struct RecordingView_Previews: PreviewProvider {
         ]
                 
         let vm = RecordingViewModel(stageId: Stage.preview.code, divisionId: Division.preview.rawValue)
-        vm.allRuns = [sampleRun1, sampleRun1, sampleRun1, sampleRun2, sampleRun1, sampleRun1, sampleRun2, sampleRun1]
+        vm.allRuns = [sampleRun1, sampleRun1, sampleRun1, sampleRun2, sampleRun1, sampleRun2, sampleRun1, sampleRun1]
 
         vm.stringRun = vm.allRuns.last!
         vm.counter = vm.allRuns.count
