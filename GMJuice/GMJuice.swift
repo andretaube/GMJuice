@@ -17,6 +17,16 @@ struct GMJuice: App {
     @StateObject private var announcer = Announcer.shared
     
     @AppStorage("announcer_enabled") private var announcerEnabled = true
+    @AppStorage("appearanceMode") private var appearanceMode: String = "system"
+    
+    var colorScheme: ColorScheme? {
+        switch appearanceMode {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil
+        }
+    }
+    
     init() {
         Announcer.shared.isEnabled = announcerEnabled
     }
@@ -54,6 +64,8 @@ struct GMJuice: App {
             .task {
                 bootstrap.start()
             }
+            .preferredColorScheme(colorScheme)
+
         }
         .modelContainer(sharedModelContainer)
         .onChange(of: scenePhase) { _, phase in

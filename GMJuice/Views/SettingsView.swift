@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject private var ble = SettingsViewModel.shared
     @ObservedObject private var announcer = Announcer.shared
+    @AppStorage("appearanceMode") private var appearanceMode: String = "system"
     
     var body: some View {
         NavigationStack {
@@ -42,13 +43,20 @@ struct SettingsView: View {
                     }
                 }
                 
-                // In your settings view
+                Section("Appearance") {
+                    Picker("Theme", selection: $appearanceMode) {
+                        Text("System").tag("system")
+                        Text("Light").tag("light")
+                        Text("Dark").tag("dark")
+                    }
+                    .pickerStyle(.segmented)
+                }
+                
                 Section("Voice") {
                     Toggle("Announcements Enabled", isOn: $announcer.isEnabled)
                     
                     Toggle("Speak on Silent", isOn: $announcer.speakOnSilent)
                                         
-                    // Add voice picker button
                     NavigationLink {
                         VoicePickerView()
                     } label: {
