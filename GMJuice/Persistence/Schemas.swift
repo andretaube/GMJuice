@@ -44,6 +44,13 @@ enum Schema001: VersionedSchema {
             self.date = Date()
             self.time = 0
         }
+        
+        init(stageId: String, divisionId: String, date: Date, time: Decimal) {
+            self.stageId = stageId
+            self.divisionId = divisionId
+            self.date = date
+            self.time = time
+        }
     }
     
     @Model

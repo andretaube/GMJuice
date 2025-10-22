@@ -17,27 +17,35 @@ public struct SummaryView: View {
     let slowestFirstShot: Decimal
 
     public var body: some View {
-        HStack {
-            Metric("Runs", "\(total)")
-            Divider().frame(height: 28)
-            Metric("Fastest", "\(fastestRun)")
-            Divider().frame(height: 28)
-            Metric("Avg", "\(avgRun)")
-            Divider().frame(height: 28)
-            Metric("Slowest", "\(slowestRun)")
-            Divider().frame(height: 28)
-            Metric("Fastest 1st Shot", "\(fastestFirstShot)")
-            Divider().frame(height: 28)
-            Metric("Avg 1st Shot", "\(avgFirstShot)")
-            Divider().frame(height: 28)
-            Metric("Slowest 1st Shot", "\(slowestFirstShot)")
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack {
+                Metric("Runs", "\(total)")
+                Divider().frame(height: 28)
+                Metric("Fist", "\(fastestRun)")
+                Divider().frame(height: 28)
+                Metric("Avg", "\(avgRun)")
+                Divider().frame(height: 28)
+                Metric("Slow", "\(slowestRun)")
+                Divider().frame(height: 28)
+                Metric("Fast 1st", "\(fastestFirstShot)")
+                Divider().frame(height: 28)
+                Metric("Avg 1st", "\(avgFirstShot)")
+                Divider().frame(height: 28)
+                Metric("Slow 1st", "\(slowestFirstShot)")
+            }
         }
     }
 
     private func Metric(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.body).monospacedDigit()
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Text(value)
+                .font(.body)
+                .monospacedDigit()
+                .lineLimit(1)
         }
     }
 }

@@ -45,14 +45,11 @@ public class RecordingViewModel: ObservableObject {
     
     func startString() {
         stringRun = StringRun(stageId: self.stageId, divisionId: self.divisionId)
+        allRuns.append(stringRun)
         counter += 1
     }
 
     func recordShot(now: Decimal, split: Decimal, first: Decimal) {
-        
-        if !stringRun.stringShots.isEmpty {
-            allRuns.append(stringRun)
-        }
         
         let stringShot = StringShot(now: now, split: split, first: first)
         stringRun.time = now
@@ -93,6 +90,7 @@ public class RecordingViewModel: ObservableObject {
     
     func times() -> [Decimal] {
         allRuns
+            .sorted { $0.date < $1.date }
             .map(\.time)          // extract each run's total time
             .filter { $0 > 0 }    // only valid (non-zero) times
     }

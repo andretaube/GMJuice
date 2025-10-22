@@ -213,7 +213,7 @@ public struct PeakTable: Codable {
               bm.strings > 0 else {
             return 0
         }
-        
+                
         // Keep only valid, positive times
         let recent = Array(times.suffix(bm.strings))
         
@@ -221,12 +221,13 @@ public struct PeakTable: Codable {
         guard recent.count == bm.strings else { return 0 }
         
         let slowest = recent.max() ?? 0
+                
         let totalTime = recent.reduce(0, +) - slowest
-
+        
         guard totalTime > 0 else { return 0 }
 
         let rawPercent = (bm.peakTime / totalTime) * 100
-        
+                
         var roundedPercent = Decimal()
         var rawPercentValue = rawPercent
         NSDecimalRound(&roundedPercent, &rawPercentValue, 0, .plain)

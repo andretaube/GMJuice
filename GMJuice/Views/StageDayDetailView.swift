@@ -143,3 +143,53 @@ extension Decimal {
         return result
     }
 }
+
+#if DEBUG
+
+
+#Preview("Stage Detail with Runs") {
+    let stageId = "SC-101"
+    let divisionId = Division.RFPO.rawValue
+    
+    let schema = Schema(versionedSchema: Schema001.self)
+    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: schema, configurations: [config])
+    
+    let _ = {
+        let context = container.mainContext
+        
+        // Create mock runs with different times
+        let run1 = StringRun(
+            stageId: stageId,
+            divisionId: divisionId,
+            date: Date(),
+            time: 2.17
+        )
+        let run2 = StringRun(
+            stageId: stageId,
+            divisionId: divisionId,
+            date: Date().addingTimeInterval(-3600),
+            time: 2.21
+        )
+        let run3 = StringRun(
+            stageId: stageId,
+            divisionId: divisionId,
+            date: Date().addingTimeInterval(-7200),
+            time: 2.35
+        )
+                
+        context.insert(run1)
+        context.insert(run2)
+        context.insert(run3)
+    }()
+    
+    NavigationStack {
+        StageDayDetailView(
+            dayStart: Calendar.current.startOfDay(for: Date()),
+            stageId: stageId,
+            divisionId: divisionId
+        )
+        .modelContainer(container)
+    }
+}
+#endif

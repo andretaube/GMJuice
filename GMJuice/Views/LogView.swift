@@ -38,7 +38,8 @@ struct LogView: View {
                                                 Spacer()
 
                                                 Label {
-                                                    Text("\(s.best)").monospacedDigit()
+                                                    Text(s.best, format: .number.precision(.fractionLength(2)))
+                                                        .monospacedDigit()
                                                 } icon: {
                                                     Image(systemName: "medal.fill") // or "trophy.circle.fill"
                                                 }
@@ -159,3 +160,82 @@ struct LogView: View {
         let count: Int
     }
 }
+
+#if DEBUG
+
+import SwiftUI
+import SwiftData
+
+#Preview {
+    
+    let stageId = "SC-101"
+    let divisionId = Division.RFPO.rawValue
+    
+    let schema = Schema(versionedSchema: Schema001.self)
+    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: schema, configurations: [config])
+    
+    let _ = {
+        let context = container.mainContext
+        
+        // Create mock data
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+        let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: today)!
+        
+        // Today's runs
+        let run1 = StringRun(
+            stageId: stageId,
+            divisionId: divisionId,
+            date: Date(),
+            time: 2.17
+        )
+        let run2 = StringRun(
+            stageId: stageId,
+            divisionId: divisionId,
+            date: Date().addingTimeInterval(-3600),
+            time: 2.21
+        )
+        let run3 = StringRun(
+            stageId: stageId,
+            divisionId: divisionId,
+            date: Date().addingTimeInterval(-7200),
+            time: 2.35
+        )
+        
+        // Yesterday's runs
+        let run4 = StringRun(
+            stageId: stageId,
+            divisionId: divisionId,
+            date: yesterday.addingTimeInterval(3600),
+            time: 2.30
+        )
+        let run5 = StringRun(
+            stageId: stageId,
+            divisionId: divisionId,
+            date: yesterday.addingTimeInterval(7200),
+            time: 2.11
+        )
+        
+        // Two days ago runs
+        let run6 = StringRun(
+            stageId: stageId,
+            divisionId: divisionId,
+            date: twoDaysAgo.addingTimeInterval(3600),
+            time: 2.15
+        )
+        
+        context.insert(run1)
+        context.insert(run2)
+        context.insert(run3)
+        context.insert(run4)
+        context.insert(run5)
+        context.insert(run6)
+    }()
+    
+    LogView()
+        .modelContainer(container)
+}
+
+#endif

@@ -63,3 +63,13 @@ struct GMJuice: App {
         }
     }
 }
+
+#Preview {
+    let schema = Schema(versionedSchema: Schema001.self)
+    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: schema, configurations: [config])
+    
+    return RootTabs()
+        .environmentObject(BLEManager.shared)
+        .modelContainer(container)
+}

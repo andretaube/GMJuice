@@ -11,6 +11,8 @@ import Foundation
 struct TrainView: View {
     // Persist the user’s selected SCSA division in user preferences
     @AppStorage("scsa_active_division") private var activeDivisionRaw: String = Division.RFPO.rawValue
+    
+    @State private var orientation = UIDevice.current.orientation
 
     // Binding that bridges @AppStorage <-> enum
     private var selectedDivisionBinding: Binding<Division> {
@@ -49,6 +51,13 @@ struct TrainView: View {
                 }
             }
             .navigationTitle("Train")
+            .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+                orientation = UIDevice.current.orientation
+            }
         }
     }
+}
+
+#Preview {
+    TrainView()
 }

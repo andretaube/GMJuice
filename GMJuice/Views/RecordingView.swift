@@ -35,153 +35,183 @@ struct RecordingView: View {
 
     var body: some View {
         
-        ZStack {
-            
-            VStack(spacing: 8) {
-                HStack(alignment: .top, spacing: 8) { // row 1
-                    
-                    // Column 1: Shot index and Percent Class
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("#\(vm.counter)")
-                            .font(.title.bold())
-                        
-                        let time = vm.stringRun.time
-                        
-                        
-                        if time > 0 {
-                            infoTitle(icon: .init(systemName: "stopwatch"),
-                                      label: "Current Run",
-                                      color: Color.blue)
-                            
-                            percentClass(division: division, stageCode: stage.code, time: time)
-                                                        
-                        }
-
-                        if time > 0 {
-                            Spacer().frame(height: 8)
-                            
-                            infoTitle(icon: .init(systemName: "stopwatch"),
-                                      label: stage.strings == 5 ? "Best 4 of Last 5" : "Best 3 of Last 4",
-                                      color: Color.blue)
-                            
-                            percentClass(division: division, stageCode: stage.code, times: vm.times())
-                        }
-                        
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    
-                    // Column 2: Big Timer
-                    let time = vm.stringRun.time
-                    GeometryReader { geo in
-                        Text(Format.formatTime(time))
-                            .monospacedDigit()
-                            .font(.system(size: geo.size.height * 1.0, weight: .bold)) // scale with height
-                            .lineLimit(1)
-                            .scaleEffect(1.3)
-                            .minimumScaleFactor(0.1)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    }
-                    
-                    // Column 3
-                    VStack(alignment: .trailing, spacing: 2) {
-                        timerConnectionStatus()
-                        
-                        if let bestTime = vm.bestTime() {
-                            infoTitle(icon: .init(systemName: "thermometer.high"), label: "Fastest", color: Color.green)
-                            Text("Time: \(Format.formatTime(bestTime))")
-                                .font(.system(.subheadline, weight: .medium))
-                                .monospacedDigit()
-                        }
-                        if let bestFirstShot = vm.bestFirstShot() {
-                            Text("1st: \(Format.formatTime(bestFirstShot))")
-                                .font(.system(.subheadline, weight: .medium))
-                                .monospacedDigit()
-                        }
-                        
-                        Spacer().frame(height: 15)
-
-                        if vm.counter > 1 {
-                            if let worstTime = vm.worstTime() {
-                                infoTitle(icon: .init(systemName: "thermometer.low"), label: "Slowest", color: Color.red)
-                                Text("Time: \(Format.formatTime(worstTime))")
-                                    .font(.system(.subheadline, weight: .medium))
-                                    .monospacedDigit()
-                            }
-                            if let worstFirstShot = vm.worstFirstShot() {
-                                Text("1st: \(Format.formatTime(worstFirstShot))")
-                                    .font(.system(.subheadline, weight: .medium))
-                                    .monospacedDigit()
-                            }
-                        }
-                        
-                    }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    
-                    
-                    
-                } // end of row 1
+        VStack(spacing: 8) {
+            // Row 1: Adaptive layout using ViewThatFits
+            ViewThatFits {
+                // Try landscape layout first (3 columns side by side)
+                HStack(spacing: 8) {
+                    column1
+                    column2
+                    column3
+                }
+                .frame(maxWidth: .infinity)
+//                .background(Color.green.opacity(0.1)) // Visual indicator
+//                .border(Color.green, width: 2)
                 
-                VStack(alignment: .leading, spacing: -12) { // row 2 - reduced spacing
-                    if vm.stringRun.orderedStringShots.count > 0 {
-                        infoTitle(icon: .init(systemName: "list.number"), label: "Shots / Splits", color: Color.blue)
+                // Fall back to portrait layout (column 2 below)
+                VStack(spacing: 8) {
+                    HStack(alignment: .top, spacing: 8) {
+                        column1
+                        Spacer()
+                        column3
+                    }
+                    .frame(maxWidth: .infinity)
+                    column2
+                        .frame(maxHeight: 120)
+
+                    
+                }
+                .frame(maxWidth: .infinity)
+//                .background(Color.red.opacity(0.1)) // Visual indicator
+//                .border(Color.red, width: 2) // Border to see it clearly
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+            
+            Spacer()
+            
+            VStack(alignment: .leading, spacing: -12) { // row 2 - reduced spacing
+                if vm.stringRun.orderedStringShots.count > 0 {
+                    infoTitle(icon: .init(systemName: "list.number"), label: "Shots / Splits", color: Color.blue)
+                }
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack {
+                        ForEach(vm.stringRun.orderedStringShots) { shot in
+                            VStack(spacing: 4) {
+                                // Top: cumulative offset
+                                Text("\(Format.formatTime(shot.now))")
+                                    .font(.headline.bold())
+                                    .monospacedDigit()
+                                
+                                // Bottom: split
+                                Text("\(Format.formatTime(shot.split))")
+                                    .font(.headline)
+                                    .monospacedDigit()
+                            }
+                            .padding(.horizontal, 4)
+                        }
+                    }
+                    .padding(.top, 0) // Add slight top padding to content
+                }
+                .frame(height: 88)
+            }// end of row 2
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+        }
+        .frame(maxWidth: .infinity)
+        .navigationTitle("\(stage.name) – \(stage.code) - \(division)")
+        .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: vm.stringRun.stringShots.count) { old, new in
+            do {
+                if new >= 5 {
+                    modelContext.insert(vm.stringRun)
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        Announcer.shared.speak(text: "\(vm.stringRun.time)")
                     }
                     
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack {
-                            ForEach(vm.stringRun.orderedStringShots) { shot in
-                                VStack(spacing: 4) {
-                                    // Top: cumulative offset
-                                    Text("\(Format.formatTime(shot.now))")
-                                        .font(.headline.bold())
-                                        .monospacedDigit()
-                                    
-                                    // Bottom: split
-                                    Text("\(Format.formatTime(shot.split))")
-                                        .font(.headline)
-                                        .monospacedDigit()
-                                }
-                                .padding(.horizontal, 4)
-                            }
-                        }
-                        .padding(.top, 0) // Add slight top padding to content
-                    }
-                    .frame(height: 88)
-                }// end of row 2
-            }
-            .navigationTitle("\(stage.name) – \(stage.code) - \(division)")
-            .navigationBarTitleDisplayMode(.inline)
-            .onChange(of: vm.stringRun.stringShots.count) { old, new in
-                do {
-                    if new >= 5 {
-                        modelContext.insert(vm.stringRun)
-                        
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                            Announcer.shared.speak(text: "\(vm.stringRun.time)")
-                        }
-                        
-                        try modelContext.save()
-                    }
-                } catch {
-                    print("Failed to save StringRun: \(error.localizedDescription)")
+                    try modelContext.save()
                 }
-            }
-            .onAppear() {
-                UIApplication.shared.isIdleTimerDisabled = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    if vm.connectionStatus != .Connected {
-                        Announcer.shared.speak(text: "Timer is not connected")
-                    } else {
-                        Announcer.shared.speak(text: "\(stage.name), \(division)")
-                    }
-                }
-            }
-            .onDisappear() {
-                UIApplication.shared.isIdleTimerDisabled = false
+            } catch {
+                print("Failed to save StringRun: \(error.localizedDescription)")
             }
         }
+        .onAppear() {
+            UIApplication.shared.isIdleTimerDisabled = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if vm.connectionStatus != .Connected {
+                    Announcer.shared.speak(text: "Timer is not connected")
+                } else {
+                    Announcer.shared.speak(text: "\(stage.name), \(division)")
+                }
+            }
+        }
+        .onDisappear() {
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
     }
+    
+    // MARK: - Column Views
+    
+    private var column1: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("#\(vm.counter)")
+                .font(.title.bold())
+            
+            let time = vm.stringRun.time
+            
+            
+            if time > 0 {
+                infoTitle(icon: .init(systemName: "stopwatch"),
+                          label: "Current",
+                          color: Color.blue)
+                
+                percentClass(division: division, stageCode: stage.code, time: time)
+                                    
+            }
+
+            if time > 0 && stage.strings <= vm.allRuns.count {
+                Spacer().frame(height: 8)
+                
+                infoTitle(icon: .init(systemName: "stopwatch"),
+                          label: stage.strings == 5 ? "Best 4 of 5" : "Best 3 of 4",
+                          color: Color.blue)
+                
+                percentClass(division: division, stageCode: stage.code, times: vm.times())
+            }
+            
+        }
+        .frame(alignment: .leading)
+    }
+    
+    private var column2: some View {
+        Text(Format.formatTime(vm.stringRun.time))
+            .monospacedDigit()
+            .font(.system(size: 120, weight: .bold))
+            .lineLimit(1)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 20)
+    }
+    
+    private var column3: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            timerConnectionStatus()
+            
+            if let bestTime = vm.bestTime() {
+                infoTitle(icon: .init(systemName: "thermometer.high"), label: "Fastest", color: Color.green)
+                Text("Time: \(Format.formatTime(bestTime))")
+                    .font(.system(.subheadline, weight: .medium))
+                    .monospacedDigit()
+            }
+            if let bestFirstShot = vm.bestFirstShot() {
+                Text("1st: \(Format.formatTime(bestFirstShot))")
+                    .font(.system(.subheadline, weight: .medium))
+                    .monospacedDigit()
+            }
+            
+            Spacer().frame(height: 15)
+
+            if vm.counter > 1 {
+                if let worstTime = vm.worstTime() {
+                    infoTitle(icon: .init(systemName: "thermometer.low"), label: "Slowest", color: Color.red)
+                    Text("Time: \(Format.formatTime(worstTime))")
+                        .font(.system(.subheadline, weight: .medium))
+                        .monospacedDigit()
+                }
+                if let worstFirstShot = vm.worstFirstShot() {
+                    Text("1st: \(Format.formatTime(worstFirstShot))")
+                        .font(.system(.subheadline, weight: .medium))
+                        .monospacedDigit()
+                }
+            }
+            
+        }
+        .frame(alignment: .trailing)
+    }
+    
+    // MARK: - Helper Views
     
     @ViewBuilder
     private func infoTitle(icon: Image, label: String, color: Color) -> some View {
@@ -263,48 +293,47 @@ struct RecordingView: View {
 import SwiftUI
 import SwiftData
 
-// MARK: - Sample data just for previews
-extension Stage {
-    static let preview = AllStages[0]
-}
-extension Division {
-    static let preview: Division = .RFPO
-}
-
 // MARK: - Preview
 @MainActor
 struct RecordingView_Previews: PreviewProvider {
+    
+    
     static var previews: some View {
-        // In-memory SwiftData store for previews
+
+        let stage = AllStages[0]
+        let division = Division.RFPO
+        
         let container = try! ModelContainer(
             for: StringRun.self, StringShot.self, ShooterProfile.self, DivisionProfile.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         
         let shooterProfile = ShooterProfile(uspsaNumber: "A12345")
-        shooterProfile.setClassification(.M, for: .RFPO)
+        shooterProfile.setClassification(.M, for: division)
         container.mainContext.insert(shooterProfile)
                 
         // Example run with a few shots
-        let sampleRun1 = StringRun(stageId: Stage.preview.code, divisionId: Division.preview.rawValue)
-        sampleRun1.time = 2.12
-        sampleRun1.date = Date()
-
-        sampleRun1.stringShots = [
-            StringShot(now: 0.75, split: 0.75, first: 0.75),
-            StringShot(now: 1.32, split: 0.57, first: 0.75),
-            StringShot(now: 1.86, split: 0.54, first: 0.75),
-            StringShot(now: 2.36, split: 0.50, first: 0.75),
-            StringShot(now: 2.26, split: 0.20, first: 0.75),
-        ]
+        let r1 = StringRun(stageId: stage.code, divisionId: division.rawValue)
+        r1.time = 2.09
+        r1.date = Date()
         
-        // bad run
+        let r2 = StringRun(stageId: stage.code, divisionId: division.rawValue)
+        r2.time = 5.64
+        r2.date = Date()+1
         
-        let sampleRun2 = StringRun(stageId: Stage.preview.code, divisionId: Division.preview.rawValue)
-        sampleRun2.time = 3.36
-        sampleRun2.date = Date()
+        let r3 = StringRun(stageId: stage.code, divisionId: division.rawValue)
+        r3.time = 1.71
+        r3.date = Date()+2
+        
+        let r4 = StringRun(stageId: stage.code, divisionId: division.rawValue)
+        r4.time = 1.53
+        r4.date = Date()+3
+        
+        let r5 = StringRun(stageId: stage.code, divisionId: division.rawValue)
+        r5.time = 12.2
+        r5.date = Date()+4
 
-        sampleRun2.stringShots = [
+        r5.stringShots = [
             StringShot(now: 0.9, split: 0.9, first: 0.9),
             StringShot(now: 1.32, split: 0.57, first: 0.9),
             StringShot(now: 1.86, split: 0.54, first: 0.9),
@@ -312,8 +341,8 @@ struct RecordingView_Previews: PreviewProvider {
             StringShot(now: 3.36, split: 1.00, first: 0.9),
         ]
                 
-        let vm = RecordingViewModel(stageId: Stage.preview.code, divisionId: Division.preview.rawValue)
-        vm.allRuns = [sampleRun1, sampleRun1, sampleRun1, sampleRun2, sampleRun1, sampleRun2, sampleRun1, sampleRun1]
+        let vm = RecordingViewModel(stageId: stage.code, divisionId: division.rawValue)
+        vm.allRuns = [r1, r2, r3, r4, r5]
 
         vm.stringRun = vm.allRuns.last!
         vm.counter = vm.allRuns.count
@@ -323,9 +352,8 @@ struct RecordingView_Previews: PreviewProvider {
         Announcer.shared.isEnabled = false
 
         return NavigationStack {
-            RecordingView(stage: .preview, division: .preview, vm: vm)
+            RecordingView(stage: stage, division: division, vm: vm)
                 .modelContainer(container)
-                .padding()
         }
     }
 }
