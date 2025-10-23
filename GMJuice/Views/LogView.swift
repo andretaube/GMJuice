@@ -14,6 +14,14 @@ struct LogView: View {
                         Text("No sessions yet").foregroundStyle(.secondary)
                     }
                 } else {
+                    Section {
+                        NavigationLink {
+                            AllTimeReportView()
+                        } label: {
+                            Label("Analysis", systemImage: "chart.bar.doc.horizontal")
+                        }
+                    }
+
                     ForEach(daySections, id: \.dayStart) { day in
                         Section(day.title) {
                             ForEach(day.divisions, id: \.divisionId) { div in

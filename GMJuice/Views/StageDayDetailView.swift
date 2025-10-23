@@ -41,6 +41,12 @@ struct StageDayDetailView: View {
                         slowestFirstShot: summary.slowestFirstShot
                     )
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+
+                    NavigationLink {
+                        ReportView(strings: strings, stageId: stageId, divisionId: divisionId)
+                    } label: {
+                        Label("Performance Analysis", systemImage: "chart.line.uptrend.xyaxis")
+                    }
                 }
             }
             

@@ -136,14 +136,33 @@ struct RecordingView: View {
 
     }
     
+    @State private var pulseAnimation: Bool = false
+
     private var timerDisplay: some View {
-        Text(Format.formatTime(vm.stringRun.time))
+        let performanceLevel = getPerformanceLevel()
+
+        return Text(Format.formatTime(vm.stringRun.time))
             .monospacedDigit()
             .font(.system(size: 120, weight: .bold))
             .minimumScaleFactor(0.5)
             .lineLimit(1)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
+            .foregroundStyle(timerColor(for: performanceLevel))
+            .shadow(color: shadowColor(for: performanceLevel), radius: performanceLevel == .trophy ? 20 : (performanceLevel == .good ? 10 : 0))
+            .scaleEffect(performanceLevel == .trophy && pulseAnimation ? 1.05 : 1.0)
+            .onChange(of: vm.stringRun.stringShots.count) { old, new in
+                if new >= 5 {
+                    if performanceLevel == .trophy {
+                        withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                            pulseAnimation = true
+                        }
+                        announcer.playTrophySound()
+                    }
+                } else {
+                    pulseAnimation = false
+                }
+            }
     }
     
     private var rightColumn: some View {
@@ -153,12 +172,12 @@ struct RecordingView: View {
             if let bestTime = vm.bestTime() {
                 infoTitle(icon: .init(systemName: "thermometer.high"), label: "Fastest", color: Color.green)
                 Text("Time: \(Format.formatTime(bestTime))")
-                    .font(.system(.title2, weight: .bold))
+                    .font(.system(.body, weight: .bold))
                     .monospacedDigit()
             }
             if let bestFirstShot = vm.bestFirstShot() {
                 Text("1st: \(Format.formatTime(bestFirstShot))")
-                    .font(.system(.title2, weight: .bold))
+                    .font(.system(.body, weight: .bold))
                     .monospacedDigit()
             }
             
@@ -168,12 +187,12 @@ struct RecordingView: View {
                 if let worstTime = vm.worstTime() {
                     infoTitle(icon: .init(systemName: "thermometer.low"), label: "Slowest", color: Color.red)
                     Text("Time: \(Format.formatTime(worstTime))")
-                        .font(.system(.title2, weight: .bold))
+                        .font(.system(.body, weight: .bold))
                         .monospacedDigit()
                 }
                 if let worstFirstShot = vm.worstFirstShot() {
                     Text("1st: \(Format.formatTime(worstFirstShot))")
-                        .font(.system(.title2, weight: .bold))
+                        .font(.system(.body, weight: .bold))
                         .monospacedDigit()
                 }
             }
@@ -186,18 +205,18 @@ struct RecordingView: View {
     
     private var shotsAndSplits: some View {
         VStack(alignment: .leading) { // row 2 - reduced spacing
-            
+
             infoTitle(icon: .init(systemName: "list.number"), label: "Shots / Splits", color: Color.blue)
-            
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack {
                     ForEach(vm.stringRun.orderedStringShots) { shot in
-                        VStack(spacing: 4) {
+                        VStack(alignment: .leading, spacing: 4) {
                             // Top: cumulative offset
                             Text("\(Format.formatTime(shot.now))")
                                 .font(.title2.bold())
                                 .monospacedDigit()
-                            
+
                             // Bottom: split
                             Text("\(Format.formatTime(shot.split))")
                                 .font(.headline)
@@ -205,13 +224,13 @@ struct RecordingView: View {
                         }
                         .padding(.horizontal, 4)
                     }
-                    VStack(spacing: 4) {
+                    VStack(alignment: .leading, spacing: 4) {
                         // Top: cumulative offset
                         Text("1")
                             .hidden()
                             .font(.title2.bold())
                             .monospacedDigit()
-                        
+
                         // Bottom: split
                         Text("1")
                             .hidden()
@@ -226,14 +245,62 @@ struct RecordingView: View {
     }
     
     // MARK: - Helper Views
-    
+
+    private enum PerformanceLevel {
+        case trophy  // Above class level
+        case good    // At class level
+        case normal  // Below class level or incomplete
+    }
+
+    private func getPerformanceLevel() -> PerformanceLevel {
+        guard vm.stringRun.stringShots.count >= 5,
+              let classification = shooter?.classification(for: division) else {
+            return .normal
+        }
+
+        let time = vm.stringRun.time
+        let pct = PeakBenchmarks.percent(division: division, stageCode: stage.code, time: time)
+        let threshold = classification.percentThreshold
+        let nextClassThreshold = classification.nextClassThreshold
+
+        if pct >= nextClassThreshold {
+            return .trophy
+        } else if pct >= threshold {
+            return .good
+        } else {
+            return .normal
+        }
+    }
+
+    private func timerColor(for level: PerformanceLevel) -> Color {
+        switch level {
+        case .trophy:
+            return .yellow
+        case .good:
+            return .green
+        case .normal:
+            return .primary
+        }
+    }
+
+    private func shadowColor(for level: PerformanceLevel) -> Color {
+        switch level {
+        case .trophy:
+            return .yellow.opacity(0.8)
+        case .good:
+            return .green.opacity(0.6)
+        case .normal:
+            return .clear
+        }
+    }
+
     @ViewBuilder
     private func infoTitle(icon: Image, label: String, color: Color) -> some View {
         HStack {
             icon
             Text(label)
         }
-        .font(.system(.title2, weight: .medium))
+        .font(.system(.body, weight: .medium))
         .foregroundStyle(color)
     }
     
@@ -245,10 +312,10 @@ struct RecordingView: View {
         
         HStack {
             Text(String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue))
-                .font(.system(.title2, weight: .bold))
+                .font(.system(.body, weight: .bold))
             if let classification = shooter?.classification(for: division) {
                 stringReward(percent: pct, shooterClass: classification)
-                    .imageScale(.medium)
+                    .imageScale(.small)
             }
         }
     }
@@ -261,10 +328,10 @@ struct RecordingView: View {
         
         HStack {
             Text(String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue))
-                .font(.system(.title2, weight: .bold))
+                .font(.system(.body, weight: .bold))
             if let classification = shooter?.classification(for: division) {
                 stringReward(percent: pct, shooterClass: classification)
-                    .imageScale(.medium)
+                    .imageScale(.small)
             }
         }
     }
@@ -346,15 +413,15 @@ struct RecordingView_Previews: PreviewProvider {
         r4.date = Date()+3
         
         let r5 = StringRun(stageId: stage.code, divisionId: division.rawValue)
-        r5.time = 0
+        r5.time = 2.10
         r5.date = Date()+4
 
         r5.stringShots = [
-//            StringShot(now: 0.9, split: 0.9, first: 0.9),
-//            StringShot(now: 1.32, split: 0.57, first: 0.9),
-//            StringShot(now: 1.86, split: 0.54, first: 0.9),
-//            StringShot(now: 2.36, split: 0.50, first: 0.9),
-//            StringShot(now: 3.36, split: 1.00, first: 0.9),
+            StringShot(now: 0.9, split: 0.9, first: 0.9),
+            StringShot(now: 1.32, split: 0.57, first: 0.9),
+            StringShot(now: 1.86, split: 0.54, first: 0.9),
+            StringShot(now: 2.36, split: 0.50, first: 0.9),
+            StringShot(now: 3.36, split: 1.00, first: 0.9),
         ]
                 
         let vm = RecordingViewModel(stageId: stage.code, divisionId: division.rawValue)

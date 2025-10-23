@@ -115,7 +115,15 @@ final class Announcer: NSObject, ObservableObject {
             synth.stopSpeaking(at: .immediate)
         }
     }
-    
+
+    // MARK: - Sound Effects
+
+    /// Plays a celebratory sound for trophy achievement
+    func playTrophySound() {
+        guard isEnabled else { return }
+        AudioServicesPlaySystemSound(1309)
+    }
+
     /// Convenience methods
     func enable()  { isEnabled = true }
     func disable() { isEnabled = false }

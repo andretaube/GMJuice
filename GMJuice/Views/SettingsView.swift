@@ -54,9 +54,9 @@ struct SettingsView: View {
                 
                 Section("Voice") {
                     Toggle("Announcements Enabled", isOn: $announcer.isEnabled)
-                    
+
                     Toggle("Speak on Silent", isOn: $announcer.speakOnSilent)
-                                        
+
                     NavigationLink {
                         VoicePickerView()
                     } label: {
