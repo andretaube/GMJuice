@@ -8,6 +8,7 @@ struct RecordingView: View {
     
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(DeviceOrientationManager.self) private var orientationManager
     
     @ObservedObject private var announcer = Announcer.shared
     
@@ -35,70 +36,38 @@ struct RecordingView: View {
 
     var body: some View {
         
-        VStack(spacing: 8) {
-            // Row 1: Adaptive layout using ViewThatFits
-            ViewThatFits {
-                // Try landscape layout first (3 columns side by side)
-                HStack(spacing: 8) {
-                    column1
-                    column2
-                    column3
+        VStack() {
+            if orientationManager.isLandscape || orientationManager.isFlat {
+                
+                HStack(alignment: .top, spacing: 16){
+                    leftColumn
+                    timerDisplay.frame(maxWidth: .infinity).padding(.top, 40)
+                    rightColumn
                 }
                 .frame(maxWidth: .infinity)
-//                .background(Color.green.opacity(0.1)) // Visual indicator
-//                .border(Color.green, width: 2)
-                
-                // Fall back to portrait layout (column 2 below)
+            }
+            else {
                 VStack(spacing: 8) {
-                    HStack(alignment: .top, spacing: 8) {
-                        column1
+                    HStack(alignment: .top, spacing: 0) {
+                        leftColumn
                         Spacer()
-                        column3
+                        rightColumn
                     }
                     .frame(maxWidth: .infinity)
-                    column2
-                        .frame(maxHeight: 120)
-
+                    
+                    Spacer()
+                    timerDisplay
+                    Spacer()
                     
                 }
                 .frame(maxWidth: .infinity)
-//                .background(Color.red.opacity(0.1)) // Visual indicator
-//                .border(Color.red, width: 2) // Border to see it clearly
             }
-            .padding(.horizontal)
-            .padding(.top, 8)
             
-            Spacer()
-            
-            VStack(alignment: .leading, spacing: -12) { // row 2 - reduced spacing
-                if vm.stringRun.orderedStringShots.count > 0 {
-                    infoTitle(icon: .init(systemName: "list.number"), label: "Shots / Splits", color: Color.blue)
-                }
-                
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack {
-                        ForEach(vm.stringRun.orderedStringShots) { shot in
-                            VStack(spacing: 4) {
-                                // Top: cumulative offset
-                                Text("\(Format.formatTime(shot.now))")
-                                    .font(.headline.bold())
-                                    .monospacedDigit()
-                                
-                                // Bottom: split
-                                Text("\(Format.formatTime(shot.split))")
-                                    .font(.headline)
-                                    .monospacedDigit()
-                            }
-                            .padding(.horizontal, 4)
-                        }
-                    }
-                    .padding(.top, 0) // Add slight top padding to content
-                }
-                .frame(height: 88)
-            }// end of row 2
-            .padding(.horizontal)
-            .padding(.bottom, 8)
+            shotsAndSplits
+
+
         }
+        .padding()
         .frame(maxWidth: .infinity)
         .navigationTitle("\(stage.name) – \(stage.code) - \(division)")
         .navigationBarTitleDisplayMode(.inline)
@@ -134,60 +103,62 @@ struct RecordingView: View {
     
     // MARK: - Column Views
     
-    private var column1: some View {
+    private var leftColumn: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("#\(vm.counter)")
                 .font(.title.bold())
             
             let time = vm.stringRun.time
             
-            
-            if time > 0 {
-                infoTitle(icon: .init(systemName: "stopwatch"),
-                          label: "Current",
-                          color: Color.blue)
-                
+            infoTitle(icon: .init(systemName: "stopwatch"),
+                      label: "Current",
+                      color: Color.blue)
+
+            if vm.stringRun.stringShots.count >= 5 {
                 percentClass(division: division, stageCode: stage.code, time: time)
-                                    
+            } else {
+                Text("1").hidden().font(.system(.title2, weight: .bold))
             }
 
-            if time > 0 && stage.strings <= vm.allRuns.count {
-                Spacer().frame(height: 8)
-                
-                infoTitle(icon: .init(systemName: "stopwatch"),
-                          label: stage.strings == 5 ? "Best 4 of 5" : "Best 3 of 4",
-                          color: Color.blue)
-                
+            Spacer().frame(height: 8)
+            infoTitle(icon: .init(systemName: "stopwatch"),
+                      label: stage.strings == 5 ? "Best 4 of 5" : "Best 3 of 4",
+                      color: Color.blue)
+
+            if stage.strings <= vm.allRuns.count && vm.stringRun.stringShots.count >= 5 {
                 percentClass(division: division, stageCode: stage.code, times: vm.times())
+            } else {
+                Text("1").hidden().font(.system(.title2, weight: .bold))
             }
             
         }
-        .frame(alignment: .leading)
+        .frame(minWidth: 150, alignment: .leading)
+
     }
     
-    private var column2: some View {
+    private var timerDisplay: some View {
         Text(Format.formatTime(vm.stringRun.time))
             .monospacedDigit()
             .font(.system(size: 120, weight: .bold))
+            .minimumScaleFactor(0.5)
             .lineLimit(1)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
-            .padding(.top, 20)
     }
     
-    private var column3: some View {
+    private var rightColumn: some View {
         VStack(alignment: .trailing, spacing: 2) {
             timerConnectionStatus()
             
             if let bestTime = vm.bestTime() {
                 infoTitle(icon: .init(systemName: "thermometer.high"), label: "Fastest", color: Color.green)
                 Text("Time: \(Format.formatTime(bestTime))")
-                    .font(.system(.subheadline, weight: .medium))
+                    .font(.system(.title2, weight: .bold))
                     .monospacedDigit()
             }
             if let bestFirstShot = vm.bestFirstShot() {
                 Text("1st: \(Format.formatTime(bestFirstShot))")
-                    .font(.system(.subheadline, weight: .medium))
+                    .font(.system(.title2, weight: .bold))
                     .monospacedDigit()
             }
             
@@ -197,18 +168,61 @@ struct RecordingView: View {
                 if let worstTime = vm.worstTime() {
                     infoTitle(icon: .init(systemName: "thermometer.low"), label: "Slowest", color: Color.red)
                     Text("Time: \(Format.formatTime(worstTime))")
-                        .font(.system(.subheadline, weight: .medium))
+                        .font(.system(.title2, weight: .bold))
                         .monospacedDigit()
                 }
                 if let worstFirstShot = vm.worstFirstShot() {
                     Text("1st: \(Format.formatTime(worstFirstShot))")
-                        .font(.system(.subheadline, weight: .medium))
+                        .font(.system(.title2, weight: .bold))
                         .monospacedDigit()
                 }
             }
             
         }
-        .frame(alignment: .trailing)
+        .frame(minWidth: 150, alignment: .trailing)
+
+
+    }
+    
+    private var shotsAndSplits: some View {
+        VStack(alignment: .leading) { // row 2 - reduced spacing
+            
+            infoTitle(icon: .init(systemName: "list.number"), label: "Shots / Splits", color: Color.blue)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack {
+                    ForEach(vm.stringRun.orderedStringShots) { shot in
+                        VStack(spacing: 4) {
+                            // Top: cumulative offset
+                            Text("\(Format.formatTime(shot.now))")
+                                .font(.title2.bold())
+                                .monospacedDigit()
+                            
+                            // Bottom: split
+                            Text("\(Format.formatTime(shot.split))")
+                                .font(.headline)
+                                .monospacedDigit()
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                    VStack(spacing: 4) {
+                        // Top: cumulative offset
+                        Text("1")
+                            .hidden()
+                            .font(.title2.bold())
+                            .monospacedDigit()
+                        
+                        // Bottom: split
+                        Text("1")
+                            .hidden()
+                            .font(.headline)
+                            .monospacedDigit()
+                    }
+                    .padding(.horizontal, 4)
+
+                }
+            }
+        }
     }
     
     // MARK: - Helper Views
@@ -219,7 +233,7 @@ struct RecordingView: View {
             icon
             Text(label)
         }
-        .font(.system(.subheadline, weight: .medium))
+        .font(.system(.title2, weight: .medium))
         .foregroundStyle(color)
     }
     
@@ -231,6 +245,7 @@ struct RecordingView: View {
         
         HStack {
             Text(String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue))
+                .font(.system(.title2, weight: .bold))
             if let classification = shooter?.classification(for: division) {
                 stringReward(percent: pct, shooterClass: classification)
                     .imageScale(.medium)
@@ -246,6 +261,7 @@ struct RecordingView: View {
         
         HStack {
             Text(String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue))
+                .font(.system(.title2, weight: .bold))
             if let classification = shooter?.classification(for: division) {
                 stringReward(percent: pct, shooterClass: classification)
                     .imageScale(.medium)
@@ -330,15 +346,15 @@ struct RecordingView_Previews: PreviewProvider {
         r4.date = Date()+3
         
         let r5 = StringRun(stageId: stage.code, divisionId: division.rawValue)
-        r5.time = 12.2
+        r5.time = 0
         r5.date = Date()+4
 
         r5.stringShots = [
-            StringShot(now: 0.9, split: 0.9, first: 0.9),
-            StringShot(now: 1.32, split: 0.57, first: 0.9),
-            StringShot(now: 1.86, split: 0.54, first: 0.9),
-            StringShot(now: 2.36, split: 0.50, first: 0.9),
-            StringShot(now: 3.36, split: 1.00, first: 0.9),
+//            StringShot(now: 0.9, split: 0.9, first: 0.9),
+//            StringShot(now: 1.32, split: 0.57, first: 0.9),
+//            StringShot(now: 1.86, split: 0.54, first: 0.9),
+//            StringShot(now: 2.36, split: 0.50, first: 0.9),
+//            StringShot(now: 3.36, split: 1.00, first: 0.9),
         ]
                 
         let vm = RecordingViewModel(stageId: stage.code, divisionId: division.rawValue)
@@ -351,10 +367,31 @@ struct RecordingView_Previews: PreviewProvider {
         // Mute the announcer in previews
         Announcer.shared.isEnabled = false
 
-        return NavigationStack {
-            RecordingView(stage: stage, division: division, vm: vm)
-                .modelContainer(container)
+        return TabView {
+            NavigationStack {
+                RecordingView(stage: stage, division: division, vm: vm)
+            }
+            .tabItem {
+                Label("Train", systemImage: "target")
+            }
+            
+            Text("Log")
+                .tabItem {
+                    Label("Log", systemImage: "list.bullet.rectangle")
+                }
+            
+            Text("Profile")
+                .tabItem {
+                    Label("Profile", systemImage: "person")
+                }
+            
+            Text("Settings")
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape")
+                }
         }
+        .modelContainer(container)
+        .environment(DeviceOrientationManager())
     }
 }
 #endif
