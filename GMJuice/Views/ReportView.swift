@@ -16,7 +16,7 @@ struct ReportView: View {
                         .padding(.horizontal)
 
                     Chart {
-                        ForEach(Array(strings.enumerated().reversed()), id: \.element.id) { index, run in
+                        ForEach(Array(strings.enumerated()), id: \.element.id) { index, run in
                             if let firstShot = run.orderedStringShots.first?.first {
                                 LineMark(
                                     x: .value("Run", index + 1),
@@ -64,7 +64,7 @@ struct ReportView: View {
                         .padding(.horizontal)
 
                     Chart {
-                        ForEach(Array(strings.enumerated().reversed()), id: \.element.id) { index, run in
+                        ForEach(Array(strings.enumerated()), id: \.element.id) { index, run in
                             if let totalTime = run.orderedStringShots.last?.now {
                                 LineMark(
                                     x: .value("Run", index + 1),

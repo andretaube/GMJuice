@@ -22,7 +22,7 @@ struct StageDayDetailView: View {
             filter: #Predicate<StringRun> {
                 $0.stageId == stageId && $0.divisionId == divisionId && $0.date >= start && $0.date < end
             },
-            sort: [SortDescriptor(\StringRun.date, order: .reverse)]
+            sort: [SortDescriptor(\StringRun.date, order: .forward)]
         )
     }
 
@@ -53,10 +53,10 @@ struct StageDayDetailView: View {
             let bestRunID = strings.min(by: { $0.time < $1.time })?.id
 
             // RUNS
-            ForEach(strings) { run in
+            ForEach(strings.reversed()) { run in
                 // Keep newest-first order, but index should count from oldest (1..N)
                 if let pos = strings.firstIndex(where: { $0.id == run.id }) {
-                    let idx = strings.count - pos
+                    let idx = pos + 1
                     let isBest = (run.id == bestRunID)
 
                     StringRowView(run: run, index: idx, isBest: isBest)
