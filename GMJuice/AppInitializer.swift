@@ -18,9 +18,9 @@ final class AppInitializer: ObservableObject {
             // Simulate work: config, auth, DB migrations, warm caches, etc.
             try? await Task.sleep(nanoseconds: 2_000_000_000)
 
-            // Do real tasks here:
-            // await AuthManager.shared.restoreSession()
-            // try await DataBootstrapper.shared.preload()
+            // Request notification permissions
+            await NotificationManager.shared.requestPermission()
+            await NotificationManager.shared.checkAuthorizationStatus()
 
             withAnimation(.easeInOut(duration: 0.35)) {
                 self.isReady = true

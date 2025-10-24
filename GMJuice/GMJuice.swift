@@ -12,9 +12,10 @@ struct GMJuice: App {
     
     @StateObject private var bootstrap = AppInitializer()
     @Environment(\.scenePhase) private var scenePhase
-    
+
     @StateObject private var bleManager = BLEManager.shared
     @StateObject private var announcer = Announcer.shared
+    @StateObject private var notificationManager = NotificationManager.shared
     
     @State private var orientationManager = DeviceOrientationManager()
     
@@ -54,6 +55,7 @@ struct GMJuice: App {
                 if bootstrap.isReady {
                     RootTabs()
                         .environmentObject(bleManager)
+                        .environmentObject(notificationManager)
                         .onAppear {
                             bleManager.start()
                         }
@@ -74,6 +76,10 @@ struct GMJuice: App {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 bleManager.start()
+            } else if phase == .background {
+                // Update notifications with fresh data when app goes to background
+                notificationManager.updateScheduledNotification(modelContext: sharedModelContainer.mainContext)
+                notificationManager.updateDailyNotifications()
             }
         }
     }
@@ -86,5 +92,6 @@ struct GMJuice: App {
     
     return RootTabs()
         .environmentObject(BLEManager.shared)
+        .environmentObject(NotificationManager.shared)
         .modelContainer(container)
 }

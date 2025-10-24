@@ -25,11 +25,13 @@ xcodebuild -project GMJuice.xcodeproj -scheme GMJuice clean
 ## Architecture
 
 ### Core Singletons
-The app uses two main singleton managers that coordinate throughout the app:
+The app uses three main singleton managers that coordinate throughout the app:
 
 - **BLEManager** (`BLE/BLEManager.swift`): Singleton managing Bluetooth connection to AMG shot timer. Handles device discovery, connection persistence via UserDefaults, and parsing shot data from BLE notifications. Publishes connection status and provides callbacks for beep events, shot events, and disconnection.
 
 - **Announcer** (`Announcer.swift`): Singleton managing text-to-speech announcements using AVSpeechSynthesizer. Configured via UserDefaults for enable/disable, voice selection, and "speak on silent" mode. Used throughout the app to provide audio feedback for times and performance.
+
+- **NotificationManager** (`Utils/NotificationManager.swift`): Singleton managing local push notifications using UNUserNotificationCenter. Handles permission requests, schedules weekly summary notifications with training stats, and provides test notification functionality. Configured via UserDefaults for enable/disable, day of week, and time of day.
 
 ### Data Layer (SwiftData)
 The app uses SwiftData for persistence with a versioned schema approach:
@@ -90,3 +92,28 @@ Announcer speaks at key moments:
 - After 5 shots: Announces final string time
 - Trophy achievement: Plays system sound 1309
 - Configurable via Settings: enable/disable, voice selection, speak on silent mode
+
+### Notifications
+NotificationManager provides both weekly summaries and daily training reminders:
+
+**Weekly Summary:**
+- Requests permission in `AppInitializer.start()` on first launch
+- Schedules repeating weekly notification based on user-selected day/time (default: Friday 9 AM)
+- Generates summary in `generateWeeklySummary()` by querying SwiftData for runs from past 7 days
+- Summary includes: total shots fired, best times grouped by division and stage
+- Content is refreshed when app goes to background via `updateScheduledNotification()`
+
+**Daily Training Reminder:**
+- Schedules recurring notifications for selected days of week (default: Mon-Fri at 8 AM)
+- Generates practice suggestions in `generateDailyMessage()` combining:
+  - Random motivational prefix ("Time to practice:", "Today's training:", etc.)
+  - 2 randomly selected stages via `selectStages()` (extensible for smart selection later)
+  - Specific focus areas from `StagePracticeSuggestions` (10-20 tips per stage)
+- Example: "You can focus on: Outer Limits, pay attention to round counting for the stop plate and Accelerator, pay attention to explosive first shot from the holster"
+- Notification content is regenerated when app backgrounds via `updateDailyNotifications()`
+- SettingsView provides: enable toggle, time picker, day-of-week toggles (M-F circular buttons)
+
+**Data Source:**
+- `StagePracticeSuggestions.swift` maps each stage code to 10-20 practice focus areas
+- Focus areas cover technical (trigger control, sight picture), mental (commitment, focus), and physical (balance, footwork) aspects
+- Stage-specific tips like "counting rounds for the stop plate" (SC-104) or "choosing and committing to your sequence" (SC-107)
