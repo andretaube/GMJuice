@@ -7,5 +7,7 @@
 		<key>UIImageName</key>
 		<string>GMJuiceRound</string>
 	</dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>GMJuice uses the microphone to detect hits and misses on steel targets by analyzing the sound of each shot.</string>
 </dict>
 </plist>

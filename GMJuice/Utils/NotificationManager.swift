@@ -331,16 +331,23 @@ final class NotificationManager: NSObject, ObservableObject {
             return "No data available for the past week."
         }
 
-        // Fetch all runs from the past week
-        let descriptor = FetchDescriptor<StringRun>(
-            predicate: #Predicate<StringRun> { run in
-                run.date >= weekAgo && run.date <= now
-            },
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
+        // Get the container to create a background context
+        let container = modelContext.container
 
-        do {
-            let runs = try modelContext.fetch(descriptor)
+        // Perform database fetch on background thread to avoid blocking main thread
+        return await Task.detached {
+            // Create a background ModelContext for this task
+            let backgroundContext = ModelContext(container)
+
+            let descriptor = FetchDescriptor<StringRun>(
+                predicate: #Predicate<StringRun> { run in
+                    run.date >= weekAgo && run.date <= now
+                },
+                sortBy: [SortDescriptor(\.date, order: .reverse)]
+            )
+
+            do {
+                let runs = try backgroundContext.fetch(descriptor)
 
             if runs.isEmpty {
                 return "No practice sessions recorded this week. Time to hit the range!"
@@ -387,10 +394,11 @@ final class NotificationManager: NSObject, ObservableObject {
 
             return summary
 
-        } catch {
-            print("Error fetching runs for weekly summary: \(error)")
-            return "Error generating summary. Please try again."
-        }
+            } catch {
+                print("Error fetching runs for weekly summary: \(error)")
+                return "Error generating summary. Please try again."
+            }
+        }.value
     }
 
     // MARK: - Send Test Summary (for testing)

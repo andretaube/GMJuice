@@ -46,7 +46,7 @@ struct LogView: View {
                                                 Spacer()
 
                                                 Label {
-                                                    Text(s.best, format: .number.precision(.fractionLength(2)))
+                                                    Text(Format.formatTime(s.best))
                                                         .monospacedDigit()
                                                 } icon: {
                                                     Image(systemName: "medal.fill") // or "trophy.circle.fill"
@@ -114,7 +114,7 @@ struct LogView: View {
 
                 let stageSummaries: [StageSummary] = sortedStageIds.map { sid in
                     let runs = byStage[sid] ?? []
-                    let best = runs.map(\.time).min() ?? 0
+                    let best = runs.map(\.adjustedTime).min() ?? 0
                     let count = runs.count
                     return StageSummary(
                         stageId: sid,

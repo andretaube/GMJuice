@@ -21,17 +21,17 @@ public struct SummaryView: View {
             HStack {
                 Metric("Runs", "\(total)")
                 Divider().frame(height: 28)
-                Metric("Fist", "\(fastestRun)")
+                Metric("Fist", Format.formatTime(fastestRun))
                 Divider().frame(height: 28)
-                Metric("Avg", "\(avgRun)")
+                Metric("Avg", Format.formatTime(avgRun))
                 Divider().frame(height: 28)
-                Metric("Slow", "\(slowestRun)")
+                Metric("Slow", Format.formatTime(slowestRun))
                 Divider().frame(height: 28)
-                Metric("Fast 1st", "\(fastestFirstShot)")
+                Metric("Fast 1st", Format.formatTime(fastestFirstShot))
                 Divider().frame(height: 28)
-                Metric("Avg 1st", "\(avgFirstShot)")
+                Metric("Avg 1st", Format.formatTime(avgFirstShot))
                 Divider().frame(height: 28)
-                Metric("Slow 1st", "\(slowestFirstShot)")
+                Metric("Slow 1st", Format.formatTime(slowestFirstShot))
             }
         }
     }

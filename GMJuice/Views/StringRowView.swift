@@ -44,42 +44,52 @@ struct StringRowView: View {
                     Text(" ").hidden() // keep right column vertically aligned
                 }
             } else {
-                // Horizontal scroll if many columns
-                ScrollView(.horizontal, showsIndicators: false) {
-                    Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
-                        // Row 1: shot times (offsets)
-                        GridRow {
-                            ForEach(shots) { (shot) in
-                                Text("\(shot.now)")
-                                    .monospacedDigit()
-                                    .gridColumnAlignment(.trailing)
+                VStack(alignment: .leading, spacing: 4) {
+                    // Horizontal scroll if many columns
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                            // Row 1: shot times (offsets)
+                            GridRow {
+                                ForEach(shots) { (shot) in
+                                    Text(Format.formatTime(shot.now))
+                                        .monospacedDigit()
+                                        .foregroundStyle(.primary)
+                                        .gridColumnAlignment(.trailing)
+                                }
+                            }
+                            // Row 2: split times (no "+")
+                            GridRow {
+                                ForEach(shots) { (shot) in
+                                    Text(Format.formatTime(shot.split))
+                                        .monospacedDigit()
+                                        .foregroundStyle(.secondary)
+                                        .gridColumnAlignment(.trailing)
+                                }
                             }
                         }
-                        // Row 2: split times (no "+")
-                        GridRow {
-                            ForEach(shots) { (shot) in
-                                Text("\(shot.split)")
-                                    .monospacedDigit()
-                                    .foregroundStyle(.secondary)
-                                    .gridColumnAlignment(.trailing)
-                            }
-                        }
+                        .padding(.vertical, 2)
                     }
-                    .padding(.vertical, 2)
+
+                    // Row 3: miss indicator
+                    if !run.missedTargets.isEmpty {
+                        Text(missIndicator)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
                 }
             }
 
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text("\(run.time)")
+                Text(Format.formatTime(run.adjustedTime))
                     .font(.headline).bold()
                     .frame(minWidth: 10, alignment: .trailing)
                     .padding(.top, 2)
-                
+
                 if shots.count >= 5 {
                     if let division = Division(rawValue: run.divisionId) {
-                        percentClass(division: division, stageCode: run.stageId, time: run.time)
+                        percentClass(division: division, stageCode: run.stageId, time: run.adjustedTime)
                     }
                 } else {
                     Text(" ").font(.headline.bold())
@@ -95,8 +105,26 @@ struct StringRowView: View {
         let pct = PeakBenchmarks.percent(division: division, stageCode: stageCode, time: time)
         let percentDouble = NSDecimalNumber(decimal: pct).doubleValue
         let shooterClass = ShooterClass.shooterClass(percentage: pct)
-        
+
         Text(String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue))
+    }
+
+    // Miss indicator (e.g., "2M S" = 2 misses + stop, "3M" = 3 misses, "S" = stop only)
+    private var missIndicator: String {
+        let regularMisses = run.missedTargets.filter { $0 != 5 }.count
+        let stopMissed = run.missedTargets.contains(5)
+
+        var result = ""
+        if regularMisses > 0 {
+            result += "\(regularMisses)M"
+        }
+        if stopMissed {
+            if !result.isEmpty {
+                result += " "
+            }
+            result += "S"
+        }
+        return result
     }
 
     // Helpers

@@ -8,6 +8,7 @@ struct StageDayDetailView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Query private var strings: [StringRun]
+    @State private var selectedRunForEdit: StringRun?
 
     init(dayStart: Date, stageId: String, divisionId: String) {
         let cal = Calendar.current
@@ -50,7 +51,7 @@ struct StageDayDetailView: View {
                 }
             }
             
-            let bestRunID = strings.min(by: { $0.time < $1.time })?.id
+            let bestRunID = strings.min(by: { $0.adjustedTime < $1.adjustedTime })?.id
 
             // RUNS
             ForEach(strings.reversed()) { run in
@@ -60,14 +61,31 @@ struct StageDayDetailView: View {
                     let isBest = (run.id == bestRunID)
 
                     StringRowView(run: run, index: idx, isBest: isBest)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedRunForEdit = run
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
-                                deleteRun(run) // delete immediately (no confirmation)
+                                deleteRun(run)
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
+
+                            Button {
+                                selectedRunForEdit = run
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(.blue)
                         }
                         .contextMenu {
+                            Button {
+                                selectedRunForEdit = run
+                            } label: {
+                                Label("Edit String", systemImage: "pencil")
+                            }
+
                             Button(role: .destructive) {
                                 deleteRun(run)
                             } label: {
@@ -82,6 +100,9 @@ struct StageDayDetailView: View {
         .navigationTitle("\(stageId) - \(stageName(for: stageId)) - \(divisionId) - \(titleDate(dayStart))")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { EditButton() }
+        .sheet(item: $selectedRunForEdit) { run in
+            EditStringView(run: run)
+        }
     }
 
     // MARK: - Summary
@@ -94,8 +115,8 @@ struct StageDayDetailView: View {
                           avgFirstShot: Decimal,
                           slowestFirstShot: Decimal) {
 
-        // Totals use last shot's 'now'
-        let totals: [Decimal] = strings.compactMap { $0.orderedStringShots.last?.now }
+        // Totals use adjusted time (includes penalties)
+        let totals: [Decimal] = strings.map { $0.adjustedTime }
 
         // First-shot times use first shot's 'first'
         let firsts: [Decimal] = strings.compactMap { $0.orderedStringShots.first?.first }

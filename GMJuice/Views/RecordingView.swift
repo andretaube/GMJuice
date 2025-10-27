@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import SwiftData
+import UIKit
 
 struct RecordingView: View {
     let stage: Stage
@@ -8,12 +9,12 @@ struct RecordingView: View {
     
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(DeviceOrientationManager.self) private var orientationManager
-    
+
     @ObservedObject private var announcer = Announcer.shared
-    
+
     @StateObject private var vm: RecordingViewModel
-    
+    @State private var isOrientationReady = false
+
     @Query private var shooterProfiles: [ShooterProfile]
     private var shooter: ShooterProfile? {
         shooterProfiles.first
@@ -35,60 +36,76 @@ struct RecordingView: View {
 
 
     var body: some View {
-        
-        VStack() {
-            if orientationManager.isLandscape || orientationManager.isFlat {
-                
-                HStack(alignment: .top, spacing: 16){
-                    leftColumn
-                    timerDisplay.frame(maxWidth: .infinity).padding(.top, 40)
-                    rightColumn
-                }
-                .frame(maxWidth: .infinity)
-            }
-            else {
-                VStack(spacing: 8) {
-                    HStack(alignment: .top, spacing: 0) {
+        ZStack {
+            if isOrientationReady {
+                VStack {
+                    HStack(alignment: .top, spacing: 16) {
                         leftColumn
-                        Spacer()
+                        timerDisplay.frame(maxWidth: .infinity).padding(.top, 40)
                         rightColumn
                     }
                     .frame(maxWidth: .infinity)
-                    
-                    Spacer()
-                    timerDisplay
-                    Spacer()
-                    
+
+                    shotsAndSplits
                 }
+                .padding()
                 .frame(maxWidth: .infinity)
             }
-            
-            shotsAndSplits
 
+            if !isOrientationReady {
+                // Show splash screen while rotating to landscape
+                ZStack {
+                    Color(.systemBackground)
+                        .ignoresSafeArea()
 
+                    GeometryReader { geo in
+                        let imageWidth = geo.size.width * 0.356
+                        Image("GMJuiceRound")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: imageWidth)
+                            .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                    }
+                }
+                .ignoresSafeArea()
+            }
         }
-        .padding()
-        .frame(maxWidth: .infinity)
-        .navigationTitle("\(stage.name) – \(stage.code) - \(division)")
+        .navigationTitle(isOrientationReady ? "\(stage.name) – \(stage.code) - \(division)" : "")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(isOrientationReady ? .visible : .hidden, for: .navigationBar)
         .onChange(of: vm.stringRun.stringShots.count) { old, new in
             do {
                 if new >= 5 {
+                    print("📊 5 shots completed, processing...")
                     modelContext.insert(vm.stringRun)
-                    
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        Announcer.shared.speak(text: "\(vm.stringRun.time)")
-                    }
-                    
+
                     try modelContext.save()
+
+                    // Announce time
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        let adjustedTime = vm.adjustedTime(for: vm.stringRun)
+                        Announcer.shared.speak(text: "\(adjustedTime)")
+                    }
                 }
             } catch {
                 print("Failed to save StringRun: \(error.localizedDescription)")
             }
         }
         .onAppear() {
+            // Lock to landscape orientation
+            AppDelegate.orientationLock = .landscape
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape))
+            }
+
             UIApplication.shared.isIdleTimerDisabled = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+
+            // Show content after rotation completes - increased delay for smoother transition
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                isOrientationReady = true
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                 if vm.connectionStatus != .Connected {
                     Announcer.shared.speak(text: "Timer is not connected")
                 } else {
@@ -97,6 +114,15 @@ struct RecordingView: View {
             }
         }
         .onDisappear() {
+            // Reset orientation state
+            isOrientationReady = false
+
+            // Reset to allow all orientations
+            AppDelegate.orientationLock = .all
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .allButUpsideDown))
+            }
+
             UIApplication.shared.isIdleTimerDisabled = false
         }
     }
@@ -107,9 +133,9 @@ struct RecordingView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text("#\(vm.counter)")
                 .font(.title.bold())
-            
-            let time = vm.stringRun.time
-            
+
+            let time = vm.adjustedTime(for: vm.stringRun)
+
             infoTitle(icon: .init(systemName: "stopwatch"),
                       label: "Current",
                       color: Color.blue)
@@ -130,7 +156,7 @@ struct RecordingView: View {
             } else {
                 Text("1").hidden().font(.system(.title2, weight: .bold))
             }
-            
+
         }
         .frame(minWidth: 150, alignment: .leading)
 
@@ -140,8 +166,9 @@ struct RecordingView: View {
 
     private var timerDisplay: some View {
         let performanceLevel = getPerformanceLevel()
+        let adjustedTime = vm.adjustedTime(for: vm.stringRun)
 
-        return Text(Format.formatTime(vm.stringRun.time))
+        return Text(Format.formatTime(adjustedTime))
             .monospacedDigit()
             .font(.system(size: 120, weight: .bold))
             .minimumScaleFactor(0.5)
@@ -149,8 +176,8 @@ struct RecordingView: View {
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .foregroundStyle(timerColor(for: performanceLevel))
-            .shadow(color: shadowColor(for: performanceLevel), radius: performanceLevel == .trophy ? 20 : (performanceLevel == .good ? 10 : 0))
-            .scaleEffect(performanceLevel == .trophy && pulseAnimation ? 1.05 : 1.0)
+            .shadow(color: shadowColor(for: performanceLevel), radius: performanceLevel == .trophy ? 20 : (performanceLevel == .good ? 10 : (performanceLevel == .penalty ? 20 : 0)))
+            .scaleEffect((performanceLevel == .trophy || performanceLevel == .penalty) && pulseAnimation ? 1.05 : 1.0)
             .onChange(of: vm.stringRun.stringShots.count) { old, new in
                 if new >= 5 {
                     if performanceLevel == .trophy {
@@ -158,6 +185,10 @@ struct RecordingView: View {
                             pulseAnimation = true
                         }
                         announcer.playTrophySound()
+                    } else if performanceLevel == .penalty {
+                        withAnimation(.easeInOut(duration: 0.3).repeatForever(autoreverses: true)) {
+                            pulseAnimation = true
+                        }
                     }
                 } else {
                     pulseAnimation = false
@@ -167,7 +198,9 @@ struct RecordingView: View {
     
     private var rightColumn: some View {
         VStack(alignment: .trailing, spacing: 2) {
-            timerConnectionStatus()
+            HStack(spacing: 12) {
+                timerConnectionStatus()
+            }
             
             if let bestTime = vm.bestTime() {
                 infoTitle(icon: .init(systemName: "thermometer.high"), label: "Fastest", color: Color.green)
@@ -204,8 +237,11 @@ struct RecordingView: View {
     }
     
     private var shotsAndSplits: some View {
-        VStack(alignment: .leading) { // row 2 - reduced spacing
+        VStack(alignment: .leading, spacing: 12) {
+            // Target indicators
+            targetIndicators
 
+            // Shots / Splits
             infoTitle(icon: .init(systemName: "list.number"), label: "Shots / Splits", color: Color.blue)
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -243,6 +279,28 @@ struct RecordingView: View {
             }
         }
     }
+
+    private var targetIndicators: some View {
+        HStack(spacing: 8) {
+            ForEach(1...5, id: \.self) { target in
+                targetButton(for: target)
+            }
+        }
+    }
+
+    private func targetButton(for target: Int) -> some View {
+        let isMissed = vm.stringRun.missedTargets.contains(target)
+        let isStopPlate = target == 5
+
+        return Button {
+            toggleTargetMiss(target)
+        } label: {
+            Image(systemName: isMissed ? "xmark.circle.fill" : "checkmark.circle.fill")
+                .font(.system(size: isStopPlate ? 36 : 28))
+                .foregroundColor(isMissed ? .red : .green)
+        }
+        .buttonStyle(.plain)
+    }
     
     // MARK: - Helper Views
 
@@ -250,15 +308,25 @@ struct RecordingView: View {
         case trophy  // Above class level
         case good    // At class level
         case normal  // Below class level or incomplete
+        case penalty // 30-second penalty (should flash red)
     }
 
     private func getPerformanceLevel() -> PerformanceLevel {
-        guard vm.stringRun.stringShots.count >= 5,
-              let classification = shooter?.classification(for: division) else {
+        guard vm.stringRun.stringShots.count >= 5 else {
             return .normal
         }
 
-        let time = vm.stringRun.time
+        // Check for penalty first
+        if vm.shouldFlashRed(for: vm.stringRun) {
+            return .penalty
+        }
+
+        guard let classification = shooter?.classification(for: division) else {
+            return .normal
+        }
+
+        // Use adjusted time for performance calculation
+        let time = vm.adjustedTime(for: vm.stringRun)
         let pct = PeakBenchmarks.percent(division: division, stageCode: stage.code, time: time)
         let threshold = classification.percentThreshold
         let nextClassThreshold = classification.nextClassThreshold
@@ -280,6 +348,8 @@ struct RecordingView: View {
             return .green
         case .normal:
             return .primary
+        case .penalty:
+            return .red
         }
     }
 
@@ -291,6 +361,8 @@ struct RecordingView: View {
             return .green.opacity(0.6)
         case .normal:
             return .clear
+        case .penalty:
+            return .red.opacity(0.8)
         }
     }
 
@@ -336,7 +408,6 @@ struct RecordingView: View {
         }
     }
     
-    @ViewBuilder
     private func timerConnectionStatus() -> some View {
         Image(systemName: "timer")
             .foregroundColor(
@@ -368,7 +439,39 @@ struct RecordingView: View {
                 .foregroundStyle(.red)
         }
     }
-    
+    // MARK: - Target Hit/Miss Toggle
+
+    private func toggleTargetMiss(_ target: Int) {
+        // Toggle target in missedTargets array
+        if let index = vm.stringRun.missedTargets.firstIndex(of: target) {
+            // Target was marked as miss, mark as hit
+            vm.stringRun.missedTargets.remove(at: index)
+        } else {
+            // Target was marked as hit, mark as miss
+            vm.stringRun.missedTargets.append(target)
+        }
+
+        // Save changes
+        do {
+            try modelContext.save()
+            let status = vm.stringRun.missedTargets.contains(target) ? "MISS" : "HIT"
+            print("✓ Toggled target \(target) to \(status)")
+
+            // Provide haptic feedback
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+
+            // Cancel any current announcement and announce adjusted time after 1 second
+            Announcer.shared.stop()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                let adjustedTime = vm.adjustedTime(for: vm.stringRun)
+                Announcer.shared.speak(text: "\(adjustedTime)")
+            }
+        } catch {
+            print("❌ Failed to save: \(error)")
+        }
+    }
+
 }
 
 
@@ -415,6 +518,7 @@ struct RecordingView_Previews: PreviewProvider {
         let r5 = StringRun(stageId: stage.code, divisionId: division.rawValue)
         r5.time = 2.10
         r5.date = Date()+4
+        r5.missedTargets = [3, 4]  // Missed targets 3 and 4
 
         r5.stringShots = [
             StringShot(now: 0.9, split: 0.9, first: 0.9),

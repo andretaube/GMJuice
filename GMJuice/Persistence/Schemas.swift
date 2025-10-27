@@ -34,6 +34,10 @@ enum Schema001: VersionedSchema {
         var date: Date
         var time: Decimal
 
+        // Tracks which targets were missed: 1-4 for plates, 5 for stop plate
+        // Empty array = all hits (5 shots), [2, 4] = missed targets 2 and 4 (7 shots)
+        var missedTargets: [Int] = []
+
         // No inverse, no sortBy here → avoids circular macro resolution
         @Relationship(deleteRule: .cascade)
         var stringShots: [StringShot] = []
@@ -43,13 +47,15 @@ enum Schema001: VersionedSchema {
             self.divisionId = divisionId
             self.date = Date()
             self.time = 0
+            self.missedTargets = []
         }
-        
+
         init(stageId: String, divisionId: String, date: Date, time: Decimal) {
             self.stageId = stageId
             self.divisionId = divisionId
             self.date = date
             self.time = time
+            self.missedTargets = []
         }
     }
     

@@ -9,7 +9,8 @@ import SwiftData
 
 @main
 struct GMJuice: App {
-    
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     @StateObject private var bootstrap = AppInitializer()
     @Environment(\.scenePhase) private var scenePhase
 
@@ -18,9 +19,12 @@ struct GMJuice: App {
     @StateObject private var notificationManager = NotificationManager.shared
     
     @State private var orientationManager = DeviceOrientationManager()
-    
+
     @AppStorage("announcer_enabled") private var announcerEnabled = true
     @AppStorage("appearanceMode") private var appearanceMode: String = "system"
+    @AppStorage("hasAcceptedTerms") private var hasAcceptedTerms = false
+
+    @State private var showingTermsAcceptance = false
     
     var colorScheme: ColorScheme? {
         switch appearanceMode {
@@ -58,9 +62,21 @@ struct GMJuice: App {
                         .environmentObject(notificationManager)
                         .onAppear {
                             bleManager.start()
+                            // Check if user needs to accept terms
+                            if !hasAcceptedTerms {
+                                showingTermsAcceptance = true
+                            }
                         }
                         .transition(.opacity.combined(with: .scale.combined(with: .move(edge: .bottom))))
                         .environment(orientationManager)
+                        .fullScreenCover(isPresented: $showingTermsAcceptance) {
+                            TermsAcceptanceView(isPresented: $showingTermsAcceptance)
+                        }
+                        .onChange(of: hasAcceptedTerms) { _, newValue in
+                            if newValue {
+                                showingTermsAcceptance = false
+                            }
+                        }
                 } else {
                     SplashView()
                         .transition(.opacity)

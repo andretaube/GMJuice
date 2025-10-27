@@ -20,17 +20,12 @@ struct RootTabs: View {
                 .tabItem {
                     Label("Log", systemImage: "list.bullet.rectangle")
                 }
-            
-            ShooterProfileView()
-                .tabItem {
-                    Label("Profile", systemImage: "person")
-                }
 
-            SettingsView()
+            SettingsMainView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
                 }
-            
+
         }
     }
 }

@@ -14,15 +14,6 @@ struct ShooterProfileView: View {
 
         NavigationStack {
             Form {
-                Section("Membership") {
-                    TextField("USPSA Number (e.g., A12345)", text: $profile.uspsaNumber)
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled()
-                        .onChange(of: profile.uspsaNumber, initial: false) {
-                            debouncedSave()
-                        }
-                }
-                
                 Section("Divisions & Class") {
                     ForEach(Array(Division.allCases), id: \.self) { div in
                         DivisionRow(
@@ -120,4 +111,15 @@ private struct DivisionRow: View {
         }
         .padding(.vertical, 4)
     }
+}
+
+#Preview {
+    let schema = Schema(versionedSchema: Schema001.self)
+    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: schema, configurations: [config])
+
+    return NavigationStack {
+        ShooterProfileView()
+    }
+    .modelContainer(container)
 }
