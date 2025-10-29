@@ -53,14 +53,12 @@ final class Announcer: NSObject, ObservableObject {
         // Load saved preferences or use defaults
         self.isEnabled = defaults.object(forKey: enabledKey) as? Bool ?? true
         self.speakOnSilent = defaults.object(forKey: speakOnSilentKey) as? Bool ?? true
-        let defaultVoice = AVSpeechSynthesisVoice.speechVoices().first {
-            $0.name == "Alex" && $0.language == "en-US"
-        }
-        self.selectedVoiceIdentifier = defaults.string(forKey: voiceIdentifierKey) ?? defaultVoice?.identifier
-        
-        
+
+        // Load saved voice identifier, or defer default lookup until first use
+        self.selectedVoiceIdentifier = defaults.string(forKey: voiceIdentifierKey)
+
         super.init()
-        
+
         synth.delegate = self
     }
 

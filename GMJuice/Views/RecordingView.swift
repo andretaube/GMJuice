@@ -11,9 +11,11 @@ struct RecordingView: View {
     @Environment(\.modelContext) private var modelContext
 
     @ObservedObject private var announcer = Announcer.shared
+    @ObservedObject private var recordingManager = RecordingManager.shared
 
     @StateObject private var vm: RecordingViewModel
     @State private var isOrientationReady = false
+    @State private var autoAnnounceTask: Task<Void, Never>?
 
     @Query private var shooterProfiles: [ShooterProfile]
     private var shooter: ShooterProfile? {
@@ -73,25 +75,30 @@ struct RecordingView: View {
         .navigationTitle(isOrientationReady ? "\(stage.name) – \(stage.code) - \(division)" : "")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(isOrientationReady ? .visible : .hidden, for: .navigationBar)
-        .onChange(of: vm.stringRun.stringShots.count) { old, new in
-            do {
-                if new >= 5 {
-                    print("📊 5 shots completed, processing...")
-                    modelContext.insert(vm.stringRun)
+        .onChange(of: recordingManager.shotCount) { old, new in
+            // Auto-announce after 1 second of no new shots (when >= 5 shots)
+            if new >= 5 {
+                // Cancel any pending announcement
+                autoAnnounceTask?.cancel()
 
-                    try modelContext.save()
+                // Schedule new announcement
+                autoAnnounceTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
 
-                    // Announce time
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        let adjustedTime = vm.adjustedTime(for: vm.stringRun)
-                        Announcer.shared.speak(text: "\(adjustedTime)")
+                    guard !Task.isCancelled,
+                          let currentString = recordingManager.currentString else {
+                        return
                     }
+
+                    let adjustedTime = currentString.adjustedTime
+                    print("📢 Auto-announcing time: \(adjustedTime)")
+                    announcer.speak(text: "\(Format.formatTime(adjustedTime))")
                 }
-            } catch {
-                print("Failed to save StringRun: \(error.localizedDescription)")
             }
         }
         .onAppear() {
+            // Start recording session
+            recordingManager.startSession(stageId: stage.code, divisionId: division.id, modelContext: modelContext)
             // Lock to landscape orientation
             AppDelegate.orientationLock = .landscape
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
@@ -114,6 +121,12 @@ struct RecordingView: View {
             }
         }
         .onDisappear() {
+            // Cancel pending announcement
+            autoAnnounceTask?.cancel()
+
+            // End recording session
+            recordingManager.endSession()
+
             // Reset orientation state
             isOrientationReady = false
 
