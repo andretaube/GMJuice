@@ -2,9 +2,10 @@ import Foundation
 import CoreBluetooth
 import Combine
 
+@MainActor
 final class SettingsViewModel: ObservableObject {
     static let shared = SettingsViewModel()
-    
+
     let ble = BLEManager.shared
 
     

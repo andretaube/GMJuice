@@ -15,8 +15,11 @@ final class Announcer: NSObject, ObservableObject {
         didSet {
             guard isEnabled != oldValue else { return }
             defaults.set(isEnabled, forKey: enabledKey)
-            if !isEnabled, synth.isSpeaking {
-                synth.stopSpeaking(at: .immediate)
+            if !isEnabled {
+                if synth.isSpeaking {
+                    synth.stopSpeaking(at: .immediate)
+                }
+                deactivateAudioSession()
             }
         }
     }
@@ -76,6 +79,20 @@ final class Announcer: NSObject, ObservableObject {
         } catch {
             print("⚠️ Announcer audio session error: \(error.localizedDescription)")
             audioSessionConfigured = false
+        }
+    }
+
+    /// Deactivates the audio session
+    private func deactivateAudioSession() {
+        guard audioSessionConfigured else { return }
+
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setActive(false, options: .notifyOthersOnDeactivation)
+            audioSessionConfigured = false
+            print("✓ Audio session deactivated")
+        } catch {
+            print("⚠️ Failed to deactivate audio session: \(error.localizedDescription)")
         }
     }
 

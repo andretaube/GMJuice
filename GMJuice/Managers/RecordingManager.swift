@@ -81,7 +81,13 @@ final class RecordingManager: ObservableObject {
         isRecording = false
         shotCount = 0
 
-        print("🏁 Recording session ended - all state cleared")
+        // Clear callbacks to prevent stale references
+        onStringStarted = nil
+        onShotRecorded = nil
+        onStringCompleted = nil
+        onStringCancelled = nil
+
+        print("🏁 Recording session ended - all state and callbacks cleared")
     }
 
     // MARK: - String Management
@@ -114,8 +120,14 @@ final class RecordingManager: ObservableObject {
 
         isRecording = false
 
-        // Save to database if we have 5+ shots
-        if shotCount >= 5, let context = modelContext {
+        // Save to database if we have 5+ shots and context is available
+        if shotCount >= 5 {
+            guard let context = modelContext else {
+                print("⚠️ No model context available - string not saved to database")
+                print("🏁 String finished (not persisted)")
+                return
+            }
+
             do {
                 context.insert(string)
                 try context.save()
@@ -166,12 +178,45 @@ final class RecordingManager: ObservableObject {
         onShotRecorded?(shot, shotCount)
     }
 
+    /// Toggle a target as miss/hit
+    func toggleTargetMiss(_ target: Int) {
+        guard let string = currentString else {
+            print("⚠️ No current string to toggle miss")
+            return
+        }
+
+        // Validate target number (1-5)
+        guard target >= 1 && target <= 5 else {
+            print("⚠️ Invalid target number: \(target)")
+            return
+        }
+
+        if let index = string.missedTargets.firstIndex(of: target) {
+            string.missedTargets.remove(at: index)
+            print("✓ Target \(target) marked as HIT")
+        } else {
+            string.missedTargets.append(target)
+            print("✓ Target \(target) marked as MISS")
+        }
+
+        // Save if already persisted
+        if let context = modelContext {
+            // Check if string is already inserted in context
+            do {
+                try context.save()
+            } catch {
+                print("⚠️ Failed to save miss toggle: \(error)")
+            }
+        }
+    }
+
     // MARK: - BLE Integration
 
     private func setupBLECallbacks() {
         ble.onBeep = { [weak self] in
             guard let self = self else { return }
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
                 print("🎵 BLE: Beep detected")
 
                 // If already recording, finish current string first
@@ -186,7 +231,8 @@ final class RecordingManager: ObservableObject {
 
         ble.onShot = { [weak self] now, split, first in
             guard let self = self else { return }
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
                 print("🎯 BLE: Shot detected")
                 self.recordShot(now: now, split: split, first: first)
             }

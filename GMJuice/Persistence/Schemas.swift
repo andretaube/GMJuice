@@ -3,7 +3,7 @@ import Foundation
 
 // MARK: - V1
 enum Schema001: VersionedSchema {
-    static var versionIdentifier = Schema.Version(0, 0, 1)
+    static var versionIdentifier = Schema.Version(0, 0, 2)
     
     static var models: [any PersistentModel.Type] {
         [
@@ -36,7 +36,18 @@ enum Schema001: VersionedSchema {
 
         // Tracks which targets were missed: 1-4 for plates, 5 for stop plate
         // Empty array = all hits (5 shots), [2, 4] = missed targets 2 and 4 (7 shots)
-        var missedTargets: [Int] = []
+        // Stored as Data to avoid SwiftData/CoreData array persistence issues
+        private var missedTargetsData: Data?
+
+        var missedTargets: [Int] {
+            get {
+                guard let data = missedTargetsData else { return [] }
+                return (try? JSONDecoder().decode([Int].self, from: data)) ?? []
+            }
+            set {
+                missedTargetsData = try? JSONEncoder().encode(newValue)
+            }
+        }
 
         // No inverse, no sortBy here → avoids circular macro resolution
         @Relationship(deleteRule: .cascade)
@@ -47,7 +58,7 @@ enum Schema001: VersionedSchema {
             self.divisionId = divisionId
             self.date = Date()
             self.time = 0
-            self.missedTargets = []
+            self.missedTargetsData = nil
         }
 
         init(stageId: String, divisionId: String, date: Date, time: Decimal) {
@@ -55,7 +66,7 @@ enum Schema001: VersionedSchema {
             self.divisionId = divisionId
             self.date = date
             self.time = time
-            self.missedTargets = []
+            self.missedTargetsData = nil
         }
     }
     

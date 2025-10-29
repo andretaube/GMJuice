@@ -13,6 +13,7 @@ enum BLEConnectionStatus {
     case Connecting
 }
 
+@MainActor
 final class BLEManager: NSObject, ObservableObject {
     public static let shared = BLEManager()
     
@@ -114,8 +115,8 @@ final class BLEManager: NSObject, ObservableObject {
     public func saveDevice(id: UUID, name: String) {
         UserDefaults.standard.set(id.uuidString, forKey: savedUUIDKey)
         UserDefaults.standard.set(name, forKey: savedNameKey)
-        UserDefaults.standard.synchronize()
-        onDeviceSaved?();
+        // synchronize() is deprecated and unnecessary - UserDefaults auto-syncs
+        onDeviceSaved?()
         print("Saved device: \(name) : \(id)")
         connect(savedUUID: id)
     }
@@ -165,7 +166,7 @@ final class BLEManager: NSObject, ObservableObject {
                 if let (h4, l5) = pair(4, 5) { timeNow = convertData(high: h4, low: l5) }
                 if let (h6, l7) = pair(6, 7) { timeSplit = convertData(high: h6, low: l7) }
                 if let (h8, l9) = pair(8, 9) { timeFirst = convertData(high: h8, low: l9) }
-                                
+
                 if let onShot = onShot, let now = timeNow, let split = timeSplit, let first = timeFirst {
                     DispatchQueue.main.async {
                         onShot(now, split, first)
@@ -196,117 +197,122 @@ final class BLEManager: NSObject, ObservableObject {
 
 // MARK: - CBCentralManagerDelegate
 extension BLEManager: CBCentralManagerDelegate {
-    func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        switch central.state {
-        case .poweredOn:
-            print("Bluetooth powered on.")
-        case .poweredOff:
-            print("Bluetooth powered off.")
-            connectionStatus = .Disconnected  // Add this line
-        case .resetting:
-            print("Bluetooth resetting...")
-            connectionStatus = .Disconnected  // Add this line
-        case .unauthorized:
-            print("Bluetooth unauthorized.")
-            connectionStatus = .Disconnected  // Add this line
-        case .unsupported:
-            print("Bluetooth unsupported on this device.")
-            connectionStatus = .Disconnected  // Add this line
-        case .unknown:
-            fallthrough
-        @unknown default:
-            print("Bluetooth state unknown.")
+    nonisolated func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        // Already on main queue (.main queue specified in init), safe to assume isolation
+        MainActor.assumeIsolated {
+            switch central.state {
+            case .poweredOn:
+                print("Bluetooth powered on.")
+            case .poweredOff:
+                print("Bluetooth powered off.")
+                connectionStatus = .Disconnected
+            case .resetting:
+                print("Bluetooth resetting...")
+                connectionStatus = .Disconnected
+            case .unauthorized:
+                print("Bluetooth unauthorized.")
+                connectionStatus = .Disconnected
+            case .unsupported:
+                print("Bluetooth unsupported on this device.")
+                connectionStatus = .Disconnected
+            case .unknown:
+                fallthrough
+            @unknown default:
+                print("Bluetooth state unknown.")
+            }
         }
     }
-    
-    func centralManager(_ central: CBCentralManager,
-                        didDiscover peripheral: CBPeripheral,
-                        advertisementData: [String: Any],
-                        rssi RSSI: NSNumber) {
-        if let timerName = peripheral.name, timerName.contains("AMG") {
-            if !discoveredDevices.contains(peripheral) {
-                discoveredDevices.append(peripheral)
-                let name = (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? peripheral.name ?? "Unknown"
-                print("==> Discovered: \(name) [\(peripheral.identifier)] RSSI=\(RSSI)")
-                
-                if let uuids = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID], !uuids.isEmpty {
-                    print("  Service UUIDs: \(uuids.map { $0.uuidString }.joined(separator: ", "))")
+
+    nonisolated func centralManager(_ central: CBCentralManager,
+                                     didDiscover peripheral: CBPeripheral,
+                                     advertisementData: [String: Any],
+                                     rssi RSSI: NSNumber) {
+        MainActor.assumeIsolated {
+            if let timerName = peripheral.name, timerName.contains("AMG") {
+                if !discoveredDevices.contains(peripheral) {
+                    discoveredDevices.append(peripheral)
+                    let name = (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? peripheral.name ?? "Unknown"
+                    print("==> Discovered: \(name) [\(peripheral.identifier)] RSSI=\(RSSI)")
+
+                    if let uuids = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID], !uuids.isEmpty {
+                        print("  Service UUIDs: \(uuids.map { $0.uuidString }.joined(separator: ", "))")
+                    }
                 }
             }
         }
     }
-    
-    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        connectionStatus = .Connected
-        onConnected?(peripheral)
-        // Typically discover services next:
-        peripheral.discoverServices(nil)
-    }
-    
-    func centralManager(_ central: CBCentralManager,
-                        didFailToConnect peripheral: CBPeripheral,
-                        error: Error?) {
-        connectionStatus = .Disconnected
-        onConnectFailed?(peripheral, error)
-    }
-    
-    func centralManager(_ central: CBCentralManager,
-                        didDisconnectPeripheral peripheral: CBPeripheral,
-                        error: Error?) {
-        connectionStatus = .Disconnected
-        onDisconnected?(peripheral, error)
-        // If this was your current device, clear it or auto-retry as desired
-        if current?.identifier == peripheral.identifier { current = nil }
+
+    nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        MainActor.assumeIsolated {
+            connectionStatus = .Connected
+            onConnected?(peripheral)
+            // Typically discover services next:
+            peripheral.discoverServices(nil)
+        }
     }
 
-    
+    nonisolated func centralManager(_ central: CBCentralManager,
+                                     didFailToConnect peripheral: CBPeripheral,
+                                     error: Error?) {
+        MainActor.assumeIsolated {
+            connectionStatus = .Disconnected
+            onConnectFailed?(peripheral, error)
+        }
+    }
+
+    nonisolated func centralManager(_ central: CBCentralManager,
+                                     didDisconnectPeripheral peripheral: CBPeripheral,
+                                     error: Error?) {
+        MainActor.assumeIsolated {
+            connectionStatus = .Disconnected
+            onDisconnected?(peripheral, error)
+            // If this was your current device, clear it or auto-retry as desired
+            if current?.identifier == peripheral.identifier { current = nil }
+        }
+    }
+
+
 }
 
 extension BLEManager: CBPeripheralDelegate {
-    
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+
+    nonisolated func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        // Peripheral delegate also runs on the queue specified in CBCentralManager init (.main)
         peripheral.services?.forEach {
             peripheral.discoverCharacteristics(nil, for: $0)
         }
     }
 
-    func peripheral(_ peripheral: CBPeripheral,
-                    didDiscoverCharacteristicsFor service: CBService,
-                    error: Error?) {
-
+    nonisolated func peripheral(_ peripheral: CBPeripheral,
+                                 didDiscoverCharacteristicsFor service: CBService,
+                                 error: Error?) {
         if let error { print("Char discovery error:", error); return }
         guard let chars = service.characteristics else { return }
 
-        for c in chars {
-            if c.uuid == TIMER_NOTIFY { notifyChar = c }
-            if c.uuid == TIMER_WRITE  { writeChar  = c }
-        }
-
-        if let c = notifyChar {
-            if c.properties.contains(.notify) || c.properties.contains(.indicate) {
-                peripheral.setNotifyValue(true, for: c)
-            } else {
-                print("Target char doesn’t support notify/indicate")
+        MainActor.assumeIsolated {
+            for c in chars {
+                if c.uuid == TIMER_NOTIFY { notifyChar = c }
+                if c.uuid == TIMER_WRITE  { writeChar  = c }
             }
-        } else {
-            print("Notify characteristic not found — check UUID")
+
+            if let c = notifyChar {
+                if c.properties.contains(.notify) || c.properties.contains(.indicate) {
+                    peripheral.setNotifyValue(true, for: c)
+                } else {
+                    print("Target char doesn't support notify/indicate")
+                }
+            } else {
+                print("Notify characteristic not found — check UUID")
+            }
         }
-        
     }
 
-    // Handy extras you might use:
-    func peripheralDidUpdateName(_ peripheral: CBPeripheral) { /* … */ }
-
-    func peripheral(_ peripheral: CBPeripheral, didModifyServices invalidatedServices: [CBService]) {
-        
-    }
-
-    func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) { /* … */ }
-    
-    func peripheral(_ peripheral: CBPeripheral,
-                    didUpdateValueFor characteristic: CBCharacteristic,
-                    error: Error?) {
+    nonisolated func peripheral(_ peripheral: CBPeripheral,
+                                 didUpdateValueFor characteristic: CBCharacteristic,
+                                 error: Error?) {
         guard error == nil, let data = characteristic.value else { return }
-        handleData(data)
+        MainActor.assumeIsolated {
+            handleData(data)
+        }
     }
 }

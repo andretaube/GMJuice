@@ -16,6 +16,8 @@ struct RecordingView: View {
     @StateObject private var vm: RecordingViewModel
     @State private var isOrientationReady = false
     @State private var autoAnnounceTask: Task<Void, Never>?
+    @State private var lastAnnouncedShotCount = 0
+    @State private var previousConnectionStatus: BLEConnectionStatus = .Disconnected
 
     @Query private var shooterProfiles: [ShooterProfile]
     private var shooter: ShooterProfile? {
@@ -75,34 +77,67 @@ struct RecordingView: View {
         .navigationTitle(isOrientationReady ? "\(stage.name) – \(stage.code) - \(division)" : "")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(isOrientationReady ? .visible : .hidden, for: .navigationBar)
+        .onChange(of: recordingManager.stringCounter) { _, _ in
+            // Reset announcement tracking when a new string starts
+            lastAnnouncedShotCount = 0
+        }
         .onChange(of: recordingManager.shotCount) { old, new in
-            // Auto-announce after 1 second of no new shots (when >= 5 shots)
-            if new >= 5 {
+            // Only trigger when reaching or exceeding 5 shots for the first time
+            if new >= 5 && new != lastAnnouncedShotCount {
+                lastAnnouncedShotCount = new
+
                 // Cancel any pending announcement
                 autoAnnounceTask?.cancel()
+
+                // Capture current string to avoid race condition
+                guard let stringToAnnounce = recordingManager.currentString else {
+                    return
+                }
 
                 // Schedule new announcement
                 autoAnnounceTask = Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
 
-                    guard !Task.isCancelled,
-                          let currentString = recordingManager.currentString else {
-                        return
-                    }
+                    guard !Task.isCancelled else { return }
 
-                    let adjustedTime = currentString.adjustedTime
-                    print("📢 Auto-announcing time: \(adjustedTime)")
-                    announcer.speak(text: "\(Format.formatTime(adjustedTime))")
+                    let adjustedTime = stringToAnnounce.adjustedTime
+
+                    // Calculate classification for this time
+                    let pct = PeakBenchmarks.percent(division: division, stageCode: stage.code, time: adjustedTime)
+                    let shooterClass = ShooterClass.shooterClass(percentage: pct)
+
+                    print("📢 Auto-announcing time: \(adjustedTime) (\(shooterClass.rawValue))")
+                    announcer.speak(text: "\(Format.formatTime(adjustedTime)), \(shooterClass.rawValue)")
                 }
             }
         }
+        .onChange(of: vm.connectionStatus) { oldStatus, newStatus in
+            // Announce when timer connects (but not on initial connection or reconnections)
+            if newStatus == .Connected && previousConnectionStatus != .Connected {
+                print("📢 Timer connected")
+                announcer.speak(text: "Timer connected")
+            }
+            previousConnectionStatus = newStatus
+        }
         .onAppear() {
+            // Reset announcement tracking
+            lastAnnouncedShotCount = 0
+
+            // Set initial connection status (no announcement on first appear)
+            previousConnectionStatus = vm.connectionStatus
+
             // Start recording session
             recordingManager.startSession(stageId: stage.code, divisionId: division.id, modelContext: modelContext)
+
             // Lock to landscape orientation
             AppDelegate.orientationLock = .landscape
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+
+            // Safely get active window scene
+            if let windowScene = UIApplication.shared.connectedScenes
+                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
                 windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape))
+            } else {
+                print("⚠️ Could not get window scene for orientation lock")
             }
 
             UIApplication.shared.isIdleTimerDisabled = true
@@ -132,8 +167,13 @@ struct RecordingView: View {
 
             // Reset to allow all orientations
             AppDelegate.orientationLock = .all
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+
+            // Safely get active window scene
+            if let windowScene = UIApplication.shared.connectedScenes
+                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
                 windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .allButUpsideDown))
+            } else {
+                print("⚠️ Could not get window scene for orientation unlock")
             }
 
             UIApplication.shared.isIdleTimerDisabled = false
@@ -455,33 +495,23 @@ struct RecordingView: View {
     // MARK: - Target Hit/Miss Toggle
 
     private func toggleTargetMiss(_ target: Int) {
-        // Toggle target in missedTargets array
-        if let index = vm.stringRun.missedTargets.firstIndex(of: target) {
-            // Target was marked as miss, mark as hit
-            vm.stringRun.missedTargets.remove(at: index)
-        } else {
-            // Target was marked as hit, mark as miss
-            vm.stringRun.missedTargets.append(target)
-        }
+        // Delegate to RecordingManager for proper model mutation
+        recordingManager.toggleTargetMiss(target)
 
-        // Save changes
-        do {
-            try modelContext.save()
-            let status = vm.stringRun.missedTargets.contains(target) ? "MISS" : "HIT"
-            print("✓ Toggled target \(target) to \(status)")
+        // Provide haptic feedback
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
 
-            // Provide haptic feedback
-            let generator = UIImpactFeedbackGenerator(style: .medium)
-            generator.impactOccurred()
+        // Cancel any current announcement and announce adjusted time with classification after 1 second
+        Announcer.shared.stop()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            let adjustedTime = vm.adjustedTime(for: vm.stringRun)
 
-            // Cancel any current announcement and announce adjusted time after 1 second
-            Announcer.shared.stop()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                let adjustedTime = vm.adjustedTime(for: vm.stringRun)
-                Announcer.shared.speak(text: "\(adjustedTime)")
-            }
-        } catch {
-            print("❌ Failed to save: \(error)")
+            // Calculate classification for this time
+            let pct = PeakBenchmarks.percent(division: division, stageCode: stage.code, time: adjustedTime)
+            let shooterClass = ShooterClass.shooterClass(percentage: pct)
+
+            Announcer.shared.speak(text: "\(Format.formatTime(adjustedTime)), \(shooterClass.rawValue)")
         }
     }
 
