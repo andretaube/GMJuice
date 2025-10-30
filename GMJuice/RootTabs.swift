@@ -30,7 +30,6 @@ struct RootTabs: View {
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
                 }
-
         }
     }
 }

@@ -43,11 +43,11 @@ struct VideoRecordingView: View {
         ZStack {
             
             if (isOrientationReady) {
-                
+
                 // Camera preview as background
                 CameraPreviewView(session: vm.captureSession)
                     .ignoresSafeArea()
-                
+
                 // Overlay UI
                 VStack {
                     HStack(alignment: .top, spacing: 16) {
@@ -59,9 +59,9 @@ struct VideoRecordingView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal)
-                    
+
                     Spacer()
-                    
+
                     shotsAndSplits
                 }
                 .padding()
@@ -87,6 +87,7 @@ struct VideoRecordingView: View {
         .navigationTitle("\(stage.name) – \(stage.code) - \(division)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
+        .toolbarVisibility(.hidden, for: .tabBar)
         .onChange(of: recordingManager.stringCounter) { _, _ in
             // Reset announcement tracking when a new string starts
             lastAnnouncedShotCount = 0

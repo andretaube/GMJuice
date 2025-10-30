@@ -51,6 +51,13 @@ struct SettingsMainView: View {
                         destination: AppearanceSettingsView()
                     )
 
+                    SettingsCard(
+                        title: "Export Data",
+                        icon: "square.and.arrow.up",
+                        color: .cyan,
+                        destination: ExportDataView()
+                    )
+
                     #if DEBUG
                     SettingsCard(
                         title: "Developer",
