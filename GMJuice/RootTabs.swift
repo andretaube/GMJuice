@@ -21,6 +21,11 @@ struct RootTabs: View {
                     Label("Log", systemImage: "list.bullet.rectangle")
                 }
 
+            VideosView()
+                .tabItem {
+                    Label("Videos", systemImage: "video.fill")
+                }
+
             SettingsMainView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")

@@ -9,5 +9,9 @@
 	</dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>GMJuice uses the microphone to detect hits and misses on steel targets by analyzing the sound of each shot.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>GMJuice needs access to the camera to record your training sessions with performance overlays.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>GMJuice needs access to save your recorded training videos to your photo library.</string>
 </dict>
 </plist>

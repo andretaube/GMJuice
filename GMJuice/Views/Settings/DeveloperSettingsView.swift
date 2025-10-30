@@ -77,7 +77,7 @@ struct DeveloperSettingsView: View {
                     }
                     Button("Cancel", role: .cancel) {}
                 } message: {
-                    Text("This will permanently delete all StringRuns, shots, and profiles. This cannot be undone.")
+                    Text("This will permanently delete all StringRuns, shots, profiles, and videos. This cannot be undone.")
                 }
 
                 if let status = deleteStatus {
@@ -88,7 +88,7 @@ struct DeveloperSettingsView: View {
             } header: {
                 Text("Danger Zone")
             } footer: {
-                Text("Warning: This will delete ALL data from the app, including real training runs.")
+                Text("Warning: This will delete ALL data from the app, including real training runs and videos.")
             }
         }
         .navigationTitle("Developer Tools")
@@ -102,6 +102,9 @@ struct DeveloperSettingsView: View {
             try modelContext.delete(model: ShooterProfile.self)
             try modelContext.save()
 
+            // Delete all videos
+            deleteAllVideos()
+
             deleteStatus = "✓ All data deleted"
 
             // Clear status after 3 seconds
@@ -110,6 +113,35 @@ struct DeveloperSettingsView: View {
             }
         } catch {
             deleteStatus = "❌ Error: \(error.localizedDescription)"
+        }
+    }
+
+    private func deleteAllVideos() {
+        guard let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            print("⚠️ Documents directory not found")
+            return
+        }
+
+        let videosDirectory = documentsPath.appendingPathComponent("Videos")
+
+        do {
+            let fileURLs = try FileManager.default.contentsOfDirectory(
+                at: videosDirectory,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )
+
+            var deletedCount = 0
+            for fileURL in fileURLs {
+                if fileURL.pathExtension == "mov" || fileURL.pathExtension == "mp4" {
+                    try FileManager.default.removeItem(at: fileURL)
+                    deletedCount += 1
+                }
+            }
+
+            print("✅ Deleted \(deletedCount) video(s)")
+        } catch {
+            print("⚠️ Error deleting videos: \(error)")
         }
     }
 }

@@ -9,10 +9,11 @@ import SwiftUI
 import Foundation
 
 struct TrainView: View {
-    // Persist the user’s selected SCSA division in user preferences
+    // Persist the user's selected SCSA division in user preferences
     @AppStorage("scsa_active_division") private var activeDivisionRaw: String = Division.RFPO.rawValue
-    
+
     @State private var orientation = UIDevice.current.orientation
+    @State private var navigationPath = NavigationPath()
 
     // Binding that bridges @AppStorage <-> enum
     private var selectedDivisionBinding: Binding<Division> {
@@ -23,7 +24,7 @@ struct TrainView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             List {
                 // Top "dropdown" for division selection
                 Section {
@@ -37,25 +38,67 @@ struct TrainView: View {
 
                 // Stages
                 ForEach(AllStages) { stage in
-                    NavigationLink {
-                        RecordingView(stage: stage, division: selectedDivisionBinding.wrappedValue)
-                    } label: {
-                        HStack {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(stage.code)
                                 .font(.headline)
-                                .frame(width: 100, alignment: .leading)
                             Text(stage.name)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
-                        .padding(.vertical, 4)
+
+                        Spacer(minLength: 0)
+
+                        // Video button
+                        Button {
+                            navigationPath.append(NavigationDestination.video(stage: stage, division: selectedDivisionBinding.wrappedValue))
+                        } label: {
+                            Image(systemName: "video.fill")
+                                .font(.title3)
+                                .foregroundStyle(.red)
+                                .frame(width: 44, height: 44)
+                                .background(Color.red.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        
+                        // Timer button
+                        Button {
+                            navigationPath.append(NavigationDestination.timer(stage: stage, division: selectedDivisionBinding.wrappedValue))
+                        } label: {
+                            Image(systemName: "timer")
+                                .font(.title3)
+                                .foregroundStyle(.blue)
+                                .frame(width: 44, height: 44)
+                                .background(Color.blue.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
                     }
+                    .contentShape(Rectangle())
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
             }
             .navigationTitle("Train")
+            .navigationDestination(for: NavigationDestination.self) { destination in
+                switch destination {
+                case .timer(let stage, let division):
+                    RecordingView(stage: stage, division: division)
+                case .video(let stage, let division):
+                    VideoRecordingView(stage: stage, division: division)
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
                 orientation = UIDevice.current.orientation
             }
         }
     }
+}
+
+// Navigation helper
+enum NavigationDestination: Hashable {
+    case timer(stage: Stage, division: Division)
+    case video(stage: Stage, division: Division)
 }
 
 #Preview {
