@@ -12,7 +12,7 @@ import SwiftData
 import SwiftUI
 
 @MainActor
-public class RecordingViewModel: ObservableObject {
+public class RecordingViewModel: ObservableObject, RecordingViewModelProtocol {
     private let stageId: String
     private let divisionId: String
 

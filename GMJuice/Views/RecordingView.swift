@@ -14,7 +14,6 @@ struct RecordingView: View {
     @ObservedObject private var recordingManager = RecordingManager.shared
 
     @StateObject private var vm: RecordingViewModel
-    @State private var isOrientationReady = false
     @State private var autoAnnounceTask: Task<Void, Never>?
     @State private var lastAnnouncedShotCount = 0
     @State private var previousConnectionStatus: BLEConnectionStatus = .Disconnected
@@ -40,43 +39,36 @@ struct RecordingView: View {
 
 
     var body: some View {
-        ZStack {
-            if isOrientationReady {
-                VStack {
-                    HStack(alignment: .top, spacing: 16) {
-                        leftColumn
-                        timerDisplay.frame(maxWidth: .infinity).padding(.top, 40)
-                        rightColumn
-                    }
-                    .frame(maxWidth: .infinity)
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 16) {
+                RecordingLeftColumn(stage: stage, division: division, vm: vm, style: .default, shooter: shooter)
+                VStack(spacing: 8) {
+                    RecordingTimerDisplay(fontSize: 240, vm: vm, division: division, stage: stage, shooter: shooter, style: .default, announcer: announcer)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 8)
 
-                    shotsAndSplits
+                    // Hit/miss indicators right after time
+                    RecordingTargetIndicators(stage: stage, missedTargets: vm.stringRun.missedTargets, onToggleMiss: toggleTargetMiss, style: .default)
                 }
-                .padding()
                 .frame(maxWidth: .infinity)
+                RecordingRightColumn(vm: vm, style: .default)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal)
+            .padding(.top, 8)
 
-            if !isOrientationReady {
-                // Show splash screen while rotating to landscape
-                ZStack {
-                    Color(.systemBackground)
-                        .ignoresSafeArea()
+            Spacer(minLength: 8)
 
-                    GeometryReader { geo in
-                        let imageWidth = geo.size.width * 0.356
-                        Image("GMJuiceRound")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: imageWidth)
-                            .position(x: geo.size.width / 2, y: geo.size.height / 2)
-                    }
-                }
-                .ignoresSafeArea()
-            }
+            RecordingShotsAndSplits(vm: vm, style: .default)
+                .padding(.horizontal)
+                .padding(.bottom)
         }
-        .navigationTitle(isOrientationReady ? "\(stage.name) – \(stage.code) - \(division)" : "")
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(edges: [])
+        .navigationTitle("\(stage.name) – \(stage.code) - \(division)")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(isOrientationReady ? .visible : .hidden, for: .navigationBar)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .onChange(of: recordingManager.stringCounter) { _, _ in
             // Reset announcement tracking when a new string starts
             lastAnnouncedShotCount = 0
@@ -129,25 +121,9 @@ struct RecordingView: View {
             // Start recording session
             recordingManager.startSession(stageId: stage.code, divisionId: division.id, modelContext: modelContext)
 
-            // Lock to landscape orientation
-            AppDelegate.orientationLock = .landscape
-
-            // Safely get active window scene
-            if let windowScene = UIApplication.shared.connectedScenes
-                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
-                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape))
-            } else {
-                print("⚠️ Could not get window scene for orientation lock")
-            }
-
             UIApplication.shared.isIdleTimerDisabled = true
 
-            // Show content after rotation completes - increased delay for smoother transition
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                isOrientationReady = true
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 if vm.connectionStatus != .Connected {
                     Announcer.shared.speak(text: "Timer is not connected")
                 } else {
@@ -162,334 +138,7 @@ struct RecordingView: View {
             // End recording session
             recordingManager.endSession()
 
-            // Reset orientation state
-            isOrientationReady = false
-
-            // Reset to allow all orientations
-            AppDelegate.orientationLock = .all
-
-            // Safely get active window scene
-            if let windowScene = UIApplication.shared.connectedScenes
-                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
-                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .allButUpsideDown))
-            } else {
-                print("⚠️ Could not get window scene for orientation unlock")
-            }
-
             UIApplication.shared.isIdleTimerDisabled = false
-        }
-    }
-    
-    // MARK: - Column Views
-    
-    private var leftColumn: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("#\(vm.counter)")
-                .font(.title.bold())
-
-            let time = vm.adjustedTime(for: vm.stringRun)
-
-            infoTitle(icon: .init(systemName: "stopwatch"),
-                      label: "Current",
-                      color: Color.blue)
-
-            if vm.stringRun.stringShots.count >= 5 {
-                percentClass(division: division, stageCode: stage.code, time: time)
-            } else {
-                Text("1").hidden().font(.system(.title2, weight: .bold))
-            }
-
-            Spacer().frame(height: 8)
-            infoTitle(icon: .init(systemName: "stopwatch"),
-                      label: stage.strings == 5 ? "Best 4 of 5" : "Best 3 of 4",
-                      color: Color.blue)
-
-            if stage.strings <= vm.allRuns.count && vm.stringRun.stringShots.count >= 5 {
-                percentClass(division: division, stageCode: stage.code, times: vm.times())
-            } else {
-                Text("1").hidden().font(.system(.title2, weight: .bold))
-            }
-
-        }
-        .frame(minWidth: 150, alignment: .leading)
-
-    }
-    
-    @State private var pulseAnimation: Bool = false
-
-    private var timerDisplay: some View {
-        let performanceLevel = getPerformanceLevel()
-        let adjustedTime = vm.adjustedTime(for: vm.stringRun)
-
-        return Text(Format.formatTime(adjustedTime))
-            .monospacedDigit()
-            .font(.system(size: 120, weight: .bold))
-            .minimumScaleFactor(0.5)
-            .lineLimit(1)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .foregroundStyle(timerColor(for: performanceLevel))
-            .shadow(color: shadowColor(for: performanceLevel), radius: performanceLevel == .trophy ? 20 : (performanceLevel == .good ? 10 : (performanceLevel == .penalty ? 20 : 0)))
-            .scaleEffect((performanceLevel == .trophy || performanceLevel == .penalty) && pulseAnimation ? 1.05 : 1.0)
-            .onChange(of: vm.stringRun.stringShots.count) { old, new in
-                if new >= 5 {
-                    if performanceLevel == .trophy {
-                        withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                            pulseAnimation = true
-                        }
-                        announcer.playTrophySound()
-                    } else if performanceLevel == .penalty {
-                        withAnimation(.easeInOut(duration: 0.3).repeatForever(autoreverses: true)) {
-                            pulseAnimation = true
-                        }
-                    }
-                } else {
-                    pulseAnimation = false
-                }
-            }
-    }
-    
-    private var rightColumn: some View {
-        VStack(alignment: .trailing, spacing: 2) {
-            HStack(spacing: 12) {
-                timerConnectionStatus()
-            }
-            
-            if let bestTime = vm.bestTime() {
-                infoTitle(icon: .init(systemName: "thermometer.high"), label: "Fastest", color: Color.green)
-                Text("Time: \(Format.formatTime(bestTime))")
-                    .font(.system(.body, weight: .bold))
-                    .monospacedDigit()
-            }
-            if let bestFirstShot = vm.bestFirstShot() {
-                Text("1st: \(Format.formatTime(bestFirstShot))")
-                    .font(.system(.body, weight: .bold))
-                    .monospacedDigit()
-            }
-            
-            Spacer().frame(height: 15)
-
-            if vm.counter > 1 {
-                if let worstTime = vm.worstTime() {
-                    infoTitle(icon: .init(systemName: "thermometer.low"), label: "Slowest", color: Color.red)
-                    Text("Time: \(Format.formatTime(worstTime))")
-                        .font(.system(.body, weight: .bold))
-                        .monospacedDigit()
-                }
-                if let worstFirstShot = vm.worstFirstShot() {
-                    Text("1st: \(Format.formatTime(worstFirstShot))")
-                        .font(.system(.body, weight: .bold))
-                        .monospacedDigit()
-                }
-            }
-            
-        }
-        .frame(minWidth: 150, alignment: .trailing)
-
-
-    }
-    
-    private var shotsAndSplits: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Target indicators
-            targetIndicators
-
-            // Shots / Splits
-            infoTitle(icon: .init(systemName: "list.number"), label: "Shots / Splits", color: Color.blue)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack {
-                    ForEach(vm.stringRun.orderedStringShots) { shot in
-                        VStack(alignment: .leading, spacing: 4) {
-                            // Top: cumulative offset
-                            Text("\(Format.formatTime(shot.now))")
-                                .font(.title2.bold())
-                                .monospacedDigit()
-
-                            // Bottom: split
-                            Text("\(Format.formatTime(shot.split))")
-                                .font(.headline)
-                                .monospacedDigit()
-                        }
-                        .padding(.horizontal, 4)
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        // Top: cumulative offset
-                        Text("1")
-                            .hidden()
-                            .font(.title2.bold())
-                            .monospacedDigit()
-
-                        // Bottom: split
-                        Text("1")
-                            .hidden()
-                            .font(.headline)
-                            .monospacedDigit()
-                    }
-                    .padding(.horizontal, 4)
-
-                }
-            }
-        }
-    }
-
-    private var targetIndicators: some View {
-        HStack(spacing: 8) {
-            ForEach(1...5, id: \.self) { target in
-                targetButton(for: target)
-            }
-        }
-    }
-
-    private func targetButton(for target: Int) -> some View {
-        let isMissed = vm.stringRun.missedTargets.contains(target)
-        let isStopPlate = target == 5
-
-        return Button {
-            toggleTargetMiss(target)
-        } label: {
-            Image(systemName: isMissed ? "xmark.circle.fill" : "checkmark.circle.fill")
-                .font(.system(size: isStopPlate ? 36 : 28))
-                .foregroundColor(isMissed ? .red : .green)
-        }
-        .buttonStyle(.plain)
-    }
-    
-    // MARK: - Helper Views
-
-    private enum PerformanceLevel {
-        case trophy  // Above class level
-        case good    // At class level
-        case normal  // Below class level or incomplete
-        case penalty // 30-second penalty (should flash red)
-    }
-
-    private func getPerformanceLevel() -> PerformanceLevel {
-        guard vm.stringRun.stringShots.count >= 5 else {
-            return .normal
-        }
-
-        // Check for penalty first
-        if vm.shouldFlashRed(for: vm.stringRun) {
-            return .penalty
-        }
-
-        guard let classification = shooter?.classification(for: division) else {
-            return .normal
-        }
-
-        // Use adjusted time for performance calculation
-        let time = vm.adjustedTime(for: vm.stringRun)
-        let pct = PeakBenchmarks.percent(division: division, stageCode: stage.code, time: time)
-        let threshold = classification.percentThreshold
-        let nextClassThreshold = classification.nextClassThreshold
-
-        if pct >= nextClassThreshold {
-            return .trophy
-        } else if pct >= threshold {
-            return .good
-        } else {
-            return .normal
-        }
-    }
-
-    private func timerColor(for level: PerformanceLevel) -> Color {
-        switch level {
-        case .trophy:
-            return .yellow
-        case .good:
-            return .green
-        case .normal:
-            return .primary
-        case .penalty:
-            return .red
-        }
-    }
-
-    private func shadowColor(for level: PerformanceLevel) -> Color {
-        switch level {
-        case .trophy:
-            return .yellow.opacity(0.8)
-        case .good:
-            return .green.opacity(0.6)
-        case .normal:
-            return .clear
-        case .penalty:
-            return .red.opacity(0.8)
-        }
-    }
-
-    @ViewBuilder
-    private func infoTitle(icon: Image, label: String, color: Color) -> some View {
-        HStack {
-            icon
-            Text(label)
-        }
-        .font(.system(.body, weight: .medium))
-        .foregroundStyle(color)
-    }
-    
-    @ViewBuilder
-    private func percentClass(division: Division, stageCode: String, time: Decimal) -> some View {
-        let pct = PeakBenchmarks.percent(division: division, stageCode: stageCode, time: time)
-        let percentDouble = NSDecimalNumber(decimal: pct).doubleValue
-        let shooterClass = ShooterClass.shooterClass(percentage: pct)
-        
-        HStack {
-            Text(String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue))
-                .font(.system(.body, weight: .bold))
-            if let classification = shooter?.classification(for: division) {
-                stringReward(percent: pct, shooterClass: classification)
-                    .imageScale(.small)
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private func percentClass(division: Division, stageCode: String, times: [Decimal]) -> some View {
-        let pct = PeakBenchmarks.percent(division: division, stageCode: stageCode, times: times)
-        let percentDouble = NSDecimalNumber(decimal: pct).doubleValue
-        let shooterClass = ShooterClass.shooterClass(percentage: pct)
-        
-        HStack {
-            Text(String(format: "%.0f%% (%@)", percentDouble, shooterClass.rawValue))
-                .font(.system(.body, weight: .bold))
-            if let classification = shooter?.classification(for: division) {
-                stringReward(percent: pct, shooterClass: classification)
-                    .imageScale(.small)
-            }
-        }
-    }
-    
-    private func timerConnectionStatus() -> some View {
-        Image(systemName: "timer")
-            .foregroundColor(
-                vm.connectionStatus == .Connected ? .green :
-                vm.connectionStatus == .Disconnected ? .red :
-                vm.connectionStatus == .Connecting ? .orange : .gray
-            )
-    }
-    
-    @ViewBuilder
-    private func stringReward(
-        percent: Decimal,
-        shooterClass: ShooterClass
-    ) -> some View {
-        let threshold = shooterClass.percentThreshold
-        let nextClassThreshold = shooterClass.nextClassThreshold
-        
-        if percent >= nextClassThreshold {
-            // Shooting above your class level - trophy!
-            Image(systemName: "trophy.fill")
-                .foregroundStyle(.yellow)
-        } else if percent >= threshold {
-            // At your class level - thumbs up
-            Image(systemName: "hand.thumbsup.fill")
-                .foregroundStyle(.green)
-        } else {
-            // Below your class level - thumbs down
-            Image(systemName: "hand.thumbsdown.fill")
-                .foregroundStyle(.red)
         }
     }
     // MARK: - Target Hit/Miss Toggle
@@ -529,7 +178,7 @@ struct RecordingView_Previews: PreviewProvider {
     
     static var previews: some View {
 
-        let stage = AllStages[0]
+        let stage = AllStages[7]
         let division = Division.RFPO
         
         let container = try! ModelContainer(
@@ -605,7 +254,6 @@ struct RecordingView_Previews: PreviewProvider {
                 }
         }
         .modelContainer(container)
-        .environment(DeviceOrientationManager())
     }
 }
 #endif

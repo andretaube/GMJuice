@@ -6,7 +6,18 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		6577826D2EB3D96400FD297C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 65E4D80B2E971EC5006D3B3D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 65E4D8122E971EC5006D3B3D;
+			remoteInfo = GMJuice;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		657782692EB3D96400FD297C /* GMJuiceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GMJuiceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		65E4D8132E971EC5006D3B3D /* GMJuice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GMJuice.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -21,6 +32,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		6577826A2EB3D96400FD297C /* GMJuiceTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = GMJuiceTests;
+			sourceTree = "<group>";
+		};
 		65E4D8152E971EC5006D3B3D /* GMJuice */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -32,6 +48,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		657782662EB3D96400FD297C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		65E4D8102E971EC5006D3B3D /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -46,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				65E4D8152E971EC5006D3B3D /* GMJuice */,
+				6577826A2EB3D96400FD297C /* GMJuiceTests */,
 				65E4D8142E971EC5006D3B3D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +78,7 @@
 			isa = PBXGroup;
 			children = (
 				65E4D8132E971EC5006D3B3D /* GMJuice.app */,
+				657782692EB3D96400FD297C /* GMJuiceTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,6 +86,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		657782682EB3D96400FD297C /* GMJuiceTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 657782712EB3D96400FD297C /* Build configuration list for PBXNativeTarget "GMJuiceTests" */;
+			buildPhases = (
+				657782652EB3D96400FD297C /* Sources */,
+				657782662EB3D96400FD297C /* Frameworks */,
+				657782672EB3D96400FD297C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6577826E2EB3D96400FD297C /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6577826A2EB3D96400FD297C /* GMJuiceTests */,
+			);
+			name = GMJuiceTests;
+			packageProductDependencies = (
+			);
+			productName = GMJuiceTests;
+			productReference = 657782692EB3D96400FD297C /* GMJuiceTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		65E4D8122E971EC5006D3B3D /* GMJuice */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 65E4D8392E971EC6006D3B3D /* Build configuration list for PBXNativeTarget "GMJuice" */;
@@ -93,6 +141,10 @@
 				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
+					657782682EB3D96400FD297C = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 65E4D8122E971EC5006D3B3D;
+					};
 					65E4D8122E971EC5006D3B3D = {
 						CreatedOnToolsVersion = 16.2;
 					};
@@ -113,11 +165,19 @@
 			projectRoot = "";
 			targets = (
 				65E4D8122E971EC5006D3B3D /* GMJuice */,
+				657782682EB3D96400FD297C /* GMJuiceTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		657782672EB3D96400FD297C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		65E4D8112E971EC5006D3B3D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -128,6 +188,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		657782652EB3D96400FD297C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		65E4D80F2E971EC5006D3B3D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -137,7 +204,51 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		6577826E2EB3D96400FD297C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 65E4D8122E971EC5006D3B3D /* GMJuice */;
+			targetProxy = 6577826D2EB3D96400FD297C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		6577826F2EB3D96400FD297C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UXCLGUH664;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.andretaube.trainingapp.GMJuiceTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GMJuice.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/GMJuice";
+			};
+			name = Debug;
+		};
+		657782702EB3D96400FD297C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UXCLGUH664;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.andretaube.trainingapp.GMJuiceTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GMJuice.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/GMJuice";
+			};
+			name = Release;
+		};
 		65E4D8372E971EC6006D3B3D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -275,12 +386,12 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "AMG Commander";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "AMG Commander";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Record your training";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record your training";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save your training videos";
+				INFOPLIST_KEY_NSCameraUsageDescription = "GMJuice needs camera access to record your shooting practice sessions.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "GMJuice needs microphone access to record audio with your practice videos.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "GMJuice needs permission to save your practice videos to your photo library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -314,12 +425,12 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "AMG Commander";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "AMG Commander";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Record your training";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record your training";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save your training videos";
+				INFOPLIST_KEY_NSCameraUsageDescription = "GMJuice needs camera access to record your shooting practice sessions.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "GMJuice needs microphone access to record audio with your practice videos.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "GMJuice needs permission to save your practice videos to your photo library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -340,6 +451,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		657782712EB3D96400FD297C /* Build configuration list for PBXNativeTarget "GMJuiceTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6577826F2EB3D96400FD297C /* Debug */,
+				657782702EB3D96400FD297C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		65E4D80E2E971EC5006D3B3D /* Build configuration list for PBXProject "GMJuice" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

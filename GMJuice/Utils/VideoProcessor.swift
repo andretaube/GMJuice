@@ -30,7 +30,8 @@ class VideoProcessor {
         stringRuns: [StringRun],
         stage: Stage,
         division: Division,
-        beepOffsets: [TimeInterval]
+        beepOffsets: [TimeInterval],
+        cameraPosition: AVCaptureDevice.Position
     ) async throws -> URL {
 
         let asset = AVURLAsset(url: sourceURL)
@@ -84,7 +85,7 @@ class VideoProcessor {
         let videoSize = try await videoTrack.load(.naturalSize)
         let preferredTransform = try await videoTrack.load(.preferredTransform)
 
-        // Apply transform to maintain orientation
+        // Apply original transform from video track
         compositionVideoTrack.preferredTransform = preferredTransform
 
         // Determine actual render size accounting for transform

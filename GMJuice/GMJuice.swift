@@ -17,8 +17,6 @@ struct GMJuice: App {
     @StateObject private var bleManager = BLEManager.shared
     @StateObject private var announcer = Announcer.shared
     @StateObject private var notificationManager = NotificationManager.shared
-    
-    @State private var orientationManager = DeviceOrientationManager()
 
     @AppStorage("announcer_enabled") private var announcerEnabled = true
     @AppStorage("appearanceMode") private var appearanceMode: String = "system"
@@ -68,7 +66,6 @@ struct GMJuice: App {
                             }
                         }
                         .transition(.opacity.combined(with: .scale.combined(with: .move(edge: .bottom))))
-                        .environment(orientationManager)
                         .fullScreenCover(isPresented: $showingTermsAcceptance) {
                             TermsAcceptanceView(isPresented: $showingTermsAcceptance)
                         }
