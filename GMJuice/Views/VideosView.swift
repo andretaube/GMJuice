@@ -108,19 +108,27 @@ struct VideosView: View {
     private var videoList: some View {
         List {
             ForEach(viewModel.videos) { video in
-                VideoRowView(video: video)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        selectedVideo = video
+                Button {
+                    selectedVideo = video
+                } label: {
+                    VideoRowView(video: video)
+                }
+                .buttonStyle(.plain)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        videoToDelete = video
+                        showDeleteAlert = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
                     }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            videoToDelete = video
-                            showDeleteAlert = true
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
+                }
+            }
+            .onDelete { indexSet in
+                for index in indexSet {
+                    let video = viewModel.videos[index]
+                    videoToDelete = video
+                    showDeleteAlert = true
+                }
             }
         }
     }

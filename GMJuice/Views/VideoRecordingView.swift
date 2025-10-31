@@ -68,6 +68,9 @@ struct VideoRecordingView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .onAppear {
+            // Lock to landscape orientation
+            AppDelegate.orientationLock = .landscape
+
             requestCameraPermission()
 
             // Start recording session
@@ -75,6 +78,9 @@ struct VideoRecordingView: View {
             UIApplication.shared.isIdleTimerDisabled = true
         }
         .onDisappear {
+            // Restore all orientations
+            AppDelegate.orientationLock = .all
+
             print("📹 VideoRecordingView onDisappear called")
             print("📹 cameraViewController is nil: \(cameraViewController == nil)")
             print("📹 vm.isRecording: \(vm.isRecording)")

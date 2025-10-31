@@ -112,6 +112,9 @@ struct RecordingView: View {
             previousConnectionStatus = newStatus
         }
         .onAppear() {
+            // Lock to landscape orientation
+            AppDelegate.orientationLock = .landscape
+
             // Reset announcement tracking
             lastAnnouncedShotCount = 0
 
@@ -132,6 +135,9 @@ struct RecordingView: View {
             }
         }
         .onDisappear() {
+            // Restore all orientations
+            AppDelegate.orientationLock = .all
+
             // Cancel pending announcement
             autoAnnounceTask?.cancel()
 
