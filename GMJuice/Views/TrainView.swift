@@ -37,7 +37,7 @@ struct TrainView: View {
 
                 // Stages
                 ForEach(AllStages) { stage in
-                    HStack(spacing: 12) {
+                    HStack(spacing: 0) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(stage.code)
                                 .font(.headline)
@@ -45,6 +45,8 @@ struct TrainView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
+                        .padding(.leading, 16)
+                        .padding(.vertical, 8)
 
                         Spacer(minLength: 0)
 
@@ -54,28 +56,27 @@ struct TrainView: View {
                         } label: {
                             Image(systemName: "video.fill")
                                 .font(.title3)
-                                .foregroundStyle(.red)
-                                .frame(width: 44, height: 44)
-                                .background(Color.red.opacity(0.1))
-                                .clipShape(Circle())
+                                .foregroundStyle(.white)
+                                .frame(width: 60)
+                                .frame(maxHeight: .infinity)
+                                .background(Color.red)
                         }
                         .buttonStyle(.plain)
-                        
+
                         // Timer button
                         Button {
                             navigationPath.append(NavigationDestination.timer(stage: stage, division: selectedDivisionBinding.wrappedValue))
                         } label: {
                             Image(systemName: "timer")
                                 .font(.title3)
-                                .foregroundStyle(.blue)
-                                .frame(width: 44, height: 44)
-                                .background(Color.blue.opacity(0.1))
-                                .clipShape(Circle())
+                                .foregroundStyle(.white)
+                                .frame(width: 60)
+                                .frame(maxHeight: .infinity)
+                                .background(Color.blue)
                         }
                         .buttonStyle(.plain)
                     }
-                    .contentShape(Rectangle())
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
             }
             .navigationTitle("Train")

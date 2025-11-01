@@ -8,6 +8,10 @@
 import Foundation
 
 public let MotivationalMessages: [String] = [
+    "Be the first one on the range and last one to leave",
+    "Good shooters train until they get it right. Great shooters train until they can’t get it wrong.",
+    "Winners never quit and quitters never win",
+    "Are you training? Your competition is.",
     "Steel’s bored — go give it something to ring about!",
     "The timer called. It misses you. Go train!",
     "Stop scrolling. The range is literally calling your name.",
