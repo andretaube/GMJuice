@@ -279,46 +279,9 @@ final class NotificationManager: NSObject, ObservableObject {
 
     // MARK: - Daily Message Generation
 
-    /// Select stages for daily practice suggestion (random for now, can be enhanced later)
-    private func selectStages() -> [Stage] {
-        // For now, randomly select 2 stages
-        return Array(AllStages.shuffled().prefix(2))
-    }
-
     /// Generate daily training reminder message
     private func generateDailyMessage() -> String {
-        let stages = selectStages()
-
-        // Random prefix
-        let prefixes = [
-            "Time to practice:",
-            "Today's training:",
-            "Morning drill:",
-            "Practice focus:",
-            "Training reminder:",
-            "Let's work on:",
-            "Today's session:",
-            "Skill development:",
-            "You can focus on:",
-            "Consider practicing:"
-        ]
-
-        let prefix = prefixes.randomElement() ?? "Time to practice:"
-
-        // Build stage suggestions with focus areas
-        var stageParts: [String] = []
-
-        for stage in stages {
-            if let suggestion = StagePracticeSuggestions.randomSuggestion(for: stage.code) {
-                stageParts.append("\(stage.name), pay attention to \(suggestion)")
-            }
-        }
-
-        if stageParts.isEmpty {
-            return "\(prefix) Get some training in today!"
-        }
-
-        return "\(prefix) \(stageParts.joined(separator: " and "))"
+        return MotivationalMessages.randomElement() ?? "Time to practice!"
     }
 
     // MARK: - Generate Weekly Summary

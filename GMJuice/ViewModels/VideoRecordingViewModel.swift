@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import SwiftData
 import SwiftUI
+import UIKit
 @preconcurrency import AVFoundation
 import Photos
 
@@ -148,6 +149,26 @@ public class VideoRecordingViewModel: ObservableObject, RecordingViewModelProtoc
     private func processVideo(sourceURL: URL) async {
         print("🎬 Starting video processing")
         VideoProcessingManager.shared.startProcessing()
+
+        // Request background task to prevent suspension when screen locks
+        var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "VideoProcessing") {
+            // Expiration handler - called if background time runs out
+            print("⚠️ Background task expiring - video processing may be interrupted")
+            if backgroundTaskID != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                backgroundTaskID = .invalid
+            }
+        }
+        print("🔒 Background task started: \(backgroundTaskID.rawValue)")
+
+        defer {
+            // Ensure background task is always ended
+            if backgroundTaskID != .invalid {
+                print("🔓 Ending background task: \(backgroundTaskID.rawValue)")
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
+            }
+        }
 
         guard let recordingStart = recordingStartTime,
               let lastShot = lastShotTime,

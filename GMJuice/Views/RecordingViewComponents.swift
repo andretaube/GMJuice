@@ -65,7 +65,7 @@ struct RecordingLeftColumn<ViewModel: RecordingViewModelProtocol>: View {
 
             RecordingInfoTitle(icon: .init(systemName: "stopwatch"),
                                label: "Current",
-                               color: style.textColor,
+                               color: .orange,
                                style: style)
 
             if vm.stringRun.stringShots.count >= 5 {
@@ -75,10 +75,24 @@ struct RecordingLeftColumn<ViewModel: RecordingViewModelProtocol>: View {
             }
 
             Spacer().frame(height: 8)
+
+            // Calculate best N sum for display
+            let bestN = stage.strings - 1
+            let bestNSum = calculateBestNSum(times: vm.times(), n: bestN)
+            let bestNLabel = stage.strings == 5 ? "Best 4 of 5" : "Best 3 of 4"
+
             RecordingInfoTitle(icon: .init(systemName: "stopwatch"),
-                               label: stage.strings == 5 ? "Best 4 of 5" : "Best 3 of 4",
-                               color: style.textColor,
+                               label: bestNLabel,
+                               color: .purple,
                                style: style)
+
+            if let sum = bestNSum {
+                Text("Time: \(Format.formatTime(sum))")
+                    .font(.system(.body, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundStyle(style.textColor)
+                    .applyShadowIf(style.useShadow)
+            }
 
             if stage.strings <= vm.allRuns.count && vm.stringRun.stringShots.count >= 5 {
                 RecordingPercentClass(division: division, stageCode: stage.code, times: vm.times(), shooter: shooter, style: style)
@@ -210,7 +224,7 @@ struct RecordingRightColumn<ViewModel: RecordingViewModelProtocol>: View {
             }
 
             if let bestTime = vm.bestTime() {
-                RecordingInfoTitle(icon: .init(systemName: "thermometer.high"), label: "Fastest", color: Color.green, style: style)
+                RecordingInfoTitle(icon: .init(systemName: "thermometer.high"), label: "Fastest", color: .green, style: style)
                 Text("Time: \(Format.formatTime(bestTime))")
                     .font(.system(.body, weight: .bold))
                     .monospacedDigit()
@@ -229,7 +243,7 @@ struct RecordingRightColumn<ViewModel: RecordingViewModelProtocol>: View {
 
             if vm.counter > 1 {
                 if let worstTime = vm.worstTime() {
-                    RecordingInfoTitle(icon: .init(systemName: "thermometer.low"), label: "Slowest", color: Color.red, style: style)
+                    RecordingInfoTitle(icon: .init(systemName: "thermometer.low"), label: "Slowest", color: .red, style: style)
                     Text("Time: \(Format.formatTime(worstTime))")
                         .font(.system(.body, weight: .bold))
                         .monospacedDigit()
@@ -257,7 +271,7 @@ struct RecordingShotsAndSplits<ViewModel: RecordingViewModelProtocol>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            RecordingInfoTitle(icon: .init(systemName: "list.number"), label: "Shots / Splits", color: Color.blue, style: style)
+            RecordingInfoTitle(icon: .init(systemName: "list.number"), label: "Shots / Splits", color: .blue, style: style)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack {
@@ -324,14 +338,25 @@ struct RecordingTargetIndicators: View {
     private func targetButton(for target: Int, plateType: PlateType) -> some View {
         let isMissed = missedTargets.contains(target)
 
-        let size: CGFloat = {
+        let width: CGFloat = {
             switch plateType {
             case .round10:
                 return 24
             case .round12:
                 return 28
             case .square:
-                return 26
+                return 24
+            }
+        }()
+
+        let height: CGFloat = {
+            switch plateType {
+            case .round10:
+                return 24
+            case .round12:
+                return 28
+            case .square:
+                return 30
             }
         }()
 
@@ -346,6 +371,9 @@ struct RecordingTargetIndicators: View {
             }
         }()
 
+        let isStopPlate = (target == 5)
+        let displayText = isStopPlate ? "S" : "\(target)"
+
         return Button {
             onToggleMiss(target)
         } label: {
@@ -353,16 +381,28 @@ struct RecordingTargetIndicators: View {
                 if plateType == .square {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(isMissed ? Color.red : Color.green)
+                        .overlay {
+                            if isStopPlate {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color.red, lineWidth: 2)
+                            }
+                        }
                 } else {
                     Circle()
                         .fill(isMissed ? Color.red : Color.green)
+                        .overlay {
+                            if isStopPlate {
+                                Circle()
+                                    .stroke(Color.red, lineWidth: 2)
+                            }
+                        }
                 }
 
-                Text("\(target)")
+                Text(displayText)
                     .font(.system(size: fontSize, weight: .bold))
                     .foregroundColor(.white)
             }
-            .frame(width: size, height: size)
+            .frame(width: width, height: height)
             .applyShadowIf(style.useShadow)
         }
         .buttonStyle(.plain)
@@ -378,12 +418,14 @@ struct RecordingInfoTitle: View {
     let style: RecordingViewStyle
 
     var body: some View {
-        HStack {
-            icon
+        HStack(spacing: 6) {
             Text(label)
+                .font(.system(.body, weight: .semibold))
+                .foregroundStyle(style.textColor)
+            icon
+                .foregroundStyle(color)
+                .imageScale(.medium)
         }
-        .font(.system(.body, weight: .medium))
-        .foregroundStyle(color)
         .applyShadowIf(style.useShadow)
     }
 }
@@ -477,6 +519,18 @@ struct RecordingStringReward: View {
                 .applyShadowIf(style.useShadow)
         }
     }
+}
+
+// MARK: - Helper Functions
+
+/// Calculate the sum of best N times from an array
+private func calculateBestNSum(times: [Decimal], n: Int) -> Decimal? {
+    guard times.count >= n else { return nil }
+    let validTimes = times.filter { $0 > 0 }
+    guard validTimes.count >= n else { return nil }
+
+    let bestN = validTimes.sorted().prefix(n)
+    return bestN.reduce(0, +)
 }
 
 // MARK: - View Extensions

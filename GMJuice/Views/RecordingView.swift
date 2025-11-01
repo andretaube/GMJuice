@@ -3,17 +3,17 @@ import Combine
 import SwiftData
 import UIKit
 
-struct RecordingView: View {
+struct RecordingView<ViewModel: RecordingViewModelProtocol>: View {
     let stage: Stage
     let division: Division
-    
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
     @ObservedObject private var announcer = Announcer.shared
     @ObservedObject private var recordingManager = RecordingManager.shared
 
-    @StateObject private var vm: RecordingViewModel
+    @ObservedObject var vm: ViewModel
     @State private var autoAnnounceTask: Task<Void, Never>?
     @State private var lastAnnouncedShotCount = 0
     @State private var previousConnectionStatus: BLEConnectionStatus = .Disconnected
@@ -24,19 +24,11 @@ struct RecordingView: View {
     }
 
     @MainActor
-    init(stage: Stage, division: Division, vm: RecordingViewModel? = nil) {
-        
+    init(stage: Stage, division: Division, vm: ViewModel) {
         self.stage = stage
         self.division = division
-        
-        if let vm {
-            _vm = StateObject(wrappedValue: vm)
-        }
-        else {
-            _vm = StateObject(wrappedValue: RecordingViewModel(stageId: stage.code, divisionId: division.id))
-        }
+        self.vm = vm
     }
-
 
     var body: some View {
         VStack(spacing: 0) {
@@ -177,14 +169,59 @@ struct RecordingView: View {
 import SwiftUI
 import SwiftData
 
+// MARK: - Mock View Model for Previews
+
+@MainActor
+class MockRecordingViewModel: ObservableObject, RecordingViewModelProtocol {
+    @Published var counter: Int
+    @Published var stringRun: StringRun
+    @Published var allRuns: [StringRun]
+    @Published var connectionStatus: BLEConnectionStatus
+
+    init(counter: Int, stringRun: StringRun, allRuns: [StringRun], connectionStatus: BLEConnectionStatus = .Connected) {
+        self.counter = counter
+        self.stringRun = stringRun
+        self.allRuns = allRuns
+        self.connectionStatus = connectionStatus
+    }
+
+    func adjustedTime(for stringRun: StringRun) -> Decimal {
+        return stringRun.adjustedTime
+    }
+
+    func times() -> [Decimal] {
+        return allRuns.sorted { $0.date < $1.date }.map(\.time).filter { $0 > 0 }
+    }
+
+    func bestTime() -> Decimal? {
+        return allRuns.filter { $0.time > 0 }.map { $0.adjustedTime }.min()
+    }
+
+    func bestFirstShot() -> Decimal? {
+        return allRuns.compactMap { $0.stringShots.first?.first }.filter { $0 > 0 }.min()
+    }
+
+    func worstTime() -> Decimal? {
+        return allRuns.filter { $0.time > 0 }.map { $0.adjustedTime }.max()
+    }
+
+    func worstFirstShot() -> Decimal? {
+        return allRuns.compactMap { $0.stringShots.first?.first }.filter { $0 > 0 }.max()
+    }
+
+    func shouldFlashRed(for run: StringRun) -> Bool {
+        return run.shouldFlashRed
+    }
+}
+
 // MARK: - Preview
 @MainActor
 struct RecordingView_Previews: PreviewProvider {
-    
-    
+
+
     static var previews: some View {
 
-        let stage = AllStages[7]
+        let stage = AllStages[4]
         let division = Division.RFPO
         
         let container = try! ModelContainer(
@@ -196,43 +233,73 @@ struct RecordingView_Previews: PreviewProvider {
         shooterProfile.setClassification(.M, for: division)
         container.mainContext.insert(shooterProfile)
                 
-        // Example run with a few shots
+        // Example runs with shots
         let r1 = StringRun(stageId: stage.code, divisionId: division.rawValue)
         r1.time = 2.09
         r1.date = Date()
-        
+        r1.stringShots = [
+            StringShot(now: 0.55, split: 0.55, first: 0.55),
+            StringShot(now: 0.95, split: 0.40, first: 0.55),
+            StringShot(now: 1.35, split: 0.40, first: 0.55),
+            StringShot(now: 1.69, split: 0.34, first: 0.55),
+            StringShot(now: 2.09, split: 0.40, first: 0.55),
+        ]
+
         let r2 = StringRun(stageId: stage.code, divisionId: division.rawValue)
         r2.time = 5.64
         r2.date = Date()+1
-        
+        r2.stringShots = [
+            StringShot(now: 0.78, split: 0.78, first: 0.78),
+            StringShot(now: 1.50, split: 0.72, first: 0.78),
+            StringShot(now: 2.20, split: 0.70, first: 0.78),
+            StringShot(now: 3.00, split: 0.80, first: 0.78),
+            StringShot(now: 5.64, split: 2.64, first: 0.78),  // Slow last shot
+        ]
+
         let r3 = StringRun(stageId: stage.code, divisionId: division.rawValue)
         r3.time = 1.71
         r3.date = Date()+2
-        
+        r3.stringShots = [
+            StringShot(now: 0.45, split: 0.45, first: 0.45),
+            StringShot(now: 0.78, split: 0.33, first: 0.45),
+            StringShot(now: 1.10, split: 0.32, first: 0.45),
+            StringShot(now: 1.40, split: 0.30, first: 0.45),
+            StringShot(now: 1.71, split: 0.31, first: 0.45),
+        ]
+
         let r4 = StringRun(stageId: stage.code, divisionId: division.rawValue)
         r4.time = 1.53
         r4.date = Date()+3
-        
-        let r5 = StringRun(stageId: stage.code, divisionId: division.rawValue)
-        r5.time = 2.10
-        r5.date = Date()+4
-        r5.missedTargets = [3, 4]  // Missed targets 3 and 4
+        r4.stringShots = [
+            StringShot(now: 0.42, split: 0.42, first: 0.42),
+            StringShot(now: 0.72, split: 0.30, first: 0.42),
+            StringShot(now: 1.00, split: 0.28, first: 0.42),
+            StringShot(now: 1.27, split: 0.27, first: 0.42),
+            StringShot(now: 1.53, split: 0.26, first: 0.42),
+        ]
 
+        let r5 = StringRun(stageId: stage.code, divisionId: division.rawValue)
+        r5.time = 2.15
+        r5.date = Date()+4
+//        r5.missedTargets = [3, 4]  // Missed targets 3 and 4
         r5.stringShots = [
             StringShot(now: 0.9, split: 0.9, first: 0.9),
-            StringShot(now: 1.32, split: 0.57, first: 0.9),
+            StringShot(now: 1.32, split: 0.42, first: 0.9),
             StringShot(now: 1.86, split: 0.54, first: 0.9),
-            StringShot(now: 2.36, split: 0.50, first: 0.9),
-            StringShot(now: 3.36, split: 1.00, first: 0.9),
+            StringShot(now: 2.01, split: 0.50, first: 0.9),
+            StringShot(now: 2.15, split: 1.00, first: 0.9),
         ]
-                
-        let vm = RecordingViewModel(stageId: stage.code, divisionId: division.rawValue)
-        vm.allRuns = [r1, r2, r3, r4, r5]
 
-        vm.stringRun = vm.allRuns.last!
-        vm.counter = vm.allRuns.count
+        let allRuns = [r1, r2, r3, r4, r5]
 
-        
+        // Use mock view model for preview
+        let vm = MockRecordingViewModel(
+            counter: allRuns.count,
+            stringRun: r5,
+            allRuns: allRuns,
+            connectionStatus: .Connected
+        )
+
         // Mute the announcer in previews
         Announcer.shared.isEnabled = false
 

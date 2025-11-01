@@ -82,7 +82,11 @@ struct TrainView: View {
             .navigationDestination(for: NavigationDestination.self) { destination in
                 switch destination {
                 case .timer(let stage, let division):
-                    RecordingView(stage: stage, division: division)
+                    RecordingView(
+                        stage: stage,
+                        division: division,
+                        vm: RecordingViewModel(stageId: stage.code, divisionId: division.id)
+                    )
                 case .video(let stage, let division):
                     VideoRecordingView(stage: stage, division: division)
                 }
