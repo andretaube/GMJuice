@@ -788,7 +788,7 @@ struct StageReportDetailView: View {
 
 #if DEBUG
 #Preview("Performance Analysis") {
-    let schema = Schema(versionedSchema: Schema001.self)
+    let schema = Schema(versionedSchema: Schema004.self)
     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: schema, configurations: [config])
 

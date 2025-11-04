@@ -16,14 +16,9 @@ struct RootTabs: View {
                     Label("Train", systemImage: "target")
                 }
 
-            LogView()
+            MatchesView()
                 .tabItem {
-                    Label("Log", systemImage: "list.bullet.rectangle")
-                }
-
-            VideosView()
-                .tabItem {
-                    Label("Videos", systemImage: "video.fill")
+                    Label("Classification", systemImage: "trophy.fill")
                 }
 
             SettingsMainView()

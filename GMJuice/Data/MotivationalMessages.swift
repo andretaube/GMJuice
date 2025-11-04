@@ -458,7 +458,7 @@ public let MotivationalMessages: [String] = [
     "You can’t flinch your way to improvement.",
     "Go practice before motivation disappears.",
     "Steel waits for no one — move.",
-    "The timer’s whispering ‘let’s go.’",
+    "The timer’s whispering: let’s go!",
     "Grab your gear — your future self approves.",
     "Steel laughs at laziness every day.",
     "Be the shooter who trains quietly and wins loudly.",

@@ -7,8 +7,7 @@ struct LogView: View {
     private var allStrings: [StringRun]
 
     var body: some View {
-        NavigationStack {
-            List {
+        List {
                 if allStrings.isEmpty {
                     Section {
                         Text("No sessions yet").foregroundStyle(.secondary)
@@ -66,10 +65,9 @@ struct LogView: View {
                         }
                     }
                 }
-            }
-            .listStyle(.insetGrouped)
-            .navigationTitle("Log")
         }
+        .listStyle(.insetGrouped)
+        .navigationTitle("Timer Log")
     }
 
     // MARK: - Build date → division → stage summaries (divisionId-based DTOs)
@@ -179,7 +177,7 @@ import SwiftData
     let stageId = "SC-101"
     let divisionId = Division.RFPO.rawValue
     
-    let schema = Schema(versionedSchema: Schema001.self)
+    let schema = Schema(versionedSchema: Schema004.self)
     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: schema, configurations: [config])
     

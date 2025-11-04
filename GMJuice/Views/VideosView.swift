@@ -16,8 +16,7 @@ struct VideosView: View {
     @State private var videoToDelete: VideoItem?
 
     var body: some View {
-        NavigationStack {
-            Group {
+        Group {
                 if viewModel.videos.isEmpty && !processingManager.isProcessing {
                     emptyState
                 } else {
@@ -65,7 +64,6 @@ struct VideosView: View {
                     viewModel.loadVideos()
                 }
             }
-        }
     }
 
     private var processingBanner: some View {

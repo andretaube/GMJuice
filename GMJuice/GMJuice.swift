@@ -21,8 +21,10 @@ struct GMJuice: App {
     @AppStorage("announcer_enabled") private var announcerEnabled = true
     @AppStorage("appearanceMode") private var appearanceMode: String = "system"
     @AppStorage("hasAcceptedTerms") private var hasAcceptedTerms = false
+    @AppStorage("hasSeenSCSAOnboarding") private var hasSeenSCSAOnboarding = false
 
     @State private var showingTermsAcceptance = false
+    @State private var showingSCSAOnboarding = false
     
     var colorScheme: ColorScheme? {
         switch appearanceMode {
@@ -31,16 +33,44 @@ struct GMJuice: App {
         default: return nil
         }
     }
-    
+
     init() {
         Announcer.shared.isEnabled = announcerEnabled
     }
+
+    private func checkSCSAOnboarding() {
+        // Only show if haven't seen it before
+        guard !hasSeenSCSAOnboarding else { return }
+
+        // Check if user has a profile with SCSA number
+        let context = sharedModelContainer.mainContext
+        let descriptor = FetchDescriptor<ShooterProfile>()
+
+        guard let profile = try? context.fetch(descriptor).first else {
+            // No profile yet - show onboarding
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showingSCSAOnboarding = true
+                hasSeenSCSAOnboarding = true
+            }
+            return
+        }
+
+        // Has profile but no SCSA number - show onboarding
+        if profile.uspsaNumber.isEmpty {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showingSCSAOnboarding = true
+                hasSeenSCSAOnboarding = true
+            }
+        } else {
+            // Has SCSA number - mark as seen
+            hasSeenSCSAOnboarding = true
+        }
+    }
     
     var sharedModelContainer: ModelContainer = {
-        // Use the latest versioned schema and provide the migration plan
-        let schema = Schema(versionedSchema: Schema001.self)
+        let schema = Schema(versionedSchema: Schema004.self)
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-        
+
         do {
             return try ModelContainer(
                 for: schema,
@@ -63,15 +93,24 @@ struct GMJuice: App {
                             // Check if user needs to accept terms
                             if !hasAcceptedTerms {
                                 showingTermsAcceptance = true
+                            } else {
+                                // Terms already accepted - check SCSA onboarding
+                                checkSCSAOnboarding()
                             }
                         }
                         .transition(.opacity.combined(with: .scale.combined(with: .move(edge: .bottom))))
                         .fullScreenCover(isPresented: $showingTermsAcceptance) {
                             TermsAcceptanceView(isPresented: $showingTermsAcceptance)
                         }
+                        .sheet(isPresented: $showingSCSAOnboarding) {
+                            SCSAOnboardingView(isPresented: $showingSCSAOnboarding)
+                                .interactiveDismissDisabled(false)
+                        }
                         .onChange(of: hasAcceptedTerms) { _, newValue in
                             if newValue {
                                 showingTermsAcceptance = false
+                                // After accepting terms, check if they need SCSA onboarding
+                                checkSCSAOnboarding()
                             }
                         }
                 } else {
@@ -80,7 +119,7 @@ struct GMJuice: App {
                 }
             }
             .task {
-                bootstrap.start()
+                bootstrap.start(modelContext: sharedModelContainer.mainContext)
             }
             .preferredColorScheme(colorScheme)
 
@@ -99,10 +138,10 @@ struct GMJuice: App {
 }
 
 #Preview {
-    let schema = Schema(versionedSchema: Schema001.self)
+    let schema = Schema(versionedSchema: Schema004.self)
     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: schema, configurations: [config])
-    
+
     return RootTabs()
         .environmentObject(BLEManager.shared)
         .environmentObject(NotificationManager.shared)

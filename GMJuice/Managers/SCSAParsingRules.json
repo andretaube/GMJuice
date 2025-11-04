@@ -1,0 +1,94 @@
+{
+  "version": "1.0",
+  "description": "Parsing rules for SCSA classification page",
+  "rules": {
+    "memberName": {
+      "selector": "h2",
+      "method": "first",
+      "extract": "text"
+    },
+    "allStageScoresSection": {
+      "headerSelector": "h2:contains(All Stage Scores)",
+      "tableSelector": "#ClassifiersTable",
+      "findMethod": "direct"
+    },
+    "divisionHeaders": {
+      "selector": "th[colspan=7].text-center",
+      "extract": "text"
+    },
+    "stageScoreRows": {
+      "rowSelector": "tbody tr",
+      "divisionHeaderSelector": "th[colspan=7].text-center",
+      "classificationIndicator": {
+        "cellIndex": 5,
+        "method": "notContains",
+        "value": "text-danger"
+      },
+      "cells": {
+        "matchName": {
+          "index": 0,
+          "extract": "text"
+        },
+        "date": {
+          "index": 1,
+          "extract": "text",
+          "format": "MMM dd, yyyy"
+        },
+        "stageCode": {
+          "index": 2,
+          "extract": "text"
+        },
+        "time": {
+          "index": 3,
+          "extract": "text",
+          "type": "double"
+        },
+        "peakTime": {
+          "index": 4,
+          "extract": "text",
+          "type": "double"
+        }
+      }
+    },
+    "divisionMapping": {
+      "Rimfire Pistol Open": "RFPO",
+      "Rimfire Pistol Iron": "RFPI",
+      "Open": "OPN",
+      "Carry Optics": "CO",
+      "Production": "PROD",
+      "Single Stack": "SS",
+      "PCC": "PCC",
+      "Revolver": "REV"
+    },
+    "classificationsSection": {
+      "headerSelector": "h2:contains(Classifications)",
+      "tableSelector": "#classificationsTable",
+      "findMethod": "direct",
+      "rowSelector": "tbody tr",
+      "cells": {
+        "division": {
+          "index": 1,
+          "extract": "text",
+          "comment": "Division code (OPN, RFPO, etc.)"
+        },
+        "class": {
+          "index": 2,
+          "extract": "text"
+        },
+        "currentPercent": {
+          "index": 3,
+          "extract": "text"
+        },
+        "highPercent": {
+          "index": 4,
+          "extract": "text"
+        },
+        "date": {
+          "index": 5,
+          "extract": "text",
+          "format": "MMM dd, yyyy"
+        }
+      }
+    }
+  }
+}

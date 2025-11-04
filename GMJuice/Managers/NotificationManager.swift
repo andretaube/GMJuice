@@ -211,6 +211,12 @@ final class NotificationManager: NSObject, ObservableObject {
         print("Weekly notification cancelled")
     }
 
+    func cancelAllNotifications() {
+        cancelWeeklyNotification()
+        cancelDailyNotifications()
+        print("✅ All notifications cancelled")
+    }
+
     /// Update the scheduled notification with fresh data
     /// Call this when app goes to background or terminates
     func updateScheduledNotification(modelContext: ModelContext) {

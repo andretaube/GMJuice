@@ -6,8 +6,12 @@
 //
 
 // ModelAliases.swift
+// Points to the current schema version
 
-typealias ShooterProfile = Schema001.ShooterProfile
-typealias DivisionProfile = Schema001.DivisionProfile
-typealias StringRun = Schema001.StringRun
-typealias StringShot = Schema001.StringShot
+typealias ShooterProfile = Schema004.ShooterProfile
+typealias DivisionProfile = Schema004.DivisionProfile
+typealias StringRun = Schema004.StringRun
+typealias StringShot = Schema004.StringShot
+
+// Steel Challenge Match Data
+typealias SCMatchScore = Schema004.SCMatchScore

@@ -10,6 +10,7 @@ struct DeveloperSettingsView: View {
 
     @Query private var allRuns: [StringRun]
     @Query private var allProfiles: [ShooterProfile]
+    @Query private var allMatchScores: [SCMatchScore]
 
     var body: some View {
         Form {
@@ -37,6 +38,13 @@ struct DeveloperSettingsView: View {
                     Text("\(allProfiles.count)")
                         .foregroundColor(.secondary)
                 }
+
+                HStack {
+                    Text("SC Match Scores")
+                    Spacer()
+                    Text("\(allMatchScores.count)")
+                        .foregroundColor(.secondary)
+                }
             }
 
             Section("Test Data Generation") {
@@ -55,6 +63,18 @@ struct DeveloperSettingsView: View {
                 }
                 .sheet(isPresented: $showingGenerateSheet) {
                     GenerateTestDataView()
+                }
+            }
+
+            Section("SCSA Integration") {
+                NavigationLink {
+                    SCSADebugView()
+                } label: {
+                    HStack {
+                        Image(systemName: "network")
+                            .foregroundColor(.purple)
+                        Text("Test SCSA Scraper")
+                    }
                 }
             }
 
@@ -77,7 +97,7 @@ struct DeveloperSettingsView: View {
                     }
                     Button("Cancel", role: .cancel) {}
                 } message: {
-                    Text("This will permanently delete all StringRuns, shots, profiles, and videos. This cannot be undone.")
+                    Text("This will permanently delete:\n• All training runs and shots\n• All shooter profiles and classifications\n• All match scores\n• All videos\n• All preferences and settings\n• All pending notifications\n\nThis cannot be undone.")
                 }
 
                 if let status = deleteStatus {
@@ -97,13 +117,20 @@ struct DeveloperSettingsView: View {
 
     private func deleteAllData() {
         do {
-            // Delete all StringRuns (cascade will delete StringShots)
-            try modelContext.delete(model: StringRun.self)
-            try modelContext.delete(model: ShooterProfile.self)
+            // Delete all SwiftData models
+            try modelContext.delete(model: StringRun.self)  // Cascade will delete StringShots
+            try modelContext.delete(model: ShooterProfile.self)  // Cascade will delete DivisionProfiles
+            try modelContext.delete(model: SCMatchScore.self)
             try modelContext.save()
 
-            // Delete all videos
+            // Delete all video files
             deleteAllVideos()
+
+            // Clear all UserDefaults preferences
+            clearAllUserDefaults()
+
+            // Cancel all pending notifications
+            NotificationManager.shared.cancelAllNotifications()
 
             deleteStatus = "✓ All data deleted"
 
@@ -114,6 +141,42 @@ struct DeveloperSettingsView: View {
         } catch {
             deleteStatus = "❌ Error: \(error.localizedDescription)"
         }
+    }
+
+    private func clearAllUserDefaults() {
+        let defaults = UserDefaults.standard
+
+        // BLE settings
+        defaults.removeObject(forKey: "ble_saved_uuid")
+        defaults.removeObject(forKey: "ble_saved_name")
+
+        // Announcer settings
+        defaults.removeObject(forKey: "announcer_enabled")
+        defaults.removeObject(forKey: "announcer_speak_on_silent")
+        defaults.removeObject(forKey: "announcer_voice_identifier")
+
+        // Notification settings
+        defaults.removeObject(forKey: "weekly_notification_enabled")
+        defaults.removeObject(forKey: "weekly_notification_day")
+        defaults.removeObject(forKey: "weekly_notification_hour")
+        defaults.removeObject(forKey: "daily_notification_enabled")
+        defaults.removeObject(forKey: "daily_notification_hour")
+        defaults.removeObject(forKey: "daily_notification_days")
+
+        // SCSA/USPSA settings
+        defaults.removeObject(forKey: "scsa_auto_sync_enabled")
+        defaults.removeObject(forKey: "scsa_last_sync")
+        defaults.removeObject(forKey: "uspsa_api_key")
+        defaults.removeObject(forKey: "uspsa_last_sync")
+
+        // App settings
+        defaults.removeObject(forKey: "scsa_active_division")
+        defaults.removeObject(forKey: "appearanceMode")
+        defaults.removeObject(forKey: "hasAcceptedTerms")
+        defaults.removeObject(forKey: "termsAcceptedDate")
+        defaults.removeObject(forKey: "hasSeenSCSAOnboarding")
+
+        print("✅ Cleared all UserDefaults preferences")
     }
 
     private func deleteAllVideos() {

@@ -24,19 +24,60 @@ struct TrainView: View {
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            List {
-                // Top "dropdown" for division selection
-                Section {
-                    Picker("Division", selection: selectedDivisionBinding) {
-                        ForEach(Division.allCases) { div in
-                            Text(div.displayName).tag(div)
+            VStack(spacing: 0) {
+                // Navigation pills
+                HStack(spacing: 12) {
+                    NavigationLink(value: TrainNavigationPill.timerLog) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "list.bullet.rectangle")
+                                .font(.subheadline)
+                            Text("Timer Log")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundStyle(.blue)
+                        .cornerRadius(20)
                     }
-                    .pickerStyle(.menu) // renders as a dropdown in the list
-                }
 
-                // Stages
-                ForEach(AllStages) { stage in
+                    NavigationLink(value: TrainNavigationPill.videos) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "video.fill")
+                                .font(.subheadline)
+                            Text("Videos")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.red.opacity(0.1))
+                        .foregroundStyle(.red)
+                        .cornerRadius(20)
+                    }
+
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 12)
+                .background(Color(.systemBackground))
+
+                Divider()
+
+                List {
+                    // Top "dropdown" for division selection
+                    Section {
+                        Picker("Division", selection: selectedDivisionBinding) {
+                            ForEach(Division.allCases) { div in
+                                Text(div.displayName).tag(div)
+                            }
+                        }
+                        .pickerStyle(.menu) // renders as a dropdown in the list
+                    }
+
+                    // Stages
+                    ForEach(AllStages) { stage in
                     HStack(spacing: 0) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(stage.code)
@@ -78,8 +119,9 @@ struct TrainView: View {
                     }
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
+                }
+                .navigationTitle("Train")
             }
-            .navigationTitle("Train")
             .navigationDestination(for: NavigationDestination.self) { destination in
                 switch destination {
                 case .timer(let stage, let division):
@@ -92,8 +134,22 @@ struct TrainView: View {
                     VideoRecordingView(stage: stage, division: division)
                 }
             }
+            .navigationDestination(for: TrainNavigationPill.self) { pill in
+                switch pill {
+                case .timerLog:
+                    LogView()
+                case .videos:
+                    VideosView()
+                }
+            }
         }
     }
+}
+
+// Navigation pills destination
+enum TrainNavigationPill: Hashable {
+    case timerLog
+    case videos
 }
 
 // Navigation helper
