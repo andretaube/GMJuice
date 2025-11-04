@@ -186,8 +186,8 @@ class SCWebScraper: ObservableObject {
 
     // MARK: - Auto-Sync Logic
 
-    /// Check if we should sync based on Wednesday update schedule
-    /// SCSA updates classification data on Wednesdays, so we sync once per week after Wednesday
+    /// Check if we should sync based on Thursday update schedule
+    /// SCSA updates classification data on Wednesdays, so we sync on Thursdays to get fresh data
     func shouldSync() -> Bool {
         guard let lastSync = lastSyncDate else {
             print("🔄 shouldSync: true (never synced before)")
@@ -197,29 +197,29 @@ class SCWebScraper: ObservableObject {
         let calendar = Calendar.current
         let now = Date()
 
-        // Find the most recent Wednesday (including today if today is Wednesday)
-        // In Gregorian calendar: 1=Sunday, 2=Monday, 3=Tuesday, 4=Wednesday, etc.
+        // Find the most recent Thursday (including today if today is Thursday)
+        // In Gregorian calendar: 1=Sunday, 2=Monday, 3=Tuesday, 4=Wednesday, 5=Thursday, etc.
         let currentWeekday = calendar.component(.weekday, from: now)
-        let daysBackToWednesday = (currentWeekday + 7 - 4) % 7  // How many days back to Wednesday
+        let daysBackToThursday = (currentWeekday + 7 - 5) % 7  // How many days back to Thursday
 
-        guard let mostRecentWednesday = calendar.date(byAdding: .day, value: -daysBackToWednesday, to: now) else {
+        guard let mostRecentThursday = calendar.date(byAdding: .day, value: -daysBackToThursday, to: now) else {
             print("🔄 shouldSync: true (date calculation failed)")
             return true  // If date calculation fails, sync to be safe
         }
 
         // Compare at day level (strip time components)
         let lastSyncDay = calendar.startOfDay(for: lastSync)
-        let wednesdayDay = calendar.startOfDay(for: mostRecentWednesday)
+        let thursdayDay = calendar.startOfDay(for: mostRecentThursday)
 
-        let shouldSync = lastSyncDay < wednesdayDay
+        let shouldSync = lastSyncDay < thursdayDay
 
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         print("🔄 shouldSync: \(shouldSync)")
         print("   Last sync: \(formatter.string(from: lastSync))")
-        print("   Most recent Wednesday: \(formatter.string(from: mostRecentWednesday))")
+        print("   Most recent Thursday: \(formatter.string(from: mostRecentThursday))")
 
-        // Sync if we haven't synced on or since the most recent Wednesday
+        // Sync if we haven't synced on or since the most recent Thursday
         return shouldSync
     }
 

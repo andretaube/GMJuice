@@ -51,3 +51,7 @@ Recordings/
 Videos/
 Exports/
 
+# Configuration files with secrets
+Config.xcconfig
+Secrets.xcconfig
+

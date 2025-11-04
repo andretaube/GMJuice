@@ -21,6 +21,11 @@ struct RootTabs: View {
                     Label("Classification", systemImage: "trophy.fill")
                 }
 
+            CoachingHomeView()
+                .tabItem {
+                    Label("Coaching", systemImage: "brain.head.profile")
+                }
+
             SettingsMainView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")

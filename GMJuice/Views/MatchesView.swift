@@ -319,12 +319,12 @@ private struct DivisionSection: View {
                 HStack {
                     Image(systemName: "chart.line.uptrend.xyaxis")
                         .foregroundStyle(.blue)
-                    Text("View Stage Progress Report")
+                    Text("Analysis")
                         .font(.subheadline)
                 }
                 .padding(.vertical, 8)
             }
-            
+
             // Score list
             ForEach(divisionGroup.stages, id: \.stageCode) { stage in
                 ForEach(stage.scores, id: \.id) { score in

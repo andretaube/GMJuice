@@ -1,0 +1,7 @@
+// Config.xcconfig.template
+// Copy this file to Config.xcconfig and add your API keys
+// Config.xcconfig is gitignored for security
+
+// Anthropic API Key for CoachingService
+// Get your key from: https://console.anthropic.com/settings/keys
+ANTHROPIC_API_KEY = your-api-key-here
