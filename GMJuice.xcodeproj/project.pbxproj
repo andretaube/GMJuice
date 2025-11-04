@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		653D10242EBAB64900B3857C /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 653D10232EBAB64900B3857C /* Config.xcconfig */; };
 		65CE18762EB96E8900125A6C /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 65CE18752EB96E8900125A6C /* SwiftSoup */; };
 /* End PBXBuildFile section */
 
@@ -194,7 +193,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				653D10242EBAB64900B3857C /* Config.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
