@@ -17,13 +17,6 @@ struct SettingsMainView: View {
                 VStack(spacing: 24) {
                 LazyVGrid(columns: columns, spacing: 16) {
                     SettingsCard(
-                        title: "Profile",
-                        icon: "person.circle",
-                        color: .green,
-                        destination: ShooterProfileView()
-                    )
-
-                    SettingsCard(
                         title: "Timer",
                         icon: "timer",
                         color: .blue,
@@ -57,15 +50,6 @@ struct SettingsMainView: View {
                         color: .cyan,
                         destination: ExportDataView()
                     )
-
-                    #if DEBUG
-                    SettingsCard(
-                        title: "Developer",
-                        icon: "hammer.fill",
-                        color: .yellow,
-                        destination: DeveloperSettingsView()
-                    )
-                    #endif
                 }
 
                 // Legal Links

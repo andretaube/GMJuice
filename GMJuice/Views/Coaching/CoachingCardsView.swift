@@ -20,8 +20,11 @@ struct CoachingCardsView: View {
     @State private var errorMessage: String?
     @State private var selectedTab = 0
     @State private var loadingPhase: LoadingPhase = .analyzing
-    @State private var matchCount: Int = 0
-    @State private var showingMetricsInfo = false
+    @State private var showingCoachMarks = false
+    @State private var trackedFrames: [String: CGRect] = [:]
+    @AppStorage("hasSeenAnalysisCoachMarks") private var hasSeenAnalysisCoachMarks = false
+    @AppStorage("hasSeenPracticeCoachMarks") private var hasSeenPracticeCoachMarks = false
+    @AppStorage("hasSeenMatchCoachMarks") private var hasSeenMatchCoachMarks = false
 
     private var memberNumber: String {
         profiles.first?.uspsaNumber ?? ""
@@ -29,81 +32,210 @@ struct CoachingCardsView: View {
 
     enum LoadingPhase {
         case analyzing
-        case reviewingStages
-        case calculatingTrends
-        case generatingStrategy
-        case finalizingCards
 
         var message: String {
-            switch self {
-            case .analyzing:
-                return "Analyzing matches..."
-            case .reviewingStages:
-                return "Reviewing stage performance..."
-            case .calculatingTrends:
-                return "Calculating trends..."
-            case .generatingStrategy:
-                return "Generating match strategy..."
-            case .finalizingCards:
-                return "Finalizing coaching cards..."
-            }
+            return "Analyzing your match data..."
         }
 
         var icon: String {
-            switch self {
-            case .analyzing:
-                return "chart.bar.doc.horizontal"
-            case .reviewingStages:
-                return "target"
-            case .calculatingTrends:
-                return "arrow.triangle.2.circlepath"
-            case .generatingStrategy:
-                return "lightbulb.fill"
-            case .finalizingCards:
-                return "checkmark.circle.fill"
-            }
+            return "chart.bar.doc.horizontal"
         }
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            if isLoading {
-                loadingView
-            } else if let error = errorMessage {
-                errorView(error)
-            } else if let cards = coachingCards {
-                cardsContentView(cards)
-            } else {
-                emptyStateView
+    // Create coach marks from tracked frames
+    private func createCoachMarks() -> [CoachMark]? {
+        // Check which tab we're on and return appropriate marks
+        if selectedTab == 0 {
+            // Analysis tab marks
+            guard let currentLevelFrame = trackedFrames["currentLevel"],
+                  let currentTimeFrame = trackedFrames["currentTime"],
+                  let currentPercentFrame = trackedFrames["currentPercent"],
+                  let matchesFrame = trackedFrames["matches"],
+                  let lastMatchFrame = trackedFrames["lastMatch"],
+                  let improvedFrame = trackedFrames["improved"],
+                  let firstStageFrame = trackedFrames["firstStage"] else {
+                return nil
             }
+
+            var marks: [CoachMark] = []
+
+            marks.append(CoachMark(
+                title: "Current Level",
+                message: "Your current classification level in this division (GM, M, A, B, C, D, U) based on your official SCSA scores.",
+                highlightFrame: currentLevelFrame,
+                calloutPosition: .bottom
+            ))
+
+            marks.append(CoachMark(
+                title: "Current Time",
+                message: "Sum of all 8 stages used for your classification. This is your total aggregate time.",
+                highlightFrame: currentTimeFrame,
+                calloutPosition: .bottom
+            ))
+
+            marks.append(CoachMark(
+                title: "Current Percentage",
+                message: "Your classification percentage based on SCSA scoring. This shows how close you are to the next class level.",
+                highlightFrame: currentPercentFrame,
+                calloutPosition: .bottom
+            ))
+
+            marks.append(CoachMark(
+                title: "Matches Analyzed",
+                message: "Total number of unique matches analyzed for this division to generate your insights.",
+                highlightFrame: matchesFrame,
+                calloutPosition: .bottom
+            ))
+
+            marks.append(CoachMark(
+                title: "Days Since Last Match",
+                message: "Days since your most recent match. If this exceeds 60 days, you may experience rustiness.",
+                highlightFrame: lastMatchFrame,
+                calloutPosition: .bottom
+            ))
+
+            marks.append(CoachMark(
+                title: "Stages Improved",
+                message: "Number of classification stages improved in the last 30 days. Shows improved stages out of total stages shot recently.",
+                highlightFrame: improvedFrame,
+                calloutPosition: .bottom
+            ))
+
+            marks.append(CoachMark(
+                title: "Stage Performance",
+                message: "Tap any stage to see detailed analysis including time charts, distribution graphs, and performance trends. Color indicates progress: green = improving, blue = stable, orange/red = needs attention.",
+                highlightFrame: firstStageFrame,
+                calloutPosition: .top
+            ))
+
+            return marks
+        } else if selectedTab == 1 {
+            // Practice Tab Tips
+            guard let practiceThemeFrame = trackedFrames["practiceTheme"],
+                  let highPriorityFrame = trackedFrames["highPriority"] else {
+                return nil
+            }
+
+            var marks: [CoachMark] = []
+
+            marks.append(CoachMark(
+                title: "Practice Focus",
+                message: "Your personalized weekly practice plan. Prioritizes stages by ROI - where practice time yields the most improvement based on your weaknesses and potential gains.",
+                highlightFrame: practiceThemeFrame,
+                calloutPosition: .bottom
+            ))
+
+            marks.append(CoachMark(
+                title: "High Priority Stages",
+                message: "These stages need 60% of your practice time. They're your weakest areas with the most potential for improvement. Focus here to see the biggest gains.",
+                highlightFrame: highPriorityFrame,
+                calloutPosition: .bottom
+            ))
+
+            if let mediumPriorityFrame = trackedFrames["mediumPriority"] {
+                marks.append(CoachMark(
+                    title: "Medium Priority Stages",
+                    message: "Allocate 30% of your practice time here. These stages have good improvement potential and need consistent work.",
+                    highlightFrame: mediumPriorityFrame,
+                    calloutPosition: .bottom
+                ))
+            }
+
+            return marks
+        } else if selectedTab == 2 {
+            // Match Tab Tips
+            guard let matchThemeFrame = trackedFrames["matchTheme"],
+                  let bankerStagesFrame = trackedFrames["bankerStages"] else {
+                return nil
+            }
+
+            var marks: [CoachMark] = []
+
+            marks.append(CoachMark(
+                title: "Match Strategy",
+                message: "Your personalized match plan based on current strengths and weaknesses. Shows which stages to rely on (Bankers), execute normally, and watch carefully (Risks).",
+                highlightFrame: matchThemeFrame,
+                calloutPosition: .bottom
+            ))
+
+            marks.append(CoachMark(
+                title: "Banker Stages",
+                message: "These are your strongest, most consistent stages. You can rely on these for solid performance and push hard with confidence.",
+                highlightFrame: bankerStagesFrame,
+                calloutPosition: .bottom
+            ))
+
+            if let riskStagesFrame = trackedFrames["riskStages"] {
+                marks.append(CoachMark(
+                    title: "Risk Stages",
+                    message: "Be cautious on these stages - they're inconsistent or weak areas. Execute your plan carefully and avoid unnecessary risks.",
+                    highlightFrame: riskStagesFrame,
+                    calloutPosition: .bottom
+                ))
+            }
+
+            return marks
         }
-        .navigationTitle("Coaching - \(divisionCode)")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 16) {
+
+        return nil
+    }
+
+    var body: some View {
+        ZStack {
+            VStack(spacing: 0) {
+                if isLoading {
+                    loadingView
+                } else if let error = errorMessage {
+                    errorView(error)
+                } else if let cards = coachingCards {
+                    cardsContentView(cards)
+                } else {
+                    emptyStateView
+                }
+            }
+            .navigationTitle("Analysis - \(divisionCode)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
-                        showingMetricsInfo = true
+                        if createCoachMarks() != nil {
+                            showingCoachMarks = true
+                        }
                     } label: {
                         Image(systemName: "info.circle")
                     }
-
-                    Button {
-                        Task {
-                            await loadCoachingCards(forceRefresh: true)
-                        }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .disabled(isLoading)
                 }
             }
-        }
-        .sheet(isPresented: $showingMetricsInfo) {
-            MetricsInfoView()
-        }
-        .task {
-            await loadCoachingCards()
+            .onPreferenceChange(FramePreferenceKey.self) { frames in
+                trackedFrames = frames
+
+                // Show coach marks on first visit once frames are available for the current tab
+                let hasSeenCurrentTab = selectedTab == 0 ? hasSeenAnalysisCoachMarks :
+                                       selectedTab == 1 ? hasSeenPracticeCoachMarks :
+                                       hasSeenMatchCoachMarks
+
+                if !hasSeenCurrentTab && !showingCoachMarks && !frames.isEmpty && !isLoading {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showingCoachMarks = true
+                        // Mark the current tab as seen
+                        if selectedTab == 0 {
+                            hasSeenAnalysisCoachMarks = true
+                        } else if selectedTab == 1 {
+                            hasSeenPracticeCoachMarks = true
+                        } else {
+                            hasSeenMatchCoachMarks = true
+                        }
+                    }
+                }
+            }
+            .task {
+                await loadCoachingCards()
+            }
+
+            // Coach marks overlay at the top level
+            if showingCoachMarks, let marks = createCoachMarks() {
+                CoachMarkOverlay(isPresented: $showingCoachMarks, marks: marks)
+            }
         }
     }
 
@@ -124,21 +256,8 @@ struct CoachingCardsView: View {
             }
 
             VStack(spacing: 12) {
-                // Phase icon and message
-                HStack(spacing: 12) {
-                    Image(systemName: loadingPhase.icon)
-                        .font(.title3)
-                        .foregroundStyle(.purple)
-                        .symbolEffect(.bounce, value: loadingPhase)
-
-                    if loadingPhase == .analyzing && matchCount > 0 {
-                        Text("Analyzing \(matchCount) matches...")
-                            .font(.headline)
-                    } else {
-                        Text(loadingPhase.message)
-                            .font(.headline)
-                    }
-                }
+                Text(loadingPhase.message)
+                    .font(.headline)
 
                 // Progress indicator
                 ProgressView()
@@ -150,7 +269,7 @@ struct CoachingCardsView: View {
 
     private func errorView(_ message: String) -> some View {
         ContentUnavailableView {
-            Label("Unable to Generate Coaching", systemImage: "exclamationmark.triangle")
+            Label("Unable to Generate Analysis", systemImage: "exclamationmark.triangle")
         } description: {
             Text(message)
         } actions: {
@@ -164,9 +283,9 @@ struct CoachingCardsView: View {
 
     private var emptyStateView: some View {
         ContentUnavailableView {
-            Label("No Coaching Available", systemImage: "chart.line.uptrend.xyaxis")
+            Label("No Analysis Available", systemImage: "chart.line.uptrend.xyaxis")
         } description: {
-            Text("Need more match data to generate coaching insights")
+            Text("Need more match data to generate insights")
         }
     }
 
@@ -230,51 +349,12 @@ struct CoachingCardsView: View {
         }
 
         do {
-            // Phase 1: Count matches
-            let descriptor = FetchDescriptor<SCMatchScore>(
-                predicate: #Predicate<SCMatchScore> { score in
-                    score.memberNumber == memberNumber &&
-                    score.divisionCode == divisionCode
-                }
-            )
-            let scores = try context.fetch(descriptor)
-            let uniqueMatches = Set(scores.map { "\($0.matchName)-\($0.scoreDate)" })
-
-            await MainActor.run {
-                matchCount = uniqueMatches.count
-            }
-
-            try await Task.sleep(nanoseconds: 400_000_000) // 0.4 seconds
-
-            // Phase 2: Reviewing stages
-            await MainActor.run {
-                loadingPhase = .reviewingStages
-            }
-            try await Task.sleep(nanoseconds: 600_000_000) // 0.6 seconds
-
-            // Phase 3: Calculating trends
-            await MainActor.run {
-                loadingPhase = .calculatingTrends
-            }
-            try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-
-            // Phase 4: Generating strategy (this is the actual API call)
-            await MainActor.run {
-                loadingPhase = .generatingStrategy
-            }
-
             let result = try await CoachingCardCache.shared.getCoachingCards(
                 memberNumber: memberNumber,
                 divisionCode: divisionCode,
                 context: context,
                 forceRefresh: forceRefresh
             )
-
-            // Phase 5: Finalizing
-            await MainActor.run {
-                loadingPhase = .finalizingCards
-            }
-            try await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
 
             await MainActor.run {
                 self.coachingCards = result.cards
@@ -311,6 +391,7 @@ struct MatchCardView: View {
                     .background(Color.blue.opacity(0.1))
                     .cornerRadius(12)
             }
+            .trackFrame(named: "matchTheme")
 
             // Banker Stages - Rely on these
             VStack(alignment: .leading, spacing: 12) {
@@ -325,6 +406,7 @@ struct MatchCardView: View {
             .padding()
             .background(Color.green.opacity(0.05))
             .cornerRadius(12)
+            .trackFrame(named: "bankerStages")
 
             // Execute Stages - Just execute normally
             if !card.executeStages.isEmpty {
@@ -355,6 +437,7 @@ struct MatchCardView: View {
             .padding()
             .background(Color.orange.opacity(0.05))
             .cornerRadius(12)
+            .trackFrame(named: "riskStages")
 
             // Match Strategy
             VStack(alignment: .leading, spacing: 8) {
@@ -496,6 +579,7 @@ struct PracticeCardView: View {
                     .background(Color.blue.opacity(0.1))
                     .cornerRadius(12)
             }
+            .trackFrame(named: "practiceTheme")
 
             // High Priority - 60%
             VStack(alignment: .leading, spacing: 12) {
@@ -516,6 +600,7 @@ struct PracticeCardView: View {
             .padding()
             .background(Color.red.opacity(0.05))
             .cornerRadius(12)
+            .trackFrame(named: "highPriority")
 
             // Medium Priority - 30%
             if !card.mediumPriority.isEmpty {
@@ -537,6 +622,7 @@ struct PracticeCardView: View {
                 .padding()
                 .background(Color.orange.opacity(0.05))
                 .cornerRadius(12)
+                .trackFrame(named: "mediumPriority")
             }
 
             // Maintenance - 10%
@@ -633,11 +719,12 @@ struct AnalysisTabView: View {
                     .font(.headline)
                     .foregroundStyle(.purple)
 
-                ForEach(analysis.stageAnalyses, id: \.stageCode) { stage in
+                ForEach(Array(analysis.stageAnalyses.enumerated()), id: \.element.stageCode) { index, stage in
                     NavigationLink(destination: StageDetailAnalysisView(stageAnalysis: stage, divisionCode: analysis.divisionCode)) {
                         StagePerformanceCard(stage: stage, userLevel: analysis.currentClassification)
                     }
                     .buttonStyle(.plain)
+                    .trackFrame(named: index == 0 ? "firstStage" : "")
                 }
             }
         }
@@ -663,6 +750,7 @@ struct OverallStatsView: View {
                     icon: "person.fill",
                     color: classificationColor(analysis.currentClassification)
                 )
+                .trackFrame(named: "currentLevel")
 
                 if let currentTime = analysis.currentTime {
                     let timeValue = NSDecimalNumber(decimal: currentTime).doubleValue
@@ -672,6 +760,7 @@ struct OverallStatsView: View {
                         icon: "timer",
                         color: .blue
                     )
+                    .trackFrame(named: "currentTime")
                 }
 
                 if let currentPct = analysis.currentPercentage {
@@ -682,6 +771,7 @@ struct OverallStatsView: View {
                         icon: "percent",
                         color: .green
                     )
+                    .trackFrame(named: "currentPercent")
                 }
             }
 
@@ -693,6 +783,7 @@ struct OverallStatsView: View {
                     icon: "flag.fill",
                     color: .purple
                 )
+                .trackFrame(named: "matches")
 
                 let daysSince = analysis.temporalAnalysis.daysSinceLastMatch
                 statBox(
@@ -701,6 +792,7 @@ struct OverallStatsView: View {
                     icon: "calendar.badge.clock",
                     color: daysSince > 60 ? .orange : .blue
                 )
+                .trackFrame(named: "lastMatch")
 
                 statBoxWithSubtitle(
                     title: "Improved",
@@ -709,6 +801,7 @@ struct OverallStatsView: View {
                     icon: "arrow.up.circle.fill",
                     color: analysis.improvedStagesCount > 0 ? .green : .gray
                 )
+                .trackFrame(named: "improved")
             }
 
             // Third row: Strongest, Focus on, Consistency

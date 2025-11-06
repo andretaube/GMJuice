@@ -88,7 +88,7 @@ private struct NoCoachingMemberView: View {
                 .padding(.horizontal, 32)
 
                 // Button
-                NavigationLink(destination: ShooterProfileView()) {
+                NavigationLink(destination: ProfileView()) {
                     HStack {
                         Image(systemName: "person.circle.fill")
                         Text("Go to Profile Settings")

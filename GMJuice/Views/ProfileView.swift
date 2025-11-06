@@ -9,21 +9,164 @@ import SwiftUI
 import SwiftData
 
 struct ProfileView: View {
+    @Environment(\.modelContext) private var context
     @Query(sort: \SCMatchScore.scoreDate, order: .reverse) private var allScores: [SCMatchScore]
     @Query private var profiles: [ShooterProfile]
     @State private var selectedTab = 0
+    @StateObject private var scraper = SCWebScraper.shared
+    @State private var showingError = false
+    @State private var errorMessage = ""
+    @State private var showingUSPSASettings = false
+    @AppStorage("scsa_auto_sync_enabled") private var autoSyncEnabled = true
+    @State private var showingCoachMarks = false
+    @State private var trackedFrames: [String: CGRect] = [:]
+    @AppStorage("hasSeenProfileCoachMarks") private var hasSeenCoachMarks = false
+    @State private var previousUSPSANumber: String = ""
 
     private var hasUSPSANumber: Bool {
         guard let profile = profiles.first else { return false }
         return !profile.uspsaNumber.isEmpty
     }
 
+    private var hasExistingData: Bool {
+        return !allScores.isEmpty || profiles.first?.divisions.isEmpty == false
+    }
+
+    // Create coach marks from tracked frames
+    private func createCoachMarks() -> [CoachMark]? {
+        // Only show coach marks when user has USPSA number and data
+        guard hasUSPSANumber else { return nil }
+
+        guard let uspsaNumberFrame = trackedFrames["uspsaNumber"],
+              let matchScoresTabFrame = trackedFrames["matchScoresTab"],
+              let firstDivisionFrame = trackedFrames["firstDivision"] else {
+            return nil
+        }
+
+        var marks: [CoachMark] = []
+
+        // 1. USPSA Number
+        marks.append(CoachMark(
+            title: "Edit USPSA Number",
+            message: "Tap here to edit your USPSA member number or adjust auto-sync settings for your classification data.",
+            highlightFrame: uspsaNumberFrame,
+            calloutPosition: .bottom
+        ))
+
+        // 2. Division Section
+        marks.append(CoachMark(
+            title: "Division Summary",
+            message: "Each division shows your classification level, current percentage, total time, and peak time. The chevron indicates you can tap to expand and view individual stage scores.",
+            highlightFrame: firstDivisionFrame,
+            calloutPosition: .top
+        ))
+
+        // 3. Expand for stages (only if we have the chevron frame)
+        if let chevronFrame = trackedFrames["divisionChevron"] {
+            marks.append(CoachMark(
+                title: "Expand Division",
+                message: "Tap on any division to expand and view all 8 classifier stages used for your classification score. Each stage shows your time, classification level, and what you need to reach the next level.",
+                highlightFrame: chevronFrame,
+                calloutPosition: .top
+            ))
+        }
+
+        // 4. Match Scores Tab
+        marks.append(CoachMark(
+            title: "View All Match Scores",
+            message: "Switch to this tab to view all your match scores from every competition, not just the ones used for classification.",
+            highlightFrame: matchScoresTabFrame,
+            calloutPosition: .bottom
+        ))
+
+        return marks
+    }
+
+    private func ensureProfile() -> ShooterProfile {
+        if let first = profiles.first {
+            return first
+        }
+        let created = ShooterProfile()
+        context.insert(created)
+        do { try context.save() } catch { print("Initial save failed: \(error)") }
+        return created
+    }
+
+    private func deleteUSPSAData() {
+        // Delete all match scores (USPSA-related data)
+        do {
+            try context.delete(model: SCMatchScore.self)
+
+            // Clear division profiles but keep the profile
+            if let profile = profiles.first {
+                profile.divisions.removeAll()
+            }
+
+            try context.save()
+            print("✅ Deleted all USPSA-related data")
+        } catch {
+            print("⚠️ Error deleting USPSA data: \(error)")
+        }
+    }
+
+    private func syncClassificationData(profile: ShooterProfile) async {
+        guard !profile.uspsaNumber.isEmpty else {
+            errorMessage = "Please enter your SCSA member number first"
+            showingError = true
+            return
+        }
+
+        let hadDataBefore = hasExistingData
+
+        do {
+            try await scraper.syncClassificationData(memberNumber: profile.uspsaNumber, context: context)
+            // Update previous number on successful sync
+            await MainActor.run {
+                previousUSPSANumber = profile.uspsaNumber
+            }
+        } catch let error as NSError where error.code == 404 {
+            await MainActor.run {
+                errorMessage = "Unable to find USPSA member number. Please check the number and try again."
+                showingError = true
+
+                // If there was no data before, clear the USPSA number
+                if !hadDataBefore {
+                    profile.uspsaNumber = ""
+                    try? context.save()
+                }
+            }
+        } catch let error as NSError where error.code == 403 {
+            await MainActor.run {
+                errorMessage = "Access denied by SCSA website. This is usually temporary. Please try again in a few minutes."
+                showingError = true
+
+                // If there was no data before, clear the USPSA number
+                if !hadDataBefore {
+                    profile.uspsaNumber = ""
+                    try? context.save()
+                }
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                showingError = true
+
+                // If there was no data before, clear the USPSA number
+                if !hadDataBefore {
+                    profile.uspsaNumber = ""
+                    try? context.save()
+                }
+            }
+        }
+    }
+
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                if !hasUSPSANumber {
-                    NoUSPSANumberView()
-                } else {
+        let p = ensureProfile()
+        @Bindable var profile = p
+
+        ZStack {
+            NavigationStack {
+                VStack(spacing: 0) {
                     // Tab picker
                     Picker("View", selection: $selectedTab) {
                         Text("Profile").tag(0)
@@ -32,15 +175,84 @@ struct ProfileView: View {
                     .pickerStyle(.segmented)
                     .padding(.horizontal)
                     .padding(.vertical, 8)
+                    .background(
+                        GeometryReader { geometry in
+                            Color.clear.preference(
+                                key: FramePreferenceKey.self,
+                                value: ["matchScoresTab": geometry.frame(in: .global).offsetBy(dx: geometry.size.width / 2, dy: 0)]
+                            )
+                        }
+                    )
 
                     if selectedTab == 0 {
-                        ProfileStatsView(allScores: allScores, profiles: profiles)
+                        ProfileStatsView(
+                            allScores: allScores,
+                            profiles: profiles,
+                            profile: profile,
+                            onShowSettings: {
+                                showingUSPSASettings = true
+                            }
+                        )
                     } else {
                         MyScoresTabView(allScores: allScores)
                     }
                 }
+                .onAppear {
+                    // Initialize previous number on appear
+                    if previousUSPSANumber.isEmpty && !profile.uspsaNumber.isEmpty {
+                        previousUSPSANumber = profile.uspsaNumber
+                    }
+                }
+                .navigationTitle("Profile")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            if createCoachMarks() != nil {
+                                showingCoachMarks = true
+                            }
+                        } label: {
+                            Image(systemName: "info.circle")
+                        }
+                    }
+                }
+                .onPreferenceChange(FramePreferenceKey.self) { frames in
+                    trackedFrames = frames
+
+                    // Show coach marks on first visit once frames are available and user has USPSA number
+                    if !hasSeenCoachMarks && !showingCoachMarks && !frames.isEmpty && hasUSPSANumber {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            showingCoachMarks = true
+                            hasSeenCoachMarks = true
+                        }
+                    }
+                }
+                .sheet(isPresented: $showingUSPSASettings) {
+                    USPSASettingsSheet(
+                        profile: profile,
+                        autoSyncEnabled: $autoSyncEnabled,
+                        previousNumber: previousUSPSANumber,
+                        hasExistingData: hasExistingData,
+                        onSync: {
+                            Task {
+                                await syncClassificationData(profile: profile)
+                            }
+                        },
+                        onDeleteData: {
+                            deleteUSPSAData()
+                        }
+                    )
+                }
+                .alert("Sync Error", isPresented: $showingError) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text(errorMessage)
+                }
             }
-            .navigationTitle("Profile")
+
+            // Coach marks overlay at the top level
+            if showingCoachMarks, let marks = createCoachMarks() {
+                CoachMarkOverlay(isPresented: $showingCoachMarks, marks: marks)
+            }
         }
     }
 }
@@ -50,6 +262,8 @@ struct ProfileView: View {
 private struct ProfileStatsView: View {
     let allScores: [SCMatchScore]
     let profiles: [ShooterProfile]
+    @Bindable var profile: ShooterProfile
+    let onShowSettings: () -> Void
 
     private var classificationScoresByDivision: [(division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [SCMatchScore])])] {
         // ONLY show scores where usedForClassification = true (one score per stage per division)
@@ -90,7 +304,50 @@ private struct ProfileStatsView: View {
     }
 
     var body: some View {
-        if classificationScoresByDivision.isEmpty {
+        if profile.uspsaNumber.isEmpty {
+            // Show simple prompt to add USPSA number
+            ScrollView {
+                VStack(spacing: 32) {
+                    Spacer()
+                        .frame(height: 40)
+
+                    Image(systemName: "person.circle")
+                        .font(.system(size: 80))
+                        .foregroundStyle(.blue)
+
+                    VStack(spacing: 12) {
+                        Text("Add Your USPSA Number")
+                            .font(.title2)
+                            .fontWeight(.bold)
+
+                        Text("Track your classifications and performance across all divisions")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                    }
+
+                    Button {
+                        onShowSettings()
+                    } label: {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add USPSA Number")
+                        }
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal, 32)
+
+                    Spacer()
+                }
+            }
+        } else if classificationScoresByDivision.isEmpty {
+            // Has number but no data
             ScrollView {
                 VStack(spacing: 32) {
                     Spacer()
@@ -105,17 +362,19 @@ private struct ProfileStatsView: View {
                             .font(.title2)
                             .fontWeight(.bold)
 
-                        Text("Sync your SCSA profile to download your classification scores and statistics")
+                        Text("Sync your SCSA profile to download your classification scores")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
                     }
 
-                    NavigationLink(destination: ShooterProfileView()) {
+                    Button {
+                        onShowSettings()
+                    } label: {
                         HStack {
-                            Image(systemName: "arrow.clockwise")
-                            Text("Sync Profile")
+                            Image(systemName: "pencil.circle.fill")
+                            Text("Enter Your USPSA Number")
                         }
                         .font(.headline)
                         .foregroundStyle(.white)
@@ -130,33 +389,46 @@ private struct ProfileStatsView: View {
                 }
             }
         } else {
+            // Has data - show profile stats
             List {
-                // USPSA Number Header
-                if let profile = profiles.first {
-                    Section {
-                        NavigationLink(destination: ShooterProfileView()) {
-                            HStack {
-                                Image(systemName: "person.text.rectangle")
-                                    .font(.title2)
-                                    .foregroundStyle(.blue)
+                // USPSA Number Header - tappable to open settings
+                Section {
+                    Button {
+                        onShowSettings()
+                    } label: {
+                        HStack {
+                            Image(systemName: "person.text.rectangle")
+                                .font(.title2)
+                                .foregroundStyle(.blue)
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("USPSA Member")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Text(profile.uspsaNumber)
-                                        .font(.title3)
-                                        .fontWeight(.bold)
-                                }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("USPSA Member")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(profile.uspsaNumber)
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.primary)
                             }
-                            .padding(.vertical, 8)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
+                        .padding(.vertical, 8)
                     }
+                    .trackFrame(named: "uspsaNumber")
                 }
 
                 // Division sections
-                ForEach(classificationScoresByDivision, id: \.division) { divisionGroup in
-                    DivisionProfileSection(divisionGroup: divisionGroup, allScores: allScores)
+                ForEach(Array(classificationScoresByDivision.enumerated()), id: \.element.division) { index, divisionGroup in
+                    DivisionProfileSection(
+                        divisionGroup: divisionGroup,
+                        allScores: allScores,
+                        isFirst: index == 0
+                    )
                 }
             }
         }
@@ -168,6 +440,7 @@ private struct ProfileStatsView: View {
 private struct DivisionProfileSection: View {
     let divisionGroup: (division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [SCMatchScore])])
     let allScores: [SCMatchScore]
+    var isFirst: Bool = false
 
     @State private var isExpanded = false
 
@@ -207,6 +480,7 @@ private struct DivisionProfileSection: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        .trackFrame(named: isFirst ? "divisionChevron" : "")
                     }
 
                     // Current %, Total Time, and Peak Time
@@ -277,6 +551,7 @@ private struct DivisionProfileSection: View {
                 .padding(.vertical, 8)
             }
             .buttonStyle(.plain)
+            .trackFrame(named: isFirst ? "firstDivision" : "")
 
             // Expanded stage list
             if isExpanded {
@@ -456,71 +731,115 @@ private struct StageDetailAnalysisViewWrapper: View {
     }
 }
 
-// MARK: - No USPSA Number Info View
+// MARK: - USPSA Settings Sheet
 
-private struct NoUSPSANumberView: View {
+private struct USPSASettingsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+    @Bindable var profile: ShooterProfile
+    @Binding var autoSyncEnabled: Bool
+    let previousNumber: String
+    let hasExistingData: Bool
+    let onSync: () -> Void
+    let onDeleteData: () -> Void
+    @StateObject private var scraper = SCWebScraper.shared
+    @State private var initialNumber: String = ""
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 32) {
-                Spacer()
-                    .frame(height: 40)
-
-                // Icon
-                Image(systemName: "person.circle")
-                    .font(.system(size: 80))
-                    .foregroundStyle(.blue)
-
-                // Header
-                VStack(spacing: 12) {
-                    Text("Connect Your Profile")
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    Text("Add your USPSA member number to track your classifications and performance")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("SCSA Member Number", text: $profile.uspsaNumber)
+                        .textContentType(.username)
+                        .autocapitalization(.allCharacters)
+                        .font(.body)
+                        .onChange(of: profile.uspsaNumber) { oldValue, newValue in
+                            // Don't save on every keystroke for now
+                        }
+                        .onAppear {
+                            initialNumber = profile.uspsaNumber
+                        }
+                } header: {
+                    Text("USPSA Number")
+                } footer: {
+                    Text("Enter your USPSA/SCSA member number to sync your classification data")
                 }
 
-                // Benefits
-                VStack(alignment: .leading, spacing: 16) {
-                    ProfileBenefitRow(
-                        icon: "trophy.fill",
-                        title: "Track Classifications",
-                        description: "Monitor your SCSA standings across all divisions"
-                    )
+                if !profile.uspsaNumber.isEmpty {
+                    Section {
+                        Toggle("Auto-sync my data", isOn: $autoSyncEnabled)
 
-                    ProfileBenefitRow(
-                        icon: "chart.line.uptrend.xyaxis",
-                        title: "Performance Analytics",
-                        description: "View detailed analysis and trends for each stage"
-                    )
-
-                    ProfileBenefitRow(
-                        icon: "arrow.clockwise",
-                        title: "Auto Sync",
-                        description: "Automatically sync official classifier scores"
-                    )
-                }
-                .padding(.horizontal, 32)
-
-                // Button
-                NavigationLink(destination: ShooterProfileView()) {
-                    HStack {
-                        Image(systemName: "person.circle.fill")
-                        Text("Go to Profile Settings")
+                        if autoSyncEnabled, let lastSync = scraper.lastSyncDate {
+                            HStack {
+                                Text("Last synced")
+                                Spacer()
+                                Text(lastSync, format: .relative(presentation: .named))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .font(.subheadline)
+                        }
+                    } header: {
+                        Text("Sync Settings")
+                    } footer: {
+                        Text("Your classification data will sync automatically when you open the app. SCSA updates scores on Wednesdays.")
                     }
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(12)
-                }
-                .padding(.horizontal, 32)
 
-                Spacer()
+                    Section {
+                        Button {
+                            onSync()
+                        } label: {
+                            HStack {
+                                Spacer()
+                                if scraper.isScraping {
+                                    ProgressView()
+                                        .padding(.trailing, 8)
+                                }
+                                Text("Sync Now")
+                                Spacer()
+                            }
+                        }
+                        .disabled(scraper.isScraping)
+                    }
+                }
+            }
+            .navigationTitle("USPSA Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        let newNumber = profile.uspsaNumber.trimmingCharacters(in: .whitespaces)
+                        let numberChanged = newNumber != initialNumber
+
+                        // If number changed to a different value
+                        if numberChanged && !newNumber.isEmpty {
+                            // If there was existing data with a previous number, delete it
+                            if hasExistingData && !previousNumber.isEmpty {
+                                onDeleteData()
+                            }
+
+                            // Save the new number
+                            profile.uspsaNumber = newNumber
+                            try? context.save()
+
+                            dismiss()
+
+                            // Trigger sync after dismiss
+                            autoSyncEnabled = true
+                            Task {
+                                try? await Task.sleep(nanoseconds: 300_000_000)
+                                onSync()
+                            }
+                        } else if numberChanged && newNumber.isEmpty {
+                            // Number was cleared - just save and dismiss
+                            profile.uspsaNumber = ""
+                            try? context.save()
+                            dismiss()
+                        } else {
+                            // No change or invalid change - dismiss without sync
+                            dismiss()
+                        }
+                    }
+                }
             }
         }
     }
