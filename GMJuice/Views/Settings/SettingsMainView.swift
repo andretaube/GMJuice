@@ -88,6 +88,11 @@ struct SettingsMainView: View {
                 .padding()
             }
             .navigationTitle("Settings")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    UserProfileButton()
+                }
+            }
             .sheet(isPresented: $showingTerms) {
                 LegalDocumentView(
                     title: "Terms of Use",

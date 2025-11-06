@@ -24,6 +24,7 @@ final class BLEManager: NSObject, ObservableObject {
     
     private var central: CBCentralManager!
     @Published var discoveredDevices: [CBPeripheral] = []
+    @Published var deviceRSSI: [UUID: Int] = [:]  // Track signal strength for each device
     @Published var connectionStatus: BLEConnectionStatus = BLEConnectionStatus.Disconnected
     
     // MARK: - Persistence keys
@@ -58,6 +59,10 @@ final class BLEManager: NSObject, ObservableObject {
     func connectSavedOrScan() {
         if let savedUUID = savedId(),
            let p = central.retrievePeripherals(withIdentifiers: [savedUUID]).first {
+            // Disconnect from any existing peripheral first
+            if let existing = current, existing.identifier != p.identifier {
+                disconnect()
+            }
             current = p
             current?.delegate = self
             connectionStatus = .Connecting
@@ -97,6 +102,10 @@ final class BLEManager: NSObject, ObservableObject {
               let p = central.retrievePeripherals(withIdentifiers: [id]).first else {
             return
         }
+        // Disconnect from any existing peripheral first
+        if let existing = current, existing.identifier != p.identifier {
+            disconnect()
+        }
         current = p
         current?.delegate = self
         connectionStatus = .Connecting
@@ -109,7 +118,13 @@ final class BLEManager: NSObject, ObservableObject {
     }
     
     public func disconnect() {
-        if let p = current { central.cancelPeripheralConnection(p) }
+        if let p = current {
+            // Disable notifications before disconnecting to prevent stray notifications
+            if let char = notifyChar {
+                p.setNotifyValue(false, for: char)
+            }
+            central.cancelPeripheralConnection(p)
+        }
     }
     
     public func saveDevice(id: UUID, name: String) {
@@ -267,7 +282,13 @@ extension BLEManager: CBCentralManagerDelegate {
             connectionStatus = .Disconnected
             onDisconnected?(peripheral, error)
             // If this was your current device, clear it or auto-retry as desired
-            if current?.identifier == peripheral.identifier { current = nil }
+            if current?.identifier == peripheral.identifier {
+                // Clear delegate and characteristics to prevent stray notifications
+                peripheral.delegate = nil
+                notifyChar = nil
+                writeChar = nil
+                current = nil
+            }
         }
     }
 
@@ -312,6 +333,11 @@ extension BLEManager: CBPeripheralDelegate {
                                  error: Error?) {
         guard error == nil, let data = characteristic.value else { return }
         MainActor.assumeIsolated {
+            // Only process notifications from the currently connected peripheral
+            guard peripheral.identifier == current?.identifier else {
+                print("⚠️ Ignoring notification from non-current peripheral: \(peripheral.name ?? "Unknown")")
+                return
+            }
             handleData(data)
         }
     }

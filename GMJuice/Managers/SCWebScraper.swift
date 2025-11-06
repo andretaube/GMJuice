@@ -294,6 +294,59 @@ class SCWebScraper: ObservableObject {
         return try parseClassificationData(html: html)
     }
 
+    // MARK: - Helper Methods
+
+    /// Find a table using the configured method (direct, preferLast, sibling)
+    private func findTable(in doc: Element, tableSelector: String, findMethod: String, headerElement: Element? = nil) throws -> Element? {
+        switch findMethod {
+        case "direct":
+            // Use direct selector (e.g., by ID)
+            let table = try doc.select(tableSelector).first()
+            if table != nil {
+                print("✅ Found table using direct selector: \(tableSelector)")
+            }
+            return table
+
+        case "preferLast":
+            // Find all matching tables and prefer the last one
+            let matchingTables = try doc.select(tableSelector)
+            if matchingTables.count > 1 {
+                print("✅ Found \(matchingTables.count) tables with selector \(tableSelector), using the last one")
+                return matchingTables.last()
+            } else if matchingTables.count == 1 {
+                print("✅ Found 1 table with selector \(tableSelector)")
+                return matchingTables.first()
+            } else {
+                print("⚠️ No tables found with selector \(tableSelector)")
+                return nil
+            }
+
+        case "sibling":
+            // Look for next sibling table after header
+            guard let header = headerElement else {
+                print("⚠️ No header element provided for sibling search")
+                return nil
+            }
+            var currentElement = try header.nextElementSibling()
+            var searchDepth = 0
+            while currentElement != nil && searchDepth < 10 {
+                let tagName = try currentElement?.tagName()
+                if tagName == "table" {
+                    print("✅ Found table as sibling #\(searchDepth)")
+                    return currentElement
+                }
+                currentElement = try currentElement?.nextElementSibling()
+                searchDepth += 1
+            }
+            print("⚠️ No table found as sibling after \(searchDepth) elements")
+            return nil
+
+        default:
+            print("⚠️ Unknown findMethod: \(findMethod)")
+            return nil
+        }
+    }
+
     private func parseClassificationData(html: String) throws -> AllClassificationData {
         var data = AllClassificationData()
         let rules = parsingRules.rules
@@ -301,19 +354,18 @@ class SCWebScraper: ObservableObject {
         // Parse HTML with SwiftSoup
         let doc = try SwiftSoup.parse(html)
 
-        // Check if we got a valid member page
+        // Check if we got a valid member page by looking for expected headers
         let h2Elements = try doc.select("h2")
         let h2Texts = h2Elements.array().compactMap { try? $0.text() }
 
         print("📄 Found h2 elements: \(h2Texts)")
 
-        // Validate we have actual data sections (Classifications or All Stage Scores)
-        let hasClassifications = h2Texts.contains { $0 == "Classifications" }
-        let hasStageScores = h2Texts.contains { $0.contains("Stage Scores") }
-        let hasClassificationRecord = h2Texts.contains { $0.contains("Classification Record for") }
+        // Try to find at least one of the expected sections
+        let hasClassifications = try doc.select(rules.classificationsSection.headerSelector).first() != nil
+        let hasStageScores = try doc.select(rules.allStageScoresSection.headerSelector).first() != nil
 
         // If we have none of the data sections, member not found
-        if !hasClassifications && !hasStageScores && !hasClassificationRecord {
+        if !hasClassifications && !hasStageScores {
             print("❌ Member not found - page has no classification data sections")
             throw NSError(domain: "SCWebScraper", code: 404, userInfo: [NSLocalizedDescriptionKey: "Member number not found. Please check the member number and try again."])
         }
@@ -324,33 +376,19 @@ class SCWebScraper: ObservableObject {
         if let classificationsHeader = try doc.select(rules.classificationsSection.headerSelector).first() {
             print("✅ Found 'Classifications' header")
 
-            // Find the table based on the configured method
-            var classificationsTable: Element?
-
-            if rules.classificationsSection.findMethod == "direct" {
-                classificationsTable = try doc.select(rules.classificationsSection.tableSelector).first()
-            } else {
-                // Look for next sibling table
-                var currentElement = try classificationsHeader.nextElementSibling()
-                var searchDepth = 0
-                while currentElement != nil && searchDepth < 10 {
-                    let tagName = try currentElement?.tagName()
-                    if tagName == "table" {
-                        classificationsTable = currentElement
-                        print("✅ Found classifications table as sibling #\(searchDepth)")
-                        break
-                    }
-                    currentElement = try currentElement?.nextElementSibling()
-                    searchDepth += 1
-                }
-            }
-
-            if let table = classificationsTable {
+            // Find the table using the helper method
+            if let table = try findTable(
+                in: doc,
+                tableSelector: rules.classificationsSection.tableSelector,
+                findMethod: rules.classificationsSection.findMethod,
+                headerElement: classificationsHeader
+            ) {
                 let rows = try table.select(rules.classificationsSection.rowSelector)
                 print("DEBUG: Found \(rows.count) classification rows")
 
                 for row in rows {
                     let cells = try row.select("td")
+                    // Classifications table has 6 columns: #, Division, Class, Current%, High%, Date
                     guard cells.count >= 6 else { continue }
 
                     // Extract division code (index 1)
@@ -419,33 +457,13 @@ class SCWebScraper: ObservableObject {
 
         print("✅ Found 'All Stage Scores' header")
 
-        // Find the table based on the configured method
-        var stageScoresTable: Element?
-
-        if rules.allStageScoresSection.findMethod == "direct" {
-            // Use direct selector (e.g., by ID)
-            stageScoresTable = try doc.select(rules.allStageScoresSection.tableSelector).first()
-            if stageScoresTable != nil {
-                print("✅ Found table using direct selector: \(rules.allStageScoresSection.tableSelector)")
-            }
-        } else {
-            // Legacy: Look for next sibling table
-            var currentElement = try allStageScoresHeader.nextElementSibling()
-            var searchDepth = 0
-            while currentElement != nil && searchDepth < 10 {
-                let tagName = try currentElement?.tagName()
-                print("DEBUG: Checking sibling #\(searchDepth): <\(tagName ?? "nil")>")
-                if tagName == "table" {
-                    stageScoresTable = currentElement
-                    print("✅ Found table as sibling #\(searchDepth)")
-                    break
-                }
-                currentElement = try currentElement?.nextElementSibling()
-                searchDepth += 1
-            }
-        }
-
-        guard let table = stageScoresTable else {
+        // Find the table using the helper method
+        guard let table = try findTable(
+            in: doc,
+            tableSelector: rules.allStageScoresSection.tableSelector,
+            findMethod: rules.allStageScoresSection.findMethod,
+            headerElement: allStageScoresHeader
+        ) else {
             print("❌ Could not find table using selector: \(rules.allStageScoresSection.tableSelector)")
             print("📄 Available tables in document:")
             let allTables = try doc.select("table")
@@ -478,6 +496,7 @@ class SCWebScraper: ObservableObject {
 
             // Parse data row
             let cells = try row.select("td")
+            // Stage scores table has 6 columns: Event, Date, Stage, Time, Peak, Status
             guard cells.count >= 6 else { continue }
 
             // Check if this score was used for classification using rules
@@ -551,11 +570,31 @@ class SCWebScraper: ObservableObject {
     }
 
     private func storeClassificationData(_ data: AllClassificationData, memberNumber: String, context: ModelContext) async throws {
-        // Delete existing match scores for this member
+        // Fetch existing match scores for this member
         let descriptor = FetchDescriptor<SCMatchScore>(
             predicate: #Predicate { $0.memberNumber == memberNumber }
         )
         let existing = try context.fetch(descriptor)
+        let existingCount = existing.count
+        let newCount = data.stageScores.count
+
+        print("📊 Data comparison: existing=\(existingCount), new=\(newCount)")
+
+        // Safety check: Don't overwrite if we're getting fewer records than we already have
+        // This prevents data loss if the website is having issues or partially loaded
+        if existingCount > 0 && newCount < existingCount {
+            let message = "Sync aborted: Found \(newCount) stage scores but you already have \(existingCount) saved. This could indicate the website didn't fully load. Your existing data has been preserved."
+            print("⚠️ \(message)")
+            throw NSError(domain: "SCWebScraper", code: 100, userInfo: [
+                NSLocalizedDescriptionKey: message,
+                NSLocalizedRecoverySuggestionErrorKey: "Try syncing again in a few moments, or check scsa.org to verify your data is available."
+            ])
+        }
+
+        // If we have the same or more records, proceed with update
+        print("✅ Safe to update: new data has \(newCount) records (existing: \(existingCount))")
+
+        // Delete existing match scores
         for score in existing {
             context.delete(score)
         }

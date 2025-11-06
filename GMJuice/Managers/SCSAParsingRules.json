@@ -10,15 +10,15 @@
     "allStageScoresSection": {
       "headerSelector": "h2:contains(All Stage Scores)",
       "tableSelector": "#ClassifiersTable",
-      "findMethod": "direct"
+      "findMethod": "preferLast"
     },
     "divisionHeaders": {
-      "selector": "th[colspan=7].text-center",
+      "selector": "tr.table-secondary th",
       "extract": "text"
     },
     "stageScoreRows": {
       "rowSelector": "tbody tr",
-      "divisionHeaderSelector": "th[colspan=7].text-center",
+      "divisionHeaderSelector": "th.text-center",
       "classificationIndicator": {
         "cellIndex": 5,
         "method": "notContains",

@@ -14,10 +14,12 @@ struct ProfileView: View {
     @Query private var profiles: [ShooterProfile]
     @State private var selectedTab = 0
     @StateObject private var scraper = SCWebScraper.shared
+    @EnvironmentObject var cloudKitManager: CloudKitManager
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var showingUSPSASettings = false
     @AppStorage("scsa_auto_sync_enabled") private var autoSyncEnabled = true
+    @AppStorage("cloudkit_sharing_enabled") private var cloudKitSharingEnabled = false
     @State private var showingCoachMarks = false
     @State private var trackedFrames: [String: CGRect] = [:]
     @AppStorage("hasSeenProfileCoachMarks") private var hasSeenCoachMarks = false
@@ -124,6 +126,17 @@ struct ProfileView: View {
             await MainActor.run {
                 previousUSPSANumber = profile.uspsaNumber
             }
+
+            // Sync to CloudKit if sharing is enabled
+            if cloudKitSharingEnabled {
+                do {
+                    try await cloudKitManager.syncUSPSAProfile(memberNumber: profile.uspsaNumber, context: context)
+                    print("✅ Synced profile to CloudKit for GameCenter sharing")
+                } catch {
+                    print("⚠️ CloudKit sync failed: \(error.localizedDescription)")
+                    // Don't show error to user - CloudKit sync is optional
+                }
+            }
         } catch let error as NSError where error.code == 404 {
             await MainActor.run {
                 errorMessage = "Unable to find USPSA member number. Please check the number and try again."
@@ -205,6 +218,10 @@ struct ProfileView: View {
                 }
                 .navigationTitle("Profile")
                 .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        UserProfileButton()
+                    }
+
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
                             if createCoachMarks() != nil {
@@ -230,6 +247,7 @@ struct ProfileView: View {
                     USPSASettingsSheet(
                         profile: profile,
                         autoSyncEnabled: $autoSyncEnabled,
+                        cloudKitSharingEnabled: $cloudKitSharingEnabled,
                         previousNumber: previousUSPSANumber,
                         hasExistingData: hasExistingData,
                         onSync: {
@@ -756,11 +774,13 @@ private struct USPSASettingsSheet: View {
     @Environment(\.modelContext) private var context
     @Bindable var profile: ShooterProfile
     @Binding var autoSyncEnabled: Bool
+    @Binding var cloudKitSharingEnabled: Bool
     let previousNumber: String
     let hasExistingData: Bool
     let onSync: () -> Void
     let onDeleteData: () -> Void
     @StateObject private var scraper = SCWebScraper.shared
+    @StateObject private var cloudKitManager = CloudKitManager.shared
     @State private var initialNumber: String = ""
 
     var body: some View {
@@ -800,6 +820,61 @@ private struct USPSASettingsSheet: View {
                         Text("Sync Settings")
                     } footer: {
                         Text("Your classification data will sync automatically when you open the app. SCSA updates scores on Wednesdays.")
+                    }
+
+                    Section {
+                        Toggle("Share with GameCenter friends", isOn: $cloudKitSharingEnabled)
+                            .onChange(of: cloudKitSharingEnabled) { _, isEnabled in
+                                Task {
+                                    if isEnabled {
+                                        // Auto-sync to CloudKit when enabled
+                                        if !profile.uspsaNumber.isEmpty {
+                                            do {
+                                                try await cloudKitManager.syncUSPSAProfile(memberNumber: profile.uspsaNumber, context: context)
+                                                print("✅ Auto-synced profile to CloudKit")
+                                            } catch {
+                                                print("⚠️ Failed to auto-sync to CloudKit: \(error.localizedDescription)")
+                                            }
+                                        }
+                                    } else {
+                                        // Auto-delete from CloudKit when disabled
+                                        if !profile.uspsaNumber.isEmpty {
+                                            do {
+                                                try await cloudKitManager.deleteUSPSAProfile(memberNumber: profile.uspsaNumber)
+                                                print("✅ Removed profile from CloudKit")
+                                            } catch {
+                                                print("⚠️ Failed to remove from CloudKit: \(error.localizedDescription)")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                        if cloudKitSharingEnabled, let lastSync = cloudKitManager.lastSyncDate {
+                            HStack {
+                                Text("Last shared")
+                                Spacer()
+                                Text(lastSync, format: .relative(presentation: .named))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .font(.subheadline)
+                        }
+
+                        if cloudKitManager.isSyncing {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                    .padding(.trailing, 8)
+                                Text(cloudKitSharingEnabled ? "Syncing..." : "Removing...")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                            }
+                            .font(.subheadline)
+                        }
+                    } header: {
+                        Text("GameCenter Sharing")
+                    } footer: {
+                        Text("Share your official match scores (classification data only) with GameCenter friends. Training runs are never shared.")
                     }
 
                     Section {

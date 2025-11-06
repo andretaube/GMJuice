@@ -106,7 +106,7 @@ extension ShooterClass: Comparable {
     }
     
     // MARK: - Display
-    
+
     /// Full name of the classification
     var displayName: String {
         switch self {
@@ -117,6 +117,19 @@ extension ShooterClass: Comparable {
         case .C:  return "C Class"
         case .D:  return "D Class"
         case .U:  return "Unclassified"
+        }
+    }
+
+    /// Spoken name for text-to-speech (ensures letters are pronounced correctly)
+    var spokenName: String {
+        switch self {
+        case .GM: return "G. M."
+        case .M:  return "M."
+        case .A:  return "A."
+        case .B:  return "B."
+        case .C:  return "C."
+        case .D:  return "D."
+        case .U:  return "U."
         }
     }
 }

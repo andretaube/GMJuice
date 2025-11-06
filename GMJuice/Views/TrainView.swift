@@ -210,6 +210,10 @@ struct TrainView: View {
                 }
                 .navigationTitle("Train")
                 .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        UserProfileButton()
+                    }
+
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
                             // Show coach marks if frames are available, otherwise fallback to tutorial sheet

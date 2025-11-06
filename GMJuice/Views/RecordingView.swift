@@ -91,7 +91,7 @@ struct RecordingView<ViewModel: RecordingViewModelProtocol>: View {
                     let shooterClass = ShooterClass.shooterClass(percentage: pct)
 
                     print("📢 Auto-announcing time: \(adjustedTime) (\(shooterClass.rawValue))")
-                    announcer.speak(text: "\(Format.formatTime(adjustedTime)), \(shooterClass.rawValue)")
+                    announcer.speak(text: "\(Format.formatTime(adjustedTime)), \(shooterClass.spokenName)")
                 }
             }
         }
@@ -158,7 +158,7 @@ struct RecordingView<ViewModel: RecordingViewModelProtocol>: View {
             let pct = PeakBenchmarks.percent(division: division, stageCode: stage.code, time: adjustedTime)
             let shooterClass = ShooterClass.shooterClass(percentage: pct)
 
-            Announcer.shared.speak(text: "\(Format.formatTime(adjustedTime)), \(shooterClass.rawValue)")
+            Announcer.shared.speak(text: "\(Format.formatTime(adjustedTime)), \(shooterClass.spokenName)")
         }
     }
 

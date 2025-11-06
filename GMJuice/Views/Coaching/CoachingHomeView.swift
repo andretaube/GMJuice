@@ -34,6 +34,11 @@ struct CoachingHomeView: View {
                 }
             }
             .navigationTitle("Analysis")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    UserProfileButton()
+                }
+            }
         }
     }
 }
