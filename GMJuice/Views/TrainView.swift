@@ -14,6 +14,7 @@ struct TrainView: View {
     @AppStorage("scsa_active_division") private var activeDivisionRaw: String = Division.RFPO.rawValue
 
     @State private var navigationPath = NavigationPath()
+    @State private var tipRefreshID = UUID()
 
     // Tips
     private let divisionTip = SelectDivisionTip()
@@ -31,14 +32,21 @@ struct TrainView: View {
 
     // Replay all tutorial tips
     private func replayTips() {
-        // Reset the entire TipKit datastore to show all tips again
-        try? Tips.resetDatastore()
+        Task {
+            // Reset the entire TipKit datastore to show all tips again
+            try? Tips.resetDatastore()
 
-        // Reconfigure TipKit to ensure tips display immediately
-        try? Tips.configure([
-            .displayFrequency(.immediate),
-            .datastoreLocation(.applicationDefault)
-        ])
+            // Reconfigure TipKit to ensure tips display immediately
+            try? Tips.configure([
+                .displayFrequency(.immediate),
+                .datastoreLocation(.applicationDefault)
+            ])
+
+            // Force view refresh by changing the ID
+            await MainActor.run {
+                tipRefreshID = UUID()
+            }
+        }
     }
 
     var body: some View {
@@ -82,6 +90,7 @@ struct TrainView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 12)
                 .background(Color(.systemBackground))
+                .id(tipRefreshID)
 
                 Divider()
 
@@ -96,6 +105,7 @@ struct TrainView: View {
                         .pickerStyle(.menu) // renders as a dropdown in the list
                         .popoverTip(divisionTip, arrowEdge: .top)
                     }
+                    .id(tipRefreshID)
 
                     // Stages
                     ForEach(Array(AllStages.enumerated()), id: \.element.id) { index, stage in
@@ -143,6 +153,7 @@ struct TrainView: View {
                         .opacity(index == 0 ? 1 : 1) // Show tip only on first stage
                     }
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    .id("\(stage.id)-\(tipRefreshID)")
                 }
                 }
                 .navigationTitle("Train")
