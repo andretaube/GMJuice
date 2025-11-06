@@ -39,13 +39,19 @@ struct StageAnalysis {
     let peakTime: Decimal
 
     // Performance metrics
-    let consistencyScore: Decimal  // Coefficient of variation (lower is better)
-    let performanceVsPeak: Decimal // Percentage
+    let consistencyScore: Decimal  // Average % point variation around recent average (lower = more consistent)
+    let performanceVsPeak: Decimal // Percentage of peak (based on recent average)
     let recentTrend: Decimal       // Positive = improving, negative = declining
 
     // Classification context
     let bestClassification: ShooterClass
     let averageClassification: ShooterClass
+
+    // Improvement potential (based on best time)
+    let bestPerformanceVsPeak: Decimal  // Percentage of peak based on best time
+    let nextClassification: ShooterClass // Target classification level
+    let timeToNextLevel: Decimal        // Time needed to reach next classification
+    let gainToNextLevel: Decimal        // Seconds to improve from best to reach next level
 
     // Temporal context
     let mostRecentDate: Date?
@@ -188,32 +194,80 @@ class SCPerformanceAnalyzer {
     private func analyzeStage(stageCode: String, scores: [SCMatchScore]) -> StageAnalysis? {
         guard !scores.isEmpty else { return nil }
 
+        // CRITICAL: Ensure scores are sorted by date (ascending) since Dictionary grouping doesn't preserve order
+        let scores = scores.sorted { $0.scoreDate < $1.scoreDate }
+
         let stageName = scores.first?.stageName ?? stageCode
-        let times = scores.map { $0.time }
 
-        // Basic statistics
+        // Filter for recent scores: last N days OR minimum M matches (whichever gives more data)
+        let lookbackDate = Calendar.current.date(byAdding: .day, value: -AnalysisConstants.recentDaysWindow, to: Date()) ?? Date()
+        let recentScores = scores.filter { $0.scoreDate >= lookbackDate }
+
+        let scoresToUse = AnalysisConstants.getRecentScores(recentScores: recentScores, allScores: scores)
+
+        #if DEBUG
+        if scoresToUse.count != scores.count {
+            print("  📊 \(stageCode): Using \(scoresToUse.count) of \(scores.count) scores (last \(AnalysisConstants.recentDaysWindow) days or \(AnalysisConstants.recentMatchesThreshold) matches)")
+        }
+        #endif
+
+        let times = scoresToUse.map { $0.time }
+        let allTimes = scores.map { $0.time } // Keep all times for best time calculation
+
+        // Basic statistics (use recent data for average, all data for best)
         let averageTime = times.reduce(Decimal(0), +) / Decimal(times.count)
-        let bestTime = times.min() ?? 0
+        let bestTime = allTimes.min() ?? 0  // Best time from ALL history
         let peakTime = scores.first?.peakTime ?? 0
-
-        // Standard deviation
-        let variance = times.map { pow(NSDecimalNumber(decimal: $0 - averageTime).doubleValue, 2) }
-            .reduce(0.0, +) / Double(times.count)
-        let stdDev = Decimal(sqrt(variance))
-
-        // Coefficient of variation (consistency score)
-        let consistencyScore = averageTime > 0 ? (stdDev / averageTime) * 100 : 0
 
         // Performance vs peak
         let performanceVsPeak = peakTime > 0 ? (peakTime / averageTime) * 100 : 0
         let bestPerformanceVsPeak = peakTime > 0 ? (peakTime / bestTime) * 100 : 0
 
-        // Recent trend (compare last 3 vs first 3)
-        let recentTrend = calculateStageTrend(scores: scores)
+        // Consistency: Average % difference from average % across recent scores
+        // This measures how much your scores vary (lower = more consistent)
+        let consistencyScore: Decimal
+        if peakTime > 0 && performanceVsPeak > 0 {
+            // Calculate each score's performance %
+            let scorePerformances = scoresToUse.map { score -> Double in
+                NSDecimalNumber(decimal: (peakTime / score.time) * 100).doubleValue
+            }
+
+            // Calculate variability around the average
+            let avgPerformance = NSDecimalNumber(decimal: performanceVsPeak).doubleValue
+            let differences = scorePerformances.map { abs($0 - avgPerformance) }
+            let avgDifference = differences.reduce(0.0, +) / Double(differences.count)
+            consistencyScore = Decimal(avgDifference)
+        } else {
+            consistencyScore = 0
+        }
+
+        // Also calculate standard deviation for internal use if needed
+        let variance = times.map { pow(NSDecimalNumber(decimal: $0 - averageTime).doubleValue, 2) }
+            .reduce(0.0, +) / Double(times.count)
+        let stdDev = Decimal(sqrt(variance))
+
+        // Recent trend (use filtered scores for trend calculation)
+        let recentTrend = calculateStageTrend(scores: scoresToUse)
 
         // Classification levels
         let bestClassification = ShooterClass.shooterClass(percentage: bestPerformanceVsPeak)
         let averageClassification = ShooterClass.shooterClass(percentage: performanceVsPeak)
+
+        // Calculate improvement potential (based on best time)
+        let nextClassification = bestClassification.nextClass
+        let nextThreshold = bestClassification.nextClassThreshold
+
+        // Calculate time needed to reach next classification level
+        // Formula: targetTime = peakTime / (nextThreshold / 100)
+        let timeToNextLevel: Decimal
+        if peakTime > 0 && nextThreshold > 0 {
+            timeToNextLevel = peakTime / (nextThreshold / 100)
+        } else {
+            timeToNextLevel = 0
+        }
+
+        // Calculate gain: how many seconds to improve from current best
+        let gainToNextLevel = bestTime - timeToNextLevel
 
         // Temporal data
         let sortedByDate = scores.sorted { $0.scoreDate < $1.scoreDate }
@@ -223,23 +277,27 @@ class SCPerformanceAnalyzer {
         return StageAnalysis(
             stageCode: stageCode,
             stageName: stageName,
-            matchCount: scores.count,
-            averageTime: averageTime,
-            bestTime: bestTime,
-            standardDeviation: stdDev,
+            matchCount: scores.count,  // Total matches (all history)
+            averageTime: averageTime,  // Average from recent data
+            bestTime: bestTime,  // Best from all history
+            standardDeviation: stdDev,  // Variance from recent data
             peakTime: peakTime,
-            consistencyScore: consistencyScore,
-            performanceVsPeak: performanceVsPeak,
-            recentTrend: recentTrend,
+            consistencyScore: consistencyScore,  // Consistency from recent data
+            performanceVsPeak: performanceVsPeak,  // Based on recent average
+            recentTrend: recentTrend,  // Trend from recent data
             bestClassification: bestClassification,
             averageClassification: averageClassification,
+            bestPerformanceVsPeak: bestPerformanceVsPeak,
+            nextClassification: nextClassification,
+            timeToNextLevel: timeToNextLevel,
+            gainToNextLevel: gainToNextLevel,
             mostRecentDate: mostRecent,
             oldestDate: oldest
         )
     }
 
     private func calculateStageTrend(scores: [SCMatchScore]) -> Decimal {
-        guard scores.count >= 4 else { return 0 }
+        guard scores.count >= AnalysisConstants.TrendCalculation.minimumScoresForTrend else { return 0 }
 
         let sortedScores = scores.sorted { $0.scoreDate < $1.scoreDate }
         let halfPoint = sortedScores.count / 2
@@ -258,17 +316,17 @@ class SCPerformanceAnalyzer {
     }
 
     private func identifyStrengths(from analyses: [StageAnalysis]) -> [StageAnalysis] {
-        // Strengths = highest performance vs peak
+        // Strengths = highest BEST performance vs peak
         return analyses
-            .sorted { $0.performanceVsPeak > $1.performanceVsPeak }
+            .sorted { $0.bestPerformanceVsPeak > $1.bestPerformanceVsPeak }
             .prefix(3)
             .map { $0 }
     }
 
     private func identifyWeaknesses(from analyses: [StageAnalysis]) -> [StageAnalysis] {
-        // Weaknesses = lowest performance vs peak
+        // Weaknesses = lowest BEST performance vs peak
         return analyses
-            .sorted { $0.performanceVsPeak < $1.performanceVsPeak }
+            .sorted { $0.bestPerformanceVsPeak < $1.bestPerformanceVsPeak }
             .prefix(3)
             .map { $0 }
     }
@@ -276,7 +334,7 @@ class SCPerformanceAnalyzer {
     private func identifyVolatileStages(from analyses: [StageAnalysis]) -> [StageAnalysis] {
         // Volatile = highest consistency score (coefficient of variation)
         return analyses
-            .filter { $0.matchCount >= 3 } // Need at least 3 matches
+            .filter { $0.matchCount >= AnalysisConstants.PerformanceThresholds.volatileStageMinMatches }
             .sorted { $0.consistencyScore > $1.consistencyScore }
             .prefix(3)
             .map { $0 }
@@ -285,15 +343,18 @@ class SCPerformanceAnalyzer {
     private func calculateOverallConsistency(from analyses: [StageAnalysis]) -> Decimal {
         guard !analyses.isEmpty else { return 0 }
 
+        // Overall consistency = average of each stage's consistency
+        // Each stage consistency is already calculated from recent scores (90 days or 10 matches)
+        // So this gives us: average consistency across all stages that have been shot recently
         let totalConsistency = analyses.map { $0.consistencyScore }.reduce(Decimal(0), +)
         return totalConsistency / Decimal(analyses.count)
     }
 
     private func calculateRecentTrend(from scores: [SCMatchScore]) -> CoachingAnalysis.TrendDirection {
-        guard scores.count >= 6 else { return .stable }
+        guard scores.count >= AnalysisConstants.TrendCalculation.minimumScoresForDirection else { return .stable }
 
         let sortedScores = scores.sorted { $0.scoreDate < $1.scoreDate }
-        let recentCount = min(3, sortedScores.count / 3)
+        let recentCount = min(AnalysisConstants.TrendCalculation.recentFractionDivisor, sortedScores.count / AnalysisConstants.TrendCalculation.recentFractionDivisor)
 
         let recent = sortedScores.suffix(recentCount)
         let earlier = sortedScores.dropLast(recentCount).suffix(recentCount)
@@ -305,11 +366,14 @@ class SCPerformanceAnalyzer {
 
         let improvement = earlierAvg - recentAvg
         let percentChange = earlierAvg > 0 ? (improvement / earlierAvg) * 100 : 0
+        let percentChangeDouble = NSDecimalNumber(decimal: percentChange).doubleValue
 
-        // Consider significant if > 2% change
-        if percentChange > 2 {
+        let stableThreshold = AnalysisConstants.PerformanceThresholds.stableTrendThreshold
+
+        // Consider significant if beyond stable threshold
+        if percentChangeDouble > stableThreshold {
             return .improving
-        } else if percentChange < -2 {
+        } else if percentChangeDouble < -stableThreshold {
             return .declining
         } else {
             return .stable
@@ -337,8 +401,8 @@ class SCPerformanceAnalyzer {
         // Training frequency
         let (frequency, avgGap) = calculateTrainingFrequency(scores: sortedScores)
 
-        // Gap detection (60+ days = significant gap)
-        let hasGap = daysSince > 60
+        // Gap detection
+        let hasGap = daysSince > AnalysisConstants.TemporalThresholds.significantGapDays
 
         return TemporalAnalysis(
             daysSinceLastMatch: daysSince,
@@ -363,10 +427,10 @@ class SCPerformanceAnalyzer {
     }
 
     private func calculateImprovedStages(from scores: [SCMatchScore]) -> Int {
-        // Get scores from last 30 days that were used for classification
-        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        // Get scores from last N days that were used for classification
+        let lookbackDate = Calendar.current.date(byAdding: .day, value: -AnalysisConstants.TemporalThresholds.improvedStagesLookbackDays, to: Date()) ?? Date()
         let recentClassificationScores = scores.filter {
-            $0.usedForClassification && $0.scoreDate >= thirtyDaysAgo
+            $0.usedForClassification && $0.scoreDate >= lookbackDate
         }
 
         // Group by stage to count unique improved stages
@@ -407,11 +471,11 @@ class SCPerformanceAnalyzer {
 
         let cadence: TemporalAnalysis.TrainingCadence
         switch avgGap {
-        case 0..<14:
+        case 0..<AnalysisConstants.TemporalThresholds.veryFrequentMaxDays:
             cadence = .veryFrequent    // Weekly or more
-        case 14..<45:
+        case AnalysisConstants.TemporalThresholds.veryFrequentMaxDays..<AnalysisConstants.TemporalThresholds.regularMaxDays:
             cadence = .regular         // Bi-weekly to monthly
-        case 45..<90:
+        case AnalysisConstants.TemporalThresholds.regularMaxDays..<AnalysisConstants.TemporalThresholds.occasionalMaxDays:
             cadence = .occasional      // Every 1-3 months
         default:
             cadence = .infrequent      // Sporadic (3+ months)

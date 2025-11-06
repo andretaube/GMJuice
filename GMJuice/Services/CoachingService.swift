@@ -14,7 +14,7 @@ import CryptoKit
 class CoachingService {
     static let shared = CoachingService()
 
-    private let apiKey: String?
+    internal let apiKey: String?
     private let apiURL = "https://api.anthropic.com/v1/messages"
     private let modelName = "claude-3-5-haiku-20241022"  // Claude 3.5 Haiku for cost efficiency
 
@@ -25,7 +25,25 @@ class CoachingService {
 
     // MARK: - Public API
 
-    /// Generate coaching cards for a performance analysis
+    /// Generate only the match card (practice card is built in Swift)
+    func generateMatchCard(for analysis: CoachingAnalysis) async throws -> MatchCard {
+        guard let apiKey = apiKey, !apiKey.isEmpty else {
+            throw CoachingError.noAPIKey
+        }
+
+        // Build the prompt for match card only
+        let prompt = buildMatchCardPrompt(from: analysis)
+
+        // Call Claude API
+        let response = try await callClaudeAPI(prompt: prompt, apiKey: apiKey)
+
+        // Parse the JSON response
+        let matchCard = try parseMatchCardResponse(response)
+
+        return matchCard
+    }
+
+    /// Generate coaching cards for a performance analysis (legacy - prefer generateMatchCard)
     func generateCoaching(for analysis: CoachingAnalysis) async throws -> CoachingCards {
         guard let apiKey = apiKey, !apiKey.isEmpty else {
             throw CoachingError.noAPIKey
@@ -44,6 +62,134 @@ class CoachingService {
     }
 
     // MARK: - Private Methods
+
+    private func buildMatchCardPrompt(from analysis: CoachingAnalysis) -> String {
+        let divisionStrategy = getDivisionStrategy(analysis.divisionCode)
+
+        var prompt = """
+        You are an expert SCSA (Steel Challenge Shooting Association) coach. Generate a match strategy card based on this performance data.
+
+        SHOOTER PROFILE:
+        Division: \(analysis.divisionCode)
+        Current Classification: \(analysis.currentClassification.rawValue)
+        """
+
+        if let currentPct = analysis.currentPercentage {
+            let pctValue = NSDecimalNumber(decimal: currentPct).doubleValue
+            prompt += "\nCurrent Percentage: \(String(format: "%.2f", pctValue))%"
+        }
+
+        prompt += "\nMatches Analyzed: \(analysis.matchCount)"
+
+        prompt += "\n\nDIVISION STRATEGY: \(divisionStrategy)"
+
+        // Stage performance breakdown
+        prompt += "\n\nSTAGE PERFORMANCE ANALYSIS:"
+        for stage in analysis.stageAnalyses {
+            let avgTime = NSDecimalNumber(decimal: stage.averageTime).doubleValue
+            let bestTime = NSDecimalNumber(decimal: stage.bestTime).doubleValue
+            let peakTime = NSDecimalNumber(decimal: stage.peakTime).doubleValue
+            let performance = NSDecimalNumber(decimal: stage.performanceVsPeak).doubleValue
+            let bestPerformance = NSDecimalNumber(decimal: stage.bestPerformanceVsPeak).doubleValue
+            let consistency = NSDecimalNumber(decimal: stage.consistencyScore).doubleValue
+            let trend = NSDecimalNumber(decimal: stage.recentTrend).doubleValue
+
+            prompt += """
+            \n\(stage.stageCode) - \(stage.stageName):
+              - Best: \(String(format: "%.2f", bestTime))s (\(stage.bestClassification.rawValue), \(String(format: "%.1f", bestPerformance))%)
+              - Average: \(String(format: "%.2f", avgTime))s (\(stage.averageClassification.rawValue), \(String(format: "%.1f", performance))%)
+              - Consistency: ±\(String(format: "%.1f", consistency))%
+              - Recent Trend: \(String(format: "%+.1f", trend))%
+            """
+        }
+
+        // Request specific JSON format for match card only
+        prompt += """
+
+
+        Generate a data-driven match strategy card in JSON format with this EXACT structure:
+
+        {
+          "matchCard": {
+            "matchTheme": "Strategic focus for the match (e.g., 'Consistency over speed', 'Capitalize on your strengths')",
+            "bankerStages": [
+              {
+                "stageCode": "SC-101",
+                "stageName": "5 To Go",
+                "performance": "85% of peak",
+                "reasoning": "Why this is a banker (e.g., 'Most consistent stage', 'Strong performance')"
+              }
+              // 3-4 banker stages - stages with strong/consistent performance to rely on
+            ],
+            "executeStages": [
+              {
+                "stageCode": "SC-103",
+                "stageName": "Showdown",
+                "performance": "74% of peak",
+                "note": "Simple note (e.g., 'Execute normally', 'Solid middle')"
+              }
+              // 1-2 execute stages - middle performance, no special strategy needed
+            ],
+            "riskStages": [
+              {
+                "stageCode": "SC-104",
+                "stageName": "Outer Limits",
+                "performance": "68% of peak",
+                "caution": "What to watch (e.g., 'High variance - stay focused', 'Weakest stage - play safe')"
+              }
+              // 2-3 risk stages - stages requiring extra focus/caution
+            ],
+            "matchStrategy": "2-3 sentence compact match plan focusing on how to maximize performance"
+          }
+        }
+
+        CRITICAL GUIDELINES:
+        - ALL 8 STAGES MUST BE COVERED: bankerStages + executeStages + riskStages = 8 total
+        - Count stages carefully: 3-4 banker + 1-2 execute + 2-3 risk = 8 total
+        - matchTheme: One clear strategic focus
+        - bankerStages: 3-4 stages with strong/consistent performance (highest %) to bank on
+        - executeStages: 1-2 stages with middle performance, just execute normally
+        - riskStages: 2-3 stages requiring extra caution (lowest % or high variance)
+        - matchStrategy: Simple, actionable plan for match day
+        - Keep it COMPACT - this is a quick-reference card for competition
+        - NO generic tips - only data-driven strategy
+
+        Return ONLY the JSON object, no additional text.
+        """
+
+        return prompt
+    }
+
+    private func parseMatchCardResponse(_ response: String) throws -> MatchCard {
+        print("📥 Raw Claude Response (Match Card):")
+        print(response)
+        print(String(repeating: "=", count: 80))
+
+        // Extract JSON from response
+        let jsonString = extractJSON(from: response)
+
+        guard let data = jsonString.data(using: .utf8) else {
+            print("❌ Failed to convert extracted JSON to data")
+            throw CoachingError.parsingFailed
+        }
+
+        let decoder = JSONDecoder()
+        do {
+            // Try to decode as full API response first
+            struct MatchCardResponse: Codable {
+                let matchCard: MatchCard
+            }
+            let apiResponse = try decoder.decode(MatchCardResponse.self, from: data)
+            print("✅ Successfully decoded match card")
+            return apiResponse.matchCard
+        } catch {
+            print("❌ JSON Decoding Error: \(error)")
+            if let decodingError = error as? DecodingError {
+                printDecodingError(decodingError)
+            }
+            throw CoachingError.parsingFailed
+        }
+    }
 
     private static func loadAPIKey() -> String? {
         // First try environment variable
@@ -94,24 +240,53 @@ class CoachingService {
 
         // Stage performance breakdown
         prompt += "\n\nSTAGE PERFORMANCE ANALYSIS:"
+
+        #if DEBUG
+        print("\n📊 PRACTICE VIEW DEBUG - Stage Analysis:")
+        print(String(repeating: "=", count: 80))
+        #endif
+
         for stage in analysis.stageAnalyses {
             let avgTime = NSDecimalNumber(decimal: stage.averageTime).doubleValue
             let bestTime = NSDecimalNumber(decimal: stage.bestTime).doubleValue
             let peakTime = NSDecimalNumber(decimal: stage.peakTime).doubleValue
             let performance = NSDecimalNumber(decimal: stage.performanceVsPeak).doubleValue
+            let bestPerformance = NSDecimalNumber(decimal: stage.bestPerformanceVsPeak).doubleValue
             let consistency = NSDecimalNumber(decimal: stage.consistencyScore).doubleValue
             let trend = NSDecimalNumber(decimal: stage.recentTrend).doubleValue
+            let timeToNext = NSDecimalNumber(decimal: stage.timeToNextLevel).doubleValue
+            let gain = NSDecimalNumber(decimal: stage.gainToNextLevel).doubleValue
+
+            #if DEBUG
+            let percentToNext = NSDecimalNumber(decimal: stage.nextClassification.nextClassThreshold - stage.bestPerformanceVsPeak).doubleValue
+            let percentToPeak = 100.0 - bestPerformance
+            print("\n\(stage.stageCode) - \(stage.stageName):")
+            print("  Current Time (best): \(String(format: "%.2f", bestTime))s")
+            print("  Current %% of peak: \(String(format: "%.1f", bestPerformance))%%")
+            print("  Current Class: \(stage.bestClassification.rawValue)")
+            print("  Seconds to Next Level: \(String(format: "%.2f", gain))s")
+            print("  %% Points to Next Level: \(String(format: "%.1f", percentToNext))%%")
+            print("  %% Points to Peak: \(String(format: "%.1f", percentToPeak))%%")
+            print("  Target Class: \(stage.nextClassification.rawValue)")
+            print("  Target Time: \(String(format: "%.2f", timeToNext))s")
+            print("  Peak Time: \(String(format: "%.2f", peakTime))s")
+            #endif
 
             prompt += """
             \n\(stage.stageCode) - \(stage.stageName):
               - Matches: \(stage.matchCount)
               - Average: \(String(format: "%.2f", avgTime))s (vs Peak: \(String(format: "%.2f", peakTime))s)
-              - Best: \(String(format: "%.2f", bestTime))s (\(stage.bestClassification.rawValue) level)
+              - Best: \(String(format: "%.2f", bestTime))s (\(stage.bestClassification.rawValue) level, \(String(format: "%.1f", bestPerformance))%)
+              - Next Level: \(stage.nextClassification.rawValue) at \(String(format: "%.2f", timeToNext))s (gain: \(String(format: "%.2f", gain))s)
               - Performance: \(String(format: "%.1f", performance))% (\(stage.averageClassification.rawValue) average)
               - Consistency: ±\(String(format: "%.1f", consistency))%
               - Recent Trend: \(String(format: "%+.1f", trend))%
             """
         }
+
+        #if DEBUG
+        print(String(repeating: "=", count: 80))
+        #endif
 
         // Strategic insights
         prompt += "\n\nTOP STRENGTHS (Best Performing):"
@@ -126,6 +301,29 @@ class CoachingService {
             let deficit = 100.0 - performance
             prompt += "\n- \(stage.stageCode) (\(stage.stageName)) - \(String(format: "%.1f", deficit))% below peak"
         }
+
+        // Add sorted list by best performance for practice prioritization
+        let sortedByBestPerformance = analysis.stageAnalyses.sorted { $0.bestPerformanceVsPeak < $1.bestPerformanceVsPeak }
+        prompt += "\n\nSTAGES SORTED BY BEST PERFORMANCE (LOWEST TO HIGHEST - USE THIS FOR PRACTICE PRIORITY):"
+
+        #if DEBUG
+        print("\n📊 STAGES SORTED BY BEST %% (for practice priority):")
+        #endif
+
+        for (index, stage) in sortedByBestPerformance.enumerated() {
+            let bestPerf = NSDecimalNumber(decimal: stage.bestPerformanceVsPeak).doubleValue
+            prompt += "\n\(index + 1). \(stage.stageCode) - \(String(format: "%.1f", bestPerf))% (WEAKEST stages = HIGH PRIORITY)"
+
+            #if DEBUG
+            print("\(index + 1). \(stage.stageCode): \(String(format: "%.1f", bestPerf))%")
+            #endif
+        }
+
+        #if DEBUG
+        print("  ⬆️ First 3-4 = HIGH PRIORITY")
+        print("  ⬆️ Next 2-3 = MEDIUM PRIORITY")
+        print("  ⬆️ Last 1-2 = MAINTENANCE")
+        #endif
 
         prompt += "\n\nVOLATILE STAGES (Inconsistent):"
         for stage in analysis.volatileStages {
@@ -223,6 +421,31 @@ class CoachingService {
            - IMPORTANT: highPriority + mediumPriority + maintenance MUST include all 8 stages
            - Count stages carefully: 3-4 high + 2-3 medium + 1-2 maintenance = 8 total
            - NO stage should be left out
+
+           - PRIORITY CALCULATION (CRITICAL - READ CAREFULLY):
+             * USE THE "STAGES SORTED BY BEST PERFORMANCE" LIST PROVIDED BELOW
+             * The list is already sorted LOWEST to HIGHEST percentage
+             * HIGH PRIORITY = First 3-4 stages in the sorted list (LOWEST percentages)
+             * MEDIUM PRIORITY = Next 2-3 stages in the sorted list (MIDDLE percentages)
+             * MAINTENANCE = Last 1-2 stages in the sorted list (HIGHEST percentages)
+             * Example: If sorted list shows [SC-104: 65%, SC-101: 72%, SC-105: 78%, SC-107: 85%, SC-102: 90%]
+               - HIGH: SC-104, SC-101, SC-105 (weakest performers)
+               - MEDIUM: SC-107, SC-102 (moderate performers)
+               - MAINTENANCE: (none if only 5 stages, or strongest if 8 stages)
+
+           - CURRENT PERFORMANCE STRING:
+             * Use the percentage from "Best: [TIME]s ([CLASS] level, [PERCENTAGE]%)"
+             * Format as: "[PERCENTAGE]% of peak"
+             * Example: If Best shows "9.55s (M level, 89.0%)", use "89.0% of peak"
+
+           - POTENTIAL GAIN CALCULATION:
+             * USE THE PRE-CALCULATED VALUES from "Next Level" data
+             * Each stage shows: "Next Level: [CLASS] at [TIME]s (gain: [GAIN]s)"
+             * Simply use the gain value provided (e.g., if gain is 0.60s, say "0.6 seconds to reach GM")
+             * Format as: "[GAIN] seconds to reach [Next Level CLASS]"
+             * If Next Level is GM and current is also GM, say "X.X seconds to peak"
+             * DO NOT recalculate - just use the provided gain and next level values
+
            - Focus on WHICH stages to practice and WHY based on ROI
            - NO specific drills or techniques
            - Consider: performance gap, variance, trend, classification impact
@@ -261,7 +484,7 @@ class CoachingService {
         }
     }
 
-    private func callClaudeAPI(prompt: String, apiKey: String) async throws -> String {
+    internal func callClaudeAPI(prompt: String, apiKey: String) async throws -> String {
         guard let url = URL(string: apiURL) else {
             throw CoachingError.invalidURL
         }
@@ -335,7 +558,7 @@ class CoachingService {
         }
     }
 
-    private func extractJSON(from response: String) -> String {
+    internal func extractJSON(from response: String) -> String {
         // Remove markdown code blocks if present
         var cleaned = response.trimmingCharacters(in: .whitespacesAndNewlines)
 

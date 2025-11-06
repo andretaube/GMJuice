@@ -42,6 +42,19 @@ extension ShooterClass: Comparable {
         case .U:  return 2    // Reach D
         }
     }
+
+    /// The next higher classification level
+    var nextClass: ShooterClass {
+        switch self {
+        case .GM: return .GM   // Already at top
+        case .M:  return .GM
+        case .A:  return .M
+        case .B:  return .A
+        case .C:  return .B
+        case .D:  return .C
+        case .U:  return .D
+        }
+    }
     
     // MARK: - Ranges
     

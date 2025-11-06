@@ -26,6 +26,19 @@ struct MatchCard: Codable, Hashable {
     // Overall approach for match day
     let matchStrategy: String                // 2-3 sentence match plan
 
+    // How this was generated (optional - for transparency)
+    let generationExplanation: String?       // Brief explanation of categorization logic
+
+    // Memberwise initializer
+    init(matchTheme: String, bankerStages: [BankerStage], executeStages: [ExecuteStage], riskStages: [RiskStage], matchStrategy: String, generationExplanation: String? = nil) {
+        self.matchTheme = matchTheme
+        self.bankerStages = bankerStages
+        self.executeStages = executeStages
+        self.riskStages = riskStages
+        self.matchStrategy = matchStrategy
+        self.generationExplanation = generationExplanation
+    }
+
     // Custom decoding for backward compatibility
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -35,26 +48,28 @@ struct MatchCard: Codable, Hashable {
         executeStages = (try? container.decode([ExecuteStage].self, forKey: .executeStages)) ?? []
         riskStages = try container.decode([RiskStage].self, forKey: .riskStages)
         matchStrategy = try container.decode(String.self, forKey: .matchStrategy)
+        // Optional field for backward compatibility
+        generationExplanation = try? container.decode(String.self, forKey: .generationExplanation)
     }
 
     struct BankerStage: Codable, Hashable {
         let stageCode: String
         let stageName: String
-        let performance: String              // e.g., "85% of peak"
+        let performance: String              // e.g., "Recent: 85.0% | Best: 89.0%"
         let reasoning: String                // Why this is a banker (consistent, strong, improving)
     }
 
     struct ExecuteStage: Codable, Hashable {
         let stageCode: String
         let stageName: String
-        let performance: String              // e.g., "75% of peak"
+        let performance: String              // e.g., "Recent: 75.0% | Best: 78.0%"
         let note: String                     // Simple note (e.g., "Execute normally", "Solid middle")
     }
 
     struct RiskStage: Codable, Hashable {
         let stageCode: String
         let stageName: String
-        let performance: String              // e.g., "68% of peak"
+        let performance: String              // e.g., "Recent: 68.0% | Best: 72.0%"
         let caution: String                  // What to watch for (high variance, declining, weak spot)
     }
 }
@@ -72,6 +87,9 @@ struct PracticeCard: Codable, Hashable {
     // Overall practice approach
     let practiceStrategy: String             // Data-driven practice strategy
 
+    // How this was generated (optional - for transparency)
+    let generationExplanation: String?       // Brief explanation of how priorities were calculated
+
     struct PracticeStage: Codable, Hashable {
         let stageCode: String
         let stageName: String
@@ -86,7 +104,7 @@ struct CoachingCards: Codable {
     let divisionCode: String
     let memberNumber: String
     let generatedDate: Date
-    let expirationDate: Date                 // Next Thursday from generation
+    let expirationDate: Date                 // Wednesday: hourly until new data, otherwise: 24 hours
 
     let matchCard: MatchCard
     let practiceCard: PracticeCard

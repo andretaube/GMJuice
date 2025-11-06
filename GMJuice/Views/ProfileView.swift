@@ -700,6 +700,20 @@ private struct StageDetailAnalysisViewWrapper: View {
         let secondAvg = secondHalf.isEmpty ? 0 : NSDecimalNumber(decimal: secondHalf.reduce(Decimal(0), +) / Decimal(secondHalf.count)).doubleValue
         let trend = firstAvg > 0 ? ((firstAvg - secondAvg) / firstAvg) * 100.0 : 0
 
+        // Calculate improvement potential
+        let bestClassification = ShooterClass.shooterClass(percentage: bestPercentage)
+        let nextClassification = bestClassification.nextClass
+        let nextThreshold = bestClassification.nextClassThreshold
+
+        let timeToNextLevel: Decimal
+        if peakTime > 0 && nextThreshold > 0 {
+            timeToNextLevel = peakTime / (nextThreshold / 100)
+        } else {
+            timeToNextLevel = 0
+        }
+
+        let gainToNextLevel = bestTime - timeToNextLevel
+
         return StageAnalysis(
             stageCode: stageCode,
             stageName: divisionScores.first?.stageName ?? stageCode,
@@ -711,8 +725,12 @@ private struct StageDetailAnalysisViewWrapper: View {
             consistencyScore: Decimal(cv),
             performanceVsPeak: avgPercentage,
             recentTrend: Decimal(trend),
-            bestClassification: ShooterClass.shooterClass(percentage: bestPercentage),
+            bestClassification: bestClassification,
             averageClassification: ShooterClass.shooterClass(percentage: avgPercentage),
+            bestPerformanceVsPeak: bestPercentage,
+            nextClassification: nextClassification,
+            timeToNextLevel: timeToNextLevel,
+            gainToNextLevel: gainToNextLevel,
             mostRecentDate: divisionScores.map { $0.scoreDate }.max(),
             oldestDate: divisionScores.map { $0.scoreDate }.min()
         )

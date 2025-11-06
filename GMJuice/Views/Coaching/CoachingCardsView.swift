@@ -452,6 +452,23 @@ struct MatchCardView: View {
                     .background(Color.purple.opacity(0.05))
                     .cornerRadius(12)
             }
+
+            // How This Was Generated
+            if let explanation = card.generationExplanation {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("How This Was Generated", systemImage: "gearshape.2.fill")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+
+                    Text(explanation)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.tertiarySystemBackground))
+                        .cornerRadius(12)
+                }
+            }
         }
     }
 }
@@ -660,6 +677,23 @@ struct PracticeCardView: View {
                     .background(Color.purple.opacity(0.05))
                     .cornerRadius(12)
             }
+
+            // Generation Explanation (if available)
+            if let explanation = card.generationExplanation {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("How This Was Generated", systemImage: "gearshape.2.fill")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+
+                    Text(explanation)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.tertiarySystemBackground))
+                        .cornerRadius(12)
+                }
+            }
         }
     }
 }
@@ -806,10 +840,10 @@ struct OverallStatsView: View {
 
             // Third row: Strongest, Focus on, Consistency
             HStack(spacing: 12) {
-                // Strongest stage
+                // Strongest stage (highest best %)
                 if let strongest = analysis.topStrengths.first {
-                    let perfValue = NSDecimalNumber(decimal: strongest.performanceVsPeak).doubleValue
-                    let timeValue = NSDecimalNumber(decimal: strongest.averageTime).doubleValue
+                    let perfValue = NSDecimalNumber(decimal: strongest.bestPerformanceVsPeak).doubleValue
+                    let timeValue = NSDecimalNumber(decimal: strongest.bestTime).doubleValue
                     statBoxWithSubtitle(
                         title: "Strongest",
                         value: strongest.stageCode,
@@ -819,10 +853,10 @@ struct OverallStatsView: View {
                     )
                 }
 
-                // Focus on (weakest stage)
+                // Focus on (weakest stage - lowest best %)
                 if let weakest = analysis.topWeaknesses.first {
-                    let perfValue = NSDecimalNumber(decimal: weakest.performanceVsPeak).doubleValue
-                    let timeValue = NSDecimalNumber(decimal: weakest.averageTime).doubleValue
+                    let perfValue = NSDecimalNumber(decimal: weakest.bestPerformanceVsPeak).doubleValue
+                    let timeValue = NSDecimalNumber(decimal: weakest.bestTime).doubleValue
                     statBoxWithSubtitle(
                         title: "Focus On",
                         value: weakest.stageCode,
@@ -857,18 +891,18 @@ struct OverallStatsView: View {
 
     private func consistencyColor(_ value: Double) -> Color {
         switch value {
-        case 0..<3: return .green
-        case 3..<5: return .blue
-        case 5..<8: return .orange
+        case 0..<AnalysisConstants.ConsistencyRating.greatThreshold: return .green
+        case AnalysisConstants.ConsistencyRating.greatThreshold..<AnalysisConstants.ConsistencyRating.goodThreshold: return .blue
+        case AnalysisConstants.ConsistencyRating.goodThreshold..<AnalysisConstants.ConsistencyRating.mediumThreshold: return .orange
         default: return .red
         }
     }
 
     private func consistencyRating(_ value: Double) -> String {
         switch value {
-        case 0..<3: return "Great"
-        case 3..<5: return "Good"
-        case 5..<8: return "Medium"
+        case 0..<AnalysisConstants.ConsistencyRating.greatThreshold: return "Great"
+        case AnalysisConstants.ConsistencyRating.greatThreshold..<AnalysisConstants.ConsistencyRating.goodThreshold: return "Good"
+        case AnalysisConstants.ConsistencyRating.goodThreshold..<AnalysisConstants.ConsistencyRating.mediumThreshold: return "Medium"
         default: return "Low"
         }
     }
@@ -982,8 +1016,8 @@ struct StagePerformanceCard: View {
             // Performance metrics grid
             HStack(spacing: 12) {
                 metricBox(
-                    label: "Performance",
-                    value: String(format: "%.1f%%", performanceValue),
+                    label: "Best %",
+                    value: String(format: "%.1f%%", bestPerformanceValue),
                     color: performanceColor,
                     icon: "target"
                 )
@@ -1014,7 +1048,7 @@ struct StagePerformanceCard: View {
             // Time details
             VStack(alignment: .leading, spacing: 4) {
                 timeRow(label: "Best Time", value: String(format: "%.2fs", bestTimeValue), classification: stage.bestClassification)
-                timeRow(label: "Average Time", value: String(format: "%.2fs", averageTimeValue), classification: stage.averageClassification)
+                timeRow(label: "Best %", value: String(format: "%.1f%%", bestPerformanceValue), classification: stage.bestClassification)
                 timeRow(label: "Peak Time", value: String(format: "%.2fs", peakTimeValue), classification: .GM)
             }
             .font(.caption)
@@ -1032,6 +1066,10 @@ struct StagePerformanceCard: View {
 
     private var performanceValue: Double {
         NSDecimalNumber(decimal: stage.performanceVsPeak).doubleValue
+    }
+
+    private var bestPerformanceValue: Double {
+        NSDecimalNumber(decimal: stage.bestPerformanceVsPeak).doubleValue
     }
 
     private var consistencyValue: Double {
@@ -1157,8 +1195,6 @@ struct StagePerformanceCard: View {
             Spacer()
             Text(value)
                 .fontWeight(.semibold)
-            Text("(\(classification.rawValue))")
-                .foregroundStyle(.secondary)
         }
     }
 }

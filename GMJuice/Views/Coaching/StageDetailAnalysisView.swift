@@ -24,6 +24,14 @@ struct StageDetailAnalysisView: View {
         .sorted { $0.scoreDate < $1.scoreDate }
     }
 
+    // Scores used for average calculation (same logic as SCPerformanceAnalyzer)
+    private var recentScoresForAverage: [SCMatchScore] {
+        let lookbackDate = Calendar.current.date(byAdding: .day, value: -AnalysisConstants.recentDaysWindow, to: Date()) ?? Date()
+        let recentScores = stageScores.filter { $0.scoreDate >= lookbackDate }
+
+        return AnalysisConstants.getRecentScores(recentScores: recentScores, allScores: stageScores)
+    }
+
     // Calculate linear regression trend line
     private func calculateTrendLine(for scores: [SCMatchScore]) -> [(x: Int, y: Double)] {
         guard scores.count >= 2 else { return [] }
@@ -121,6 +129,24 @@ struct StageDetailAnalysisView: View {
                     .cornerRadius(12)
                 }
 
+                // Recent Performance Chart (used for average calculation)
+                if recentScoresForAverage.count >= 2 && recentScoresForAverage.count != stageScores.count {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Recent Performance", systemImage: "clock.arrow.circlepath")
+                            .font(.headline)
+                            .foregroundStyle(.green)
+
+                        Text("Data used for average calculation")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        recentPerformanceChart
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                }
+
                 // Distribution Chart (if enough data)
                 if stageScores.count >= 5 {
                     VStack(alignment: .leading, spacing: 12) {
@@ -169,7 +195,105 @@ struct StageDetailAnalysisView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    // MARK: - Time Series Chart
+    // MARK: - Charts
+
+    private var recentPerformanceChart: some View {
+        let times = recentScoresForAverage.map { NSDecimalNumber(decimal: $0.time).doubleValue }
+        let peakTime = NSDecimalNumber(decimal: stageAnalysis.peakTime).doubleValue
+        let avgTime = NSDecimalNumber(decimal: stageAnalysis.averageTime).doubleValue
+        let allValues = times + [peakTime, avgTime]
+        let minValue = allValues.min() ?? 0
+        let maxValue = allValues.max() ?? 30
+
+        // Add 10% padding
+        let range = maxValue - minValue
+        let padding = max(range * 0.1, 0.5)
+        let yMin = max(0, minValue - padding)
+        let yMax = maxValue + padding
+
+        let scoreCount = recentScoresForAverage.count
+        let xMax = max(6, scoreCount)
+
+        let trendLine = calculateTrendLine(for: recentScoresForAverage)
+
+        return VStack(spacing: 8) {
+            Chart {
+                // Trend line
+                ForEach(Array(trendLine.enumerated()), id: \.offset) { _, point in
+                    LineMark(
+                        x: .value("Match", point.x),
+                        y: .value("Trend", point.y)
+                    )
+                    .foregroundStyle(.gray.opacity(0.6))
+                    .lineStyle(StrokeStyle(lineWidth: 3, dash: [5, 5]))
+                }
+
+                // Average line
+                RuleMark(
+                    y: .value("Average", avgTime)
+                )
+                .foregroundStyle(.orange)
+                .lineStyle(StrokeStyle(lineWidth: 2, dash: [3, 3]))
+                .annotation(position: .top, alignment: .trailing) {
+                    Text("Avg")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .padding(4)
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(4)
+                }
+
+                // Peak time reference
+                RuleMark(
+                    y: .value("Peak", peakTime)
+                )
+                .foregroundStyle(.yellow)
+                .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 5]))
+                .annotation(position: .bottom, alignment: .trailing) {
+                    Text("GM Peak")
+                        .font(.caption2)
+                        .foregroundStyle(.yellow)
+                        .padding(4)
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(4)
+                }
+
+                // Actual times
+                ForEach(Array(recentScoresForAverage.enumerated()), id: \.offset) { index, score in
+                    LineMark(
+                        x: .value("Match", index + 1),
+                        y: .value("Time", NSDecimalNumber(decimal: score.time).doubleValue)
+                    )
+                    .foregroundStyle(.green)
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+
+                    PointMark(
+                        x: .value("Match", index + 1),
+                        y: .value("Time", NSDecimalNumber(decimal: score.time).doubleValue)
+                    )
+                    .foregroundStyle(.green)
+                    .symbol {
+                        Circle()
+                            .fill(.green)
+                            .frame(width: score.usedForClassification ? 10 : 6)
+                            .overlay(
+                                score.usedForClassification ?
+                                Circle().stroke(.yellow, lineWidth: 2) : nil
+                            )
+                    }
+                }
+            }
+            .chartXScale(domain: 1...xMax)
+            .chartYScale(domain: yMin...yMax)
+            .chartYAxisLabel("Time (seconds)")
+            .chartXAxisLabel("Match Number (Recent)")
+            .frame(height: 200)
+
+            Text("\(scoreCount) matches from last 90 days or most recent 10")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
 
     private var timeSeriesChart: some View {
         let times = stageScores.map { NSDecimalNumber(decimal: $0.time).doubleValue }
