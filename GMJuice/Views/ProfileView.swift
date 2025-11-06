@@ -148,12 +148,6 @@ private struct ProfileStatsView: View {
                                         .font(.title3)
                                         .fontWeight(.bold)
                                 }
-
-                                Spacer()
-
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
                             }
                             .padding(.vertical, 8)
                         }
