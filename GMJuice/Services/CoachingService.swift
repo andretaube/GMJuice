@@ -90,22 +90,6 @@ class CoachingService {
             prompt += "\n- ⚠️ TRAINING GAP: \(temporal.daysSinceLastMatch) days since last match (possible rustiness)"
         }
 
-        let currentFormValue = NSDecimalNumber(decimal: temporal.currentFormAverage).doubleValue
-        let historicalValue = NSDecimalNumber(decimal: temporal.historicalAverage).doubleValue
-        let formVsHistValue = NSDecimalNumber(decimal: temporal.formVsHistorical).doubleValue
-
-        prompt += "\n- Current Form (last 3 matches): \(String(format: "%.2f", currentFormValue))s"
-        prompt += "\n- Historical Average (all-time): \(String(format: "%.2f", historicalValue))s"
-        prompt += "\n- Current vs Historical: \(String(format: "%.1f", formVsHistValue))%"
-
-        if formVsHistValue < 95 {
-            prompt += " (below historical form)"
-        } else if formVsHistValue > 105 {
-            prompt += " (above historical form)"
-        } else {
-            prompt += " (maintaining form)"
-        }
-
         prompt += "\n\nDIVISION STRATEGY: \(divisionStrategy)"
 
         // Stage performance breakdown

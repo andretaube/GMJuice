@@ -16,9 +16,6 @@ struct TemporalAnalysis {
     let trainingFrequency: TrainingCadence
     let averageGapDays: Double
     let hasRecentGap: Bool           // 60+ days since last match
-    let currentFormAverage: Decimal  // Last 3 matches average
-    let historicalAverage: Decimal   // All-time average
-    let formVsHistorical: Decimal    // Current form percentage vs historical
 
     enum TrainingCadence: String {
         case veryFrequent = "Weekly or more"
@@ -65,6 +62,11 @@ struct CoachingAnalysis {
     // Current classification from profile
     let currentClassification: ShooterClass
     let currentPercentage: Decimal?
+
+    // Classification metrics
+    let currentTime: Decimal?               // Average time of classification stages
+    let improvedStagesCount: Int            // Stages improved in last 30 days
+    let classificationStagesCount: Int      // Stages used for classification in last 30 days
 
     // Stage-by-stage breakdown
     let stageAnalyses: [StageAnalysis]
@@ -157,6 +159,10 @@ class SCPerformanceAnalyzer {
         // Count unique matches
         let uniqueMatches = Set(allScores.map { "\($0.matchName)-\($0.scoreDate)" })
 
+        // Calculate classification metrics
+        let (currentTime, classificationStagesCount) = calculateCurrentTime(from: allScores)
+        let improvedStagesCount = calculateImprovedStages(from: allScores)
+
         return CoachingAnalysis(
             memberNumber: memberNumber,
             divisionCode: divisionCode,
@@ -164,6 +170,9 @@ class SCPerformanceAnalyzer {
             totalMatchesAnalyzed: allScores.count,
             currentClassification: currentClassification,
             currentPercentage: currentPercentage,
+            currentTime: currentTime,
+            improvedStagesCount: improvedStagesCount,
+            classificationStagesCount: classificationStagesCount,
             stageAnalyses: stageAnalyses,
             topStrengths: topStrengths,
             topWeaknesses: topWeaknesses,
@@ -315,10 +324,7 @@ class SCPerformanceAnalyzer {
                 daysSinceLastMatch: 0,
                 trainingFrequency: .insufficient,
                 averageGapDays: 0,
-                hasRecentGap: false,
-                currentFormAverage: 0,
-                historicalAverage: 0,
-                formVsHistorical: 0
+                hasRecentGap: false
             )
         }
 
@@ -334,26 +340,57 @@ class SCPerformanceAnalyzer {
         // Gap detection (60+ days = significant gap)
         let hasGap = daysSince > 60
 
-        // Current form (last 3 matches)
-        let recentMatches = sortedScores.suffix(min(3, sortedScores.count))
-        let currentForm = recentMatches.isEmpty ? 0 :
-            recentMatches.map { $0.time }.reduce(Decimal(0), +) / Decimal(recentMatches.count)
-
-        // Historical average (all time)
-        let historical = scores.map { $0.time }.reduce(Decimal(0), +) / Decimal(scores.count)
-
-        // Form vs historical percentage
-        let formVsHist = historical > 0 ? (historical / currentForm) * 100 : 0
-
         return TemporalAnalysis(
             daysSinceLastMatch: daysSince,
             trainingFrequency: frequency,
             averageGapDays: avgGap,
-            hasRecentGap: hasGap,
-            currentFormAverage: currentForm,
-            historicalAverage: historical,
-            formVsHistorical: formVsHist
+            hasRecentGap: hasGap
         )
+    }
+
+    private func calculateCurrentTime(from scores: [SCMatchScore]) -> (Decimal?, Int) {
+        // Filter for classification scores (should be one per stage)
+        let classificationScores = scores.filter { $0.usedForClassification }
+
+        guard !classificationScores.isEmpty else {
+            return (nil, 0)
+        }
+
+        // Sum all classification stage times (this is the total classification time)
+        let totalTime = classificationScores.map { $0.time }.reduce(Decimal(0), +)
+
+        return (totalTime, classificationScores.count)
+    }
+
+    private func calculateImprovedStages(from scores: [SCMatchScore]) -> Int {
+        // Get scores from last 30 days that were used for classification
+        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        let recentClassificationScores = scores.filter {
+            $0.usedForClassification && $0.scoreDate >= thirtyDaysAgo
+        }
+
+        // Group by stage to count unique improved stages
+        let stageGroups = Dictionary(grouping: recentClassificationScores) { $0.stageCode }
+
+        var improvedStages = Set<String>()
+
+        for (stageCode, stageScores) in stageGroups {
+            // Sort by date to get chronological order
+            let sortedScores = stageScores.sorted { $0.scoreDate < $1.scoreDate }
+
+            // Check if there are at least 2 scores to compare
+            guard sortedScores.count >= 2 else { continue }
+
+            // Compare most recent with previous - if time decreased (got faster), it's an improvement
+            let mostRecent = sortedScores.last!
+            let previous = sortedScores[sortedScores.count - 2]
+
+            if mostRecent.time < previous.time {
+                improvedStages.insert(stageCode)
+            }
+        }
+
+        return improvedStages.count
     }
 
     private func calculateTrainingFrequency(scores: [SCMatchScore]) -> (TemporalAnalysis.TrainingCadence, Double) {

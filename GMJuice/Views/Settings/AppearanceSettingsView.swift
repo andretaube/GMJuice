@@ -1,13 +1,12 @@
 import SwiftUI
 
 struct AppearanceSettingsView: View {
-    @AppStorage("appearanceMode") private var appearanceMode: String = "system"
+    @AppStorage("appearanceMode") private var appearanceMode: String = "dark"
 
     var body: some View {
         Form {
             Section {
                 Picker("Theme", selection: $appearanceMode) {
-                    Text("System").tag("system")
                     Text("Light").tag("light")
                     Text("Dark").tag("dark")
                 }
@@ -15,7 +14,7 @@ struct AppearanceSettingsView: View {
             } header: {
                 Text("Appearance")
             } footer: {
-                Text("Choose how the app should look. System mode will match your device settings.")
+                Text("Choose how the app should look.")
             }
         }
         .navigationTitle("Appearance")

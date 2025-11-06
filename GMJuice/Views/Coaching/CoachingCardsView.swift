@@ -174,28 +174,28 @@ struct CoachingCardsView: View {
         VStack(spacing: 0) {
             // Tab picker
             Picker("Card Type", selection: $selectedTab) {
-                Text("Match").tag(0)
+                Text("Analysis").tag(0)
                 Text("Practice").tag(1)
-                Text("Analysis").tag(2)
+                Text("Match").tag(2)
             }
             .pickerStyle(.segmented)
             .padding()
 
             // Card content
             ScrollView {
-                if selectedTab == 0 {
-                    MatchCardView(card: cards.matchCard)
+                if selectedTab == 0, let analysis = analysisData {
+                    AnalysisTabView(analysis: analysis)
                         .padding()
                 } else if selectedTab == 1 {
                     PracticeCardView(card: cards.practiceCard)
                         .padding()
-                } else if selectedTab == 2, let analysis = analysisData {
-                    AnalysisTabView(analysis: analysis)
+                } else if selectedTab == 2 {
+                    MatchCardView(card: cards.matchCard)
                         .padding()
                 }
 
                 // Metadata footer (only show for Match and Practice tabs)
-                if selectedTab < 2 {
+                if selectedTab > 0 {
                     VStack(spacing: 8) {
                         Text("Analyzed on \(cards.generatedDate, format: .dateTime.month().day().year())")
                             .font(.caption)
@@ -624,9 +624,6 @@ struct AnalysisTabView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Key Findings Summary
-            KeyFindingsView(analysis: analysis)
-
             // Overall Stats
             OverallStatsView(analysis: analysis)
 
@@ -637,167 +634,12 @@ struct AnalysisTabView: View {
                     .foregroundStyle(.purple)
 
                 ForEach(analysis.stageAnalyses, id: \.stageCode) { stage in
-                    StagePerformanceCard(stage: stage, userLevel: analysis.currentClassification)
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Key Indicators
-
-struct KeyFindingsView: View {
-    let analysis: CoachingAnalysis
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Key Indicators", systemImage: "lightbulb.fill")
-                .font(.headline)
-                .foregroundStyle(.blue)
-
-            VStack(alignment: .leading, spacing: 8) {
-                // Classification status
-                findingRow(
-                    icon: "person.fill",
-                    text: "Current: \(analysis.currentClassification.rawValue) class",
-                    color: classificationColor(analysis.currentClassification)
-                )
-
-                // Performance trend
-                let trendIcon = trendIconName(analysis.recentPerformanceDirection)
-                let trendColor = trendColorValue(analysis.recentPerformanceDirection)
-                findingRow(
-                    icon: trendIcon,
-                    text: "Overall trend: \(trendText(analysis.recentPerformanceDirection))",
-                    color: trendColor
-                )
-
-                // Consistency score
-                let consistencyValue = NSDecimalNumber(decimal: analysis.overallConsistency).doubleValue
-                let consistencyRating = consistencyRating(consistencyValue)
-                findingRow(
-                    icon: "waveform.path.ecg",
-                    text: "Consistency: \(consistencyRating) (±\(String(format: "%.1f", consistencyValue))%)",
-                    color: consistencyColor(consistencyValue)
-                )
-
-                // Match frequency (division-specific)
-                VStack(alignment: .leading, spacing: 4) {
-                    findingRow(
-                        icon: "calendar",
-                        text: "\(analysis.divisionCode) Matches: \(analysis.temporalAnalysis.trainingFrequency.rawValue)",
-                        color: frequencyColor(analysis.temporalAnalysis.trainingFrequency)
-                    )
-
-                    // Warning if division hasn't been shot recently
-                    let daysSince = analysis.temporalAnalysis.daysSinceLastMatch
-                    if daysSince > 90 {
-                        HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.caption)
-                            Text("Haven't shot \(analysis.divisionCode) in \(daysSince) days")
-                                .font(.caption)
-                        }
-                        .foregroundStyle(.orange)
-                        .padding(.leading, 28)
+                    NavigationLink(destination: StageDetailAnalysisView(stageAnalysis: stage, divisionCode: analysis.divisionCode)) {
+                        StagePerformanceCard(stage: stage, userLevel: analysis.currentClassification)
                     }
-                }
-
-                // Best stage
-                if let topStrength = analysis.topStrengths.first {
-                    let perfValue = NSDecimalNumber(decimal: topStrength.performanceVsPeak).doubleValue
-                    findingRow(
-                        icon: "trophy.fill",
-                        text: "Strongest: \(topStrength.stageName) (\(String(format: "%.1f", perfValue))%)",
-                        color: .green
-                    )
-                }
-
-                // Weakest stage
-                if let topWeakness = analysis.topWeaknesses.first {
-                    let perfValue = NSDecimalNumber(decimal: topWeakness.performanceVsPeak).doubleValue
-                    let deficit = 100.0 - perfValue
-                    findingRow(
-                        icon: "exclamationmark.triangle.fill",
-                        text: "Focus on: \(topWeakness.stageName) (\(String(format: "%.1f", deficit))% below peak)",
-                        color: .orange
-                    )
+                    .buttonStyle(.plain)
                 }
             }
-            .padding()
-            .background(Color.blue.opacity(0.05))
-            .cornerRadius(12)
-        }
-    }
-
-    private func findingRow(icon: String, text: String, color: Color) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .foregroundStyle(color)
-                .frame(width: 20)
-            Text(text)
-                .font(.subheadline)
-        }
-    }
-
-    private func classificationColor(_ classification: ShooterClass) -> Color {
-        switch classification {
-        case .GM: return .purple
-        case .M: return .blue
-        case .A: return .green
-        case .B: return .orange
-        case .C, .D, .U: return .gray
-        }
-    }
-
-    private func trendIconName(_ direction: CoachingAnalysis.TrendDirection) -> String {
-        switch direction {
-        case .improving: return "arrow.up.circle.fill"
-        case .stable: return "arrow.left.arrow.right.circle.fill"
-        case .declining: return "arrow.down.circle.fill"
-        }
-    }
-
-    private func trendColorValue(_ direction: CoachingAnalysis.TrendDirection) -> Color {
-        switch direction {
-        case .improving: return .green
-        case .stable: return .blue
-        case .declining: return .red
-        }
-    }
-
-    private func trendText(_ direction: CoachingAnalysis.TrendDirection) -> String {
-        switch direction {
-        case .improving: return "Improving"
-        case .stable: return "Stable"
-        case .declining: return "Declining"
-        }
-    }
-
-    private func consistencyRating(_ value: Double) -> String {
-        switch value {
-        case 0..<3: return "Excellent"
-        case 3..<5: return "Good"
-        case 5..<8: return "Fair"
-        default: return "Inconsistent"
-        }
-    }
-
-    private func consistencyColor(_ value: Double) -> Color {
-        switch value {
-        case 0..<3: return .green
-        case 3..<5: return .blue
-        case 5..<8: return .orange
-        default: return .red
-        }
-    }
-
-    private func frequencyColor(_ frequency: TemporalAnalysis.TrainingCadence) -> Color {
-        switch frequency {
-        case .veryFrequent: return .green
-        case .regular: return .blue
-        case .occasional: return .orange
-        case .infrequent, .insufficient: return .red
         }
     }
 }
@@ -813,13 +655,24 @@ struct OverallStatsView: View {
                 .font(.headline)
                 .foregroundStyle(.purple)
 
-            HStack(spacing: 16) {
+            // First row: Current Level, Current Time, Current %
+            HStack(spacing: 12) {
                 statBox(
-                    title: "Matches",
-                    value: "\(analysis.matchCount)",
-                    icon: "flag.fill",
-                    color: .blue
+                    title: "Current Level",
+                    value: analysis.currentClassification.rawValue,
+                    icon: "person.fill",
+                    color: classificationColor(analysis.currentClassification)
                 )
+
+                if let currentTime = analysis.currentTime {
+                    let timeValue = NSDecimalNumber(decimal: currentTime).doubleValue
+                    statBox(
+                        title: "Current Time",
+                        value: String(format: "%.2fs", timeValue),
+                        icon: "timer",
+                        color: .blue
+                    )
+                }
 
                 if let currentPct = analysis.currentPercentage {
                     let pctValue = NSDecimalNumber(decimal: currentPct).doubleValue
@@ -830,6 +683,16 @@ struct OverallStatsView: View {
                         color: .green
                     )
                 }
+            }
+
+            // Second row: Matches, Last Match, Improved
+            HStack(spacing: 12) {
+                statBox(
+                    title: "Matches",
+                    value: "\(analysis.matchCount)",
+                    icon: "flag.fill",
+                    color: .purple
+                )
 
                 let daysSince = analysis.temporalAnalysis.daysSinceLastMatch
                 statBox(
@@ -838,65 +701,143 @@ struct OverallStatsView: View {
                     icon: "calendar.badge.clock",
                     color: daysSince > 60 ? .orange : .blue
                 )
+
+                statBoxWithSubtitle(
+                    title: "Improved",
+                    value: "\(analysis.improvedStagesCount)/\(analysis.classificationStagesCount)",
+                    subtitle: "Last 30d",
+                    icon: "arrow.up.circle.fill",
+                    color: analysis.improvedStagesCount > 0 ? .green : .gray
+                )
             }
 
-            // Form comparison
-            let currentForm = NSDecimalNumber(decimal: analysis.temporalAnalysis.currentFormAverage).doubleValue
-            let historical = NSDecimalNumber(decimal: analysis.temporalAnalysis.historicalAverage).doubleValue
-            let formVsHist = NSDecimalNumber(decimal: analysis.temporalAnalysis.formVsHistorical).doubleValue
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Current Form")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(String(format: "%.2fs", currentForm))
-                        .font(.caption)
-                        .fontWeight(.semibold)
+            // Third row: Strongest, Focus on, Consistency
+            HStack(spacing: 12) {
+                // Strongest stage
+                if let strongest = analysis.topStrengths.first {
+                    let perfValue = NSDecimalNumber(decimal: strongest.performanceVsPeak).doubleValue
+                    let timeValue = NSDecimalNumber(decimal: strongest.averageTime).doubleValue
+                    statBoxWithSubtitle(
+                        title: "Strongest",
+                        value: strongest.stageCode,
+                        subtitle: String(format: "%.1f%% · %.2fs", perfValue, timeValue),
+                        icon: "trophy.fill",
+                        color: .green
+                    )
                 }
 
-                HStack {
-                    Text("Historical Avg")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(String(format: "%.2fs", historical))
-                        .font(.caption)
-                        .fontWeight(.semibold)
+                // Focus on (weakest stage)
+                if let weakest = analysis.topWeaknesses.first {
+                    let perfValue = NSDecimalNumber(decimal: weakest.performanceVsPeak).doubleValue
+                    let timeValue = NSDecimalNumber(decimal: weakest.averageTime).doubleValue
+                    statBoxWithSubtitle(
+                        title: "Focus On",
+                        value: weakest.stageCode,
+                        subtitle: String(format: "%.1f%% · %.2fs", perfValue, timeValue),
+                        icon: "exclamationmark.triangle.fill",
+                        color: .orange
+                    )
                 }
 
-                HStack {
-                    Text("Form vs Historical")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(String(format: "%.1f%%", formVsHist))
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(formVsHist < 95 ? .red : formVsHist > 105 ? .green : .blue)
-                }
+                // Consistency
+                let consistencyValue = NSDecimalNumber(decimal: analysis.overallConsistency).doubleValue
+                statBoxWithSubtitle(
+                    title: "Consistency",
+                    value: String(format: "±%.1f%%", consistencyValue),
+                    subtitle: consistencyRating(consistencyValue),
+                    icon: "waveform.path.ecg",
+                    color: consistencyColor(consistencyValue)
+                )
             }
-            .padding()
-            .background(Color(.systemGray6).opacity(0.5))
-            .cornerRadius(8)
+        }
+    }
+
+    private func classificationColor(_ classification: ShooterClass) -> Color {
+        switch classification {
+        case .GM: return .purple
+        case .M: return .blue
+        case .A: return .green
+        case .B: return .orange
+        case .C, .D, .U: return .gray
+        }
+    }
+
+    private func consistencyColor(_ value: Double) -> Color {
+        switch value {
+        case 0..<3: return .green
+        case 3..<5: return .blue
+        case 5..<8: return .orange
+        default: return .red
+        }
+    }
+
+    private func consistencyRating(_ value: Double) -> String {
+        switch value {
+        case 0..<3: return "Great"
+        case 3..<5: return "Good"
+        case 5..<8: return "Medium"
+        default: return "Low"
         }
     }
 
     private func statBox(title: String, value: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(color)
-            Text(value)
-                .font(.title3)
-                .fontWeight(.bold)
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(color)
+                Text(value)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+
+                // Empty space for subtitle line to match height
+                Text(" ")
+                    .font(.caption2)
+                    .opacity(0)
+
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, minHeight: 120, maxHeight: 120)
+        .background(color.opacity(0.1))
+        .cornerRadius(8)
+    }
+
+    private func statBoxWithSubtitle(title: String, value: String, subtitle: String, icon: String, color: Color) -> some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(color)
+                Text(value)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, minHeight: 120, maxHeight: 120)
         .background(color.opacity(0.1))
         .cornerRadius(8)
     }
@@ -938,6 +879,11 @@ struct StagePerformanceCard: View {
 
                 // Classification badge - shows best performance level achieved
                 ClassificationBadge(classification: stage.bestClassification)
+
+                // Chevron indicator
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             // Performance metrics grid
@@ -1160,6 +1106,8 @@ struct PerformanceBarGraph: View {
     let peak: Double
     let performance: Double
 
+    @Environment(\.colorScheme) var colorScheme
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Performance vs Peak")
@@ -1189,15 +1137,15 @@ struct PerformanceBarGraph: View {
                             .font(.caption2)
                             .fontWeight(.bold)
                             .padding(.leading, 4)
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 0)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+                            .shadow(color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.white.opacity(0.3), radius: 1, x: 0, y: 0)
                         Spacer()
                         Text(String(format: "%.1f%%", performance))
                             .font(.caption2)
                             .fontWeight(.bold)
                             .padding(.trailing, 4)
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 0)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+                            .shadow(color: colorScheme == .dark ? Color.black.opacity(0.5) : Color.white.opacity(0.5), radius: 1, x: 0, y: 0)
                     }
                 }
             }
@@ -1263,9 +1211,14 @@ struct MetricsInfoView: View {
                         color: .purple,
                         metrics: [
                             MetricExplanation(
-                                name: "Matches",
-                                description: "Total number of unique matches analyzed for this division.",
-                                example: "15 matches"
+                                name: "Current Level",
+                                description: "Your current classification level in this division (GM, M, A, B, C, D, U).",
+                                example: "M (Master)"
+                            ),
+                            MetricExplanation(
+                                name: "Current Time",
+                                description: "Sum of all 8 stages used for your classification. This is your total aggregate time that determines your classification percentage.",
+                                example: "116.20s (sum of 8 stages)"
                             ),
                             MetricExplanation(
                                 name: "Current %",
@@ -1273,24 +1226,34 @@ struct MetricsInfoView: View {
                                 example: "82.5% (B Class)"
                             ),
                             MetricExplanation(
+                                name: "Matches",
+                                description: "Total number of unique matches analyzed for this division.",
+                                example: "15 matches"
+                            ),
+                            MetricExplanation(
                                 name: "Last Match",
                                 description: "Days since your most recent match. If this exceeds 60 days, you may experience rustiness.",
                                 example: "23d"
                             ),
                             MetricExplanation(
-                                name: "Current Form",
-                                description: "Your average stage time across your last 3 matches. This shows how you're performing right now.",
-                                example: "15.0s (recent form)"
+                                name: "Improved",
+                                description: "Number of classification stages improved in the last 30 days out of total classification stages shot.\n\nShows: improved/total\n\nA stage is considered improved if your most recent time is faster than the previous time for that stage.",
+                                example: "3/5 (improved 3 out of 5 stages)"
                             ),
                             MetricExplanation(
-                                name: "Historical Average",
-                                description: "Your average stage time across ALL matches ever. This is your overall baseline performance.",
-                                example: "15.5s (all-time)"
+                                name: "Strongest",
+                                description: "Your best performing stage based on percentage vs GM peak time. Shows the stage code, current percentage, and average time.",
+                                example: "SC-102 · 87.3% · 14.2s"
                             ),
                             MetricExplanation(
-                                name: "Form vs Historical",
-                                description: "Percentage comparing your current form to your historical baseline.\n\n• >100% = You're shooting faster than your all-time average (good form!)\n• =100% = You're at your normal baseline\n• <100% = You're shooting slower than average (possibly rusty)",
-                                example: "103.3% (shooting 3.3% faster than baseline)"
+                                name: "Focus On",
+                                description: "Your weakest performing stage based on percentage vs GM peak time. This is where practice time will yield the most improvement. Shows the stage code, current percentage, and average time.",
+                                example: "SC-105 · 68.5% · 18.7s"
+                            ),
+                            MetricExplanation(
+                                name: "Consistency",
+                                description: "Your average consistency score across all 8 stages. Lower is better.\n\n• 0-3% = Great (very consistent)\n• 3-5% = Good\n• 5-8% = Medium\n• >8% = Low (high variance)",
+                                example: "±4.2% (good consistency)"
                             )
                         ]
                     )
@@ -1310,7 +1273,7 @@ struct MetricsInfoView: View {
                             ),
                             MetricExplanation(
                                 name: "Consistency",
-                                description: "Variation in your times (coefficient of variation). Lower is better.\n\n• 0-3% = Excellent (very consistent)\n• 3-5% = Good\n• 5-8% = Fair\n• >8% = Inconsistent (high variance)",
+                                description: "Variation in your times (coefficient of variation). Lower is better.\n\n• 0-3% = Great (very consistent)\n• 3-5% = Good\n• 5-8% = Medium\n• >8% = Low (high variance)",
                                 example: "±4.2% (good consistency)"
                             ),
                             MetricExplanation(

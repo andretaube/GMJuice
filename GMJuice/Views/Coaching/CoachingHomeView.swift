@@ -26,32 +26,14 @@ struct CoachingHomeView: View {
                 } else {
                     ScrollView {
                         VStack(spacing: 24) {
-                            // Header
-                            VStack(spacing: 8) {
-                                Image(systemName: "brain.head.profile")
-                                    .font(.system(size: 60))
-                                    .foregroundStyle(.purple)
-
-                                Text("AI-Powered Coaching")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-
-                                Text("Data-driven insights for match strategy and practice focus")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .padding(.top, 32)
-                            .padding(.horizontal)
-
                             // Division Cards
                             DivisionCoachingListView(allScores: allScores)
                         }
-                        .padding(.bottom, 32)
+                        .padding(.vertical, 32)
                     }
                 }
             }
-            .navigationTitle("Coaching")
+            .navigationTitle("Analysis")
         }
     }
 }
@@ -66,7 +48,7 @@ private struct NoCoachingMemberView: View {
                     .frame(height: 40)
 
                 // Icon
-                Image(systemName: "brain.head.profile.circle")
+                Image(systemName: "chart.bar.xaxis.circle")
                     .font(.system(size: 80))
                     .foregroundStyle(.purple)
 
@@ -76,7 +58,7 @@ private struct NoCoachingMemberView: View {
                         .font(.title2)
                         .fontWeight(.bold)
 
-                    Text("Add your SCSA member number to unlock AI-powered coaching insights")
+                    Text("Add your SCSA member number to unlock performance analysis and insights")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

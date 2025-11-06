@@ -19,18 +19,18 @@ struct GMJuice: App {
     @StateObject private var notificationManager = NotificationManager.shared
 
     @AppStorage("announcer_enabled") private var announcerEnabled = true
-    @AppStorage("appearanceMode") private var appearanceMode: String = "system"
+    @AppStorage("appearanceMode") private var appearanceMode: String = "dark"
     @AppStorage("hasAcceptedTerms") private var hasAcceptedTerms = false
     @AppStorage("hasSeenSCSAOnboarding") private var hasSeenSCSAOnboarding = false
 
     @State private var showingTermsAcceptance = false
     @State private var showingSCSAOnboarding = false
-    
+
     var colorScheme: ColorScheme? {
         switch appearanceMode {
         case "light": return .light
         case "dark": return .dark
-        default: return nil
+        default: return .dark  // Default to dark if unrecognized
         }
     }
 

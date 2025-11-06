@@ -11,19 +11,19 @@ import SwiftUI
 struct RootTabs: View {
     var body: some View {
         TabView {
+            ProfileView()
+                .tabItem {
+                    Label("Profile", systemImage: "person.fill")
+                }
+
             TrainView()
                 .tabItem {
                     Label("Train", systemImage: "target")
                 }
 
-            MatchesView()
-                .tabItem {
-                    Label("Classification", systemImage: "trophy.fill")
-                }
-
             CoachingHomeView()
                 .tabItem {
-                    Label("Coaching", systemImage: "brain.head.profile")
+                    Label("Analysis", systemImage: "chart.bar.xaxis")
                 }
 
             SettingsMainView()

@@ -23,8 +23,20 @@ struct ShooterProfileView: View {
                     TextField("SCSA Member Number", text: $profile.uspsaNumber)
                         .textContentType(.username)
                         .autocapitalization(.allCharacters)
-                        .onChange(of: profile.uspsaNumber) { _, _ in
+                        .onChange(of: profile.uspsaNumber) { oldValue, newValue in
                             debouncedSave()
+
+                            // If user just entered a member number (was empty, now has value)
+                            // Enable auto-sync and trigger immediate sync
+                            if oldValue.isEmpty && !newValue.isEmpty {
+                                autoSyncEnabled = true
+
+                                // Trigger sync after a short delay to allow the UI to update
+                                Task {
+                                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                                    await syncClassificationData(profile: profile)
+                                }
+                            }
                         }
 
                     if !profile.uspsaNumber.isEmpty {
