@@ -6,6 +6,7 @@
 
 import SwiftUI
 import SwiftData
+import TipKit
 
 @main
 struct GMJuice: App {
@@ -36,6 +37,12 @@ struct GMJuice: App {
 
     init() {
         Announcer.shared.isEnabled = announcerEnabled
+
+        // Configure TipKit
+        try? Tips.configure([
+            .displayFrequency(.immediate),
+            .datastoreLocation(.applicationDefault)
+        ])
     }
 
     private func checkSCSAOnboarding() {

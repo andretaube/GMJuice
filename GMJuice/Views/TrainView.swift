@@ -7,12 +7,19 @@
 
 import SwiftUI
 import Foundation
+import TipKit
 
 struct TrainView: View {
     // Persist the user's selected SCSA division in user preferences
     @AppStorage("scsa_active_division") private var activeDivisionRaw: String = Division.RFPO.rawValue
 
     @State private var navigationPath = NavigationPath()
+
+    // Tips
+    private let divisionTip = SelectDivisionTip()
+    private let timerTip = TimerButtonTip()
+    private let videoTip = VideoRecordingTip()
+    private let logTip = TimerLogTip()
 
     // Binding that bridges @AppStorage <-> enum
     private var selectedDivisionBinding: Binding<Division> {
@@ -41,6 +48,7 @@ struct TrainView: View {
                         .foregroundStyle(.blue)
                         .cornerRadius(20)
                     }
+                    .popoverTip(logTip, arrowEdge: .top)
 
                     NavigationLink(value: TrainNavigationPill.videos) {
                         HStack(spacing: 6) {
@@ -74,10 +82,11 @@ struct TrainView: View {
                             }
                         }
                         .pickerStyle(.menu) // renders as a dropdown in the list
+                        .popoverTip(divisionTip, arrowEdge: .top)
                     }
 
                     // Stages
-                    ForEach(AllStages) { stage in
+                    ForEach(Array(AllStages.enumerated()), id: \.element.id) { index, stage in
                     HStack(spacing: 0) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(stage.code)
@@ -103,6 +112,8 @@ struct TrainView: View {
                                 .background(Color.red)
                         }
                         .buttonStyle(.plain)
+                        .popoverTip(videoTip, arrowEdge: .trailing)
+                        .opacity(index == 0 ? 1 : 1) // Show tip only on first stage
 
                         // Timer button
                         Button {
@@ -116,6 +127,8 @@ struct TrainView: View {
                                 .background(Color.blue)
                         }
                         .buttonStyle(.plain)
+                        .popoverTip(timerTip, arrowEdge: .trailing)
+                        .opacity(index == 0 ? 1 : 1) // Show tip only on first stage
                     }
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
