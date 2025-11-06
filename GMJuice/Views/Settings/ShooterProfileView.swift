@@ -10,7 +10,7 @@ struct ShooterProfileView: View {
     @StateObject private var scraper = SCWebScraper.shared
     @State private var showingError = false
     @State private var errorMessage = ""
-    @AppStorage("scsa_auto_sync_enabled") private var autoSyncEnabled = false
+    @AppStorage("scsa_auto_sync_enabled") private var autoSyncEnabled = true
     @State private var showingDeleteConfirmation = false
 
     var body: some View {
