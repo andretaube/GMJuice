@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import TipKit
 
 struct ShooterProfileView: View {
     @Environment(\.modelContext) private var context
@@ -184,6 +185,12 @@ struct ShooterProfileView: View {
             // Cancel all pending notifications
             NotificationManager.shared.cancelAllNotifications()
 
+            // Reset TipKit data
+            try? Tips.resetDatastore()
+
+            // Delete coaching card cache
+            deleteCoachingCardCache()
+
             print("✅ All data deleted successfully")
         } catch {
             errorMessage = "Failed to delete data: \(error.localizedDescription)"
@@ -253,6 +260,24 @@ struct ShooterProfileView: View {
             print("✅ Deleted \(deletedCount) video(s)")
         } catch {
             print("⚠️ Error deleting videos: \(error)")
+        }
+    }
+
+    private func deleteCoachingCardCache() {
+        guard let cachesPath = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            print("⚠️ Caches directory not found")
+            return
+        }
+
+        let coachingCardsPath = cachesPath.appendingPathComponent("CoachingCards")
+
+        do {
+            if FileManager.default.fileExists(atPath: coachingCardsPath.path) {
+                try FileManager.default.removeItem(at: coachingCardsPath)
+                print("✅ Deleted coaching card cache")
+            }
+        } catch {
+            print("⚠️ Error deleting coaching card cache: \(error)")
         }
     }
 

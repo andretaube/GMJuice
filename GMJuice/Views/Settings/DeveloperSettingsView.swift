@@ -1,6 +1,7 @@
 #if DEBUG
 import SwiftUI
 import SwiftData
+import TipKit
 
 struct DeveloperSettingsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -132,6 +133,12 @@ struct DeveloperSettingsView: View {
             // Cancel all pending notifications
             NotificationManager.shared.cancelAllNotifications()
 
+            // Reset TipKit data
+            try? Tips.resetDatastore()
+
+            // Delete coaching card cache
+            deleteCoachingCardCache()
+
             deleteStatus = "✓ All data deleted"
 
             // Clear status after 3 seconds
@@ -205,6 +212,24 @@ struct DeveloperSettingsView: View {
             print("✅ Deleted \(deletedCount) video(s)")
         } catch {
             print("⚠️ Error deleting videos: \(error)")
+        }
+    }
+
+    private func deleteCoachingCardCache() {
+        guard let cachesPath = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            print("⚠️ Caches directory not found")
+            return
+        }
+
+        let coachingCardsPath = cachesPath.appendingPathComponent("CoachingCards")
+
+        do {
+            if FileManager.default.fileExists(atPath: coachingCardsPath.path) {
+                try FileManager.default.removeItem(at: coachingCardsPath)
+                print("✅ Deleted coaching card cache")
+            }
+        } catch {
+            print("⚠️ Error deleting coaching card cache: \(error)")
         }
     }
 }

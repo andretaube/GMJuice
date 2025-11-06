@@ -29,6 +29,14 @@ struct TrainView: View {
         )
     }
 
+    // Replay all tutorial tips
+    private func replayTips() {
+        divisionTip.invalidate(reason: .actionPerformed)
+        timerTip.invalidate(reason: .actionPerformed)
+        videoTip.invalidate(reason: .actionPerformed)
+        logTip.invalidate(reason: .actionPerformed)
+    }
+
     var body: some View {
         NavigationStack(path: $navigationPath) {
             VStack(spacing: 0) {
@@ -134,6 +142,16 @@ struct TrainView: View {
                 }
                 }
                 .navigationTitle("Train")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            replayTips()
+                        } label: {
+                            Image(systemName: "info.circle")
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                }
             }
             .navigationDestination(for: NavigationDestination.self) { destination in
                 switch destination {
