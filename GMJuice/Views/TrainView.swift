@@ -15,6 +15,7 @@ struct TrainView: View {
 
     @State private var navigationPath = NavigationPath()
     @State private var tipRefreshID = UUID()
+    @State private var showingTipsResetAlert = false
 
     // Tips
     private let divisionTip = SelectDivisionTip()
@@ -45,6 +46,7 @@ struct TrainView: View {
             // Force view refresh by changing the ID
             await MainActor.run {
                 tipRefreshID = UUID()
+                showingTipsResetAlert = true
             }
         }
     }
@@ -167,6 +169,11 @@ struct TrainView: View {
                         }
                     }
                 }
+            }
+            .alert("Tips Reset", isPresented: $showingTipsResetAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Tutorial tips have been reset. They will appear as you use the Train screen.")
             }
             .navigationDestination(for: NavigationDestination.self) { destination in
                 switch destination {

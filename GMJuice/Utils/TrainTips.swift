@@ -22,6 +22,12 @@ struct SelectDivisionTip: Tip {
     var image: Image? {
         Image(systemName: "list.bullet")
     }
+
+    var options: [TipOption] {
+        [
+            Tips.MaxDisplayCount(3)
+        ]
+    }
 }
 
 // MARK: - Timer Button Tip
@@ -37,6 +43,12 @@ struct TimerButtonTip: Tip {
 
     var image: Image? {
         Image(systemName: "timer")
+    }
+
+    var options: [TipOption] {
+        [
+            Tips.MaxDisplayCount(3)
+        ]
     }
 }
 
@@ -54,6 +66,12 @@ struct VideoRecordingTip: Tip {
     var image: Image? {
         Image(systemName: "video.fill")
     }
+
+    var options: [TipOption] {
+        [
+            Tips.MaxDisplayCount(3)
+        ]
+    }
 }
 
 // MARK: - Timer Log Tip
@@ -69,5 +87,11 @@ struct TimerLogTip: Tip {
 
     var image: Image? {
         Image(systemName: "list.bullet.rectangle")
+    }
+
+    var options: [TipOption] {
+        [
+            Tips.MaxDisplayCount(3)
+        ]
     }
 }
