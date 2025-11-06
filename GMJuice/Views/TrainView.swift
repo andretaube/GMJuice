@@ -31,10 +31,14 @@ struct TrainView: View {
 
     // Replay all tutorial tips
     private func replayTips() {
-        divisionTip.invalidate(reason: .actionPerformed)
-        timerTip.invalidate(reason: .actionPerformed)
-        videoTip.invalidate(reason: .actionPerformed)
-        logTip.invalidate(reason: .actionPerformed)
+        // Reset the entire TipKit datastore to show all tips again
+        try? Tips.resetDatastore()
+
+        // Reconfigure TipKit to ensure tips display immediately
+        try? Tips.configure([
+            .displayFrequency(.immediate),
+            .datastoreLocation(.applicationDefault)
+        ])
     }
 
     var body: some View {
