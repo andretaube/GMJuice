@@ -11,7 +11,8 @@ enum Schema004: VersionedSchema {
             StringRun.self,
             DivisionProfile.self,
             ShooterProfile.self,
-            SCMatchScore.self
+            SCMatchScore.self,
+            TrackedShooter.self
         ]
     }
 
@@ -119,6 +120,20 @@ enum Schema004: VersionedSchema {
             self.peakTime = peakTime
             self.usedForClassification = usedForClassification
             self.memberNumber = memberNumber
+        }
+    }
+
+    // MARK: - Tracked Shooter (for manual comparisons)
+    @Model
+    final class TrackedShooter {
+        @Attribute(.unique) var uspsaNumber: String
+        var displayName: String
+        var dateAdded: Date
+
+        init(uspsaNumber: String, displayName: String) {
+            self.uspsaNumber = uspsaNumber
+            self.displayName = displayName
+            self.dateAdded = Date()
         }
     }
 }

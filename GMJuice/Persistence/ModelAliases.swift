@@ -15,3 +15,6 @@ typealias StringShot = Schema004.StringShot
 
 // Steel Challenge Match Data
 typealias SCMatchScore = Schema004.SCMatchScore
+
+// Tracked Shooters
+typealias TrackedShooter = Schema004.TrackedShooter

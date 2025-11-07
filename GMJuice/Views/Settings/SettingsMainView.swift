@@ -4,6 +4,7 @@ struct SettingsMainView: View {
     @Environment(\.verticalSizeClass) var verticalSizeClass
     @State private var showingTerms = false
     @State private var showingPrivacy = false
+    @State private var navigationPath = NavigationPath()
 
     var columns: [GridItem] {
         // Use 3 columns in landscape (compact vertical size class), 2 in portrait
@@ -12,7 +13,7 @@ struct SettingsMainView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             ScrollView {
                 VStack(spacing: 24) {
                 LazyVGrid(columns: columns, spacing: 16) {
@@ -35,6 +36,13 @@ struct SettingsMainView: View {
                         icon: "bell.badge",
                         color: .orange,
                         destination: NotificationSettingsView()
+                    )
+
+                    SettingsCard(
+                        title: "Widgets",
+                        icon: "square.grid.2x2",
+                        color: .green,
+                        destination: WidgetSettingsView()
                     )
 
                     SettingsCard(
@@ -104,6 +112,17 @@ struct SettingsMainView: View {
                     title: "Privacy Policy",
                     content: LegalDocuments.privacyPolicy
                 )
+            }
+            .onOpenURL { url in
+                // Handle deep link from widget
+                if url.scheme == "gmjuice" && url.host == "settings" && url.path == "/widget" {
+                    navigationPath.append("widget")
+                }
+            }
+            .navigationDestination(for: String.self) { destination in
+                if destination == "widget" {
+                    WidgetSettingsView()
+                }
             }
         }
     }

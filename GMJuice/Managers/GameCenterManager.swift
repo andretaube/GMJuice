@@ -80,11 +80,25 @@ class GameCenterManager: ObservableObject {
         }
 
         do {
+            print("🔄 Loading friends from GameCenter...")
             let friends = try await GKLocalPlayer.local.loadFriends()
             self.friends = friends
-            print("✅ Loaded \(friends.count) friends")
+            print("✅ Loaded \(friends.count) friends from GameCenter")
+
+            if friends.isEmpty {
+                print("⚠️ GameCenter returned 0 friends. This could mean:")
+                print("   - You have no friends on GameCenter")
+                print("   - Friends haven't accepted your request yet")
+                print("   - GameCenter permissions are restricted")
+            } else {
+                for friend in friends {
+                    print("   Friend: \(friend.displayName) (alias: \(friend.alias))")
+                }
+            }
         } catch {
-            print("⚠️ Failed to load friends: \(error.localizedDescription)")
+            print("❌ Failed to load friends: \(error.localizedDescription)")
+            print("   Error details: \(error)")
+            self.friends = []
         }
     }
 

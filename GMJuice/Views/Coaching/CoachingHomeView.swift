@@ -210,9 +210,18 @@ private struct DivisionCoachingCard: View {
         } else if daysSinceLastShot < 30 {
             let weeks = daysSinceLastShot / 7
             return "Last shot \(weeks)w ago"
-        } else {
+        } else if daysSinceLastShot < 365 {
             let months = daysSinceLastShot / 30
             return "Last shot \(months)mo ago"
+        } else {
+            let years = daysSinceLastShot / 365
+            let remainingDays = daysSinceLastShot % 365
+            let months = remainingDays / 30
+            if months > 0 {
+                return "Last shot \(years)y \(months)mo ago"
+            } else {
+                return "Last shot \(years)y ago"
+            }
         }
     }
 
@@ -260,19 +269,10 @@ private struct DivisionCoachingCard: View {
     }
 
     private func divisionName(_ code: String) -> String {
-        switch code {
-        case "RFPO": return "Rimfire Pistol Open"
-        case "RFPI": return "Rimfire Pistol Irons"
-        case "CO": return "Carry Optics"
-        case "OPN": return "Open"
-        case "PROD": return "Production"
-        case "SS": return "Single Stack"
-        case "PCCO": return "PCC Optics"
-        case "PCCI": return "PCC Irons"
-        case "REV": return "Revolver"
-        case "OSR": return "Open Single Round"
-        case "ISR": return "Iron Sight Revolver"
-        default: return code
+        // Use the Division enum's displayName for consistency
+        if let division = Division(rawValue: code) {
+            return division.displayName
         }
+        return code
     }
 }

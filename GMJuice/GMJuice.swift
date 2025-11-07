@@ -47,8 +47,20 @@ struct GMJuice: App {
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema(versionedSchema: Schema004.self)
+
+        // Use App Group for data sharing with widget
+        let appGroupID = "group.com.andretaube.gmjuice"
+        let modelURL: URL
+
+        if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
+            modelURL = groupURL.appendingPathComponent("default.store")
+        } else {
+            // Fallback to default location if App Group not configured
+            modelURL = URL.applicationSupportDirectory.appending(path: "default.store")
+        }
+
         // Disable CloudKit auto-sync - we handle CloudKit manually for sharing profiles
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false, cloudKitDatabase: .none)
+        let modelConfiguration = ModelConfiguration(url: modelURL, cloudKitDatabase: .none)
 
         do {
             return try ModelContainer(

@@ -119,6 +119,7 @@ struct SCSAParsingRules: Codable {
 // MARK: - Data Models
 
 struct AllClassificationData {
+    var memberName: String?
     var stageScores: [StageScoresData] = []
     var classifications: [ClassificationData] = []
 
@@ -262,6 +263,19 @@ class SCWebScraper: ObservableObject {
         try await syncClassificationData(memberNumber: memberNumber, context: context)
     }
 
+    /// Fetch member information (name and basic data) without saving to database
+    func fetchMemberInfo(memberNumber: String) async throws -> (name: String, uspsaNumber: String) {
+        let data = try await fetchClassificationData(memberNumber: memberNumber)
+
+        guard let memberName = data.memberName, !memberName.isEmpty else {
+            throw NSError(domain: "SCWebScraper", code: 3, userInfo: [
+                NSLocalizedDescriptionKey: "Could not find member name for this USPSA number"
+            ])
+        }
+
+        return (name: memberName, uspsaNumber: memberNumber)
+    }
+
     // MARK: - Private Methods
 
     private func fetchClassificationData(memberNumber: String) async throws -> AllClassificationData {
@@ -354,6 +368,13 @@ class SCWebScraper: ObservableObject {
         // Parse HTML with SwiftSoup
         let doc = try SwiftSoup.parse(html)
 
+        // Extract member name from "Member Information" table
+        if let memberNameElement = try doc.select(rules.memberName.selector).first() {
+            let memberName = try memberNameElement.text().trimmingCharacters(in: .whitespacesAndNewlines)
+            data.memberName = memberName
+            print("👤 Found member name: \(memberName)")
+        }
+
         // Check if we got a valid member page by looking for expected headers
         let h2Elements = try doc.select("h2")
         let h2Texts = h2Elements.array().compactMap { try? $0.text() }
@@ -388,10 +409,17 @@ class SCWebScraper: ObservableObject {
 
                 for row in rows {
                     let cells = try row.select("td")
-                    // Classifications table has 6 columns: #, Division, Class, Current%, High%, Date
-                    guard cells.count >= 6 else { continue }
+                    // Classifications table has 6 columns: Division Name, Division Code, Class, Current%, High%, Date
+                    guard cells.count >= 6 else {
+                        print("DEBUG: Skipping row with only \(cells.count) cells")
+                        continue
+                    }
 
-                    // Extract division code (index 1)
+                    // Debug: Print all cell values
+                    let cellTexts = try cells.map { try $0.text() }
+                    print("DEBUG: Row cells: \(cellTexts)")
+
+                    // Extract division code (index 1) - this is the second column (CO, PCCO, PROD, RFRO, etc.)
                     let divisionIndex = rules.classificationsSection.cells.division.index
                     guard divisionIndex < cells.count else { continue }
                     let divisionCode = try cells[divisionIndex].text().trimmingCharacters(in: .whitespacesAndNewlines)
@@ -489,8 +517,10 @@ class SCWebScraper: ObservableObject {
         for row in allRows {
             // Check if this row contains a division header
             if let divHeader = try? row.select(rules.stageScoreRows.divisionHeaderSelector).first() {
-                currentDivision = try divHeader.text().trimmingCharacters(in: .whitespacesAndNewlines)
-                print("DEBUG: Found division: \(currentDivision)")
+                let divisionName = try divHeader.text().trimmingCharacters(in: .whitespacesAndNewlines)
+                currentDivision = divisionName
+                let divisionCode = rules.divisionMapping[divisionName] ?? divisionName
+                print("DEBUG: Found division: '\(divisionName)' → mapped to code: '\(divisionCode)'")
                 continue
             }
 
@@ -560,7 +590,13 @@ class SCWebScraper: ObservableObject {
 
                 data.stageScores.append(stageScore)
 
-                print("DEBUG: Parsed - \(stageCode) (\(divisionCode)) - \(matchName) - \(time)s vs \(peak)s - used: \(usedForClassification)")
+                #if DEBUG
+                if currentDivision != divisionCode {
+                    print("DEBUG: Parsed - \(stageCode) (\(currentDivision) → \(divisionCode)) - \(matchName) - \(time)s vs \(peak)s - used: \(usedForClassification)")
+                } else {
+                    print("DEBUG: Parsed - \(stageCode) (\(divisionCode)) - \(matchName) - \(time)s vs \(peak)s - used: \(usedForClassification)")
+                }
+                #endif
             }
         }
 
@@ -594,13 +630,19 @@ class SCWebScraper: ObservableObject {
         // If we have the same or more records, proceed with update
         print("✅ Safe to update: new data has \(newCount) records (existing: \(existingCount))")
 
-        // Delete existing match scores
+        // Delete ALL existing match scores to ensure clean data (removes old division codes)
+        print("🗑️ Deleting \(existingCount) existing match scores...")
         for score in existing {
             context.delete(score)
         }
 
-        // Store new stage scores
+        // Force save deletions before inserting new data
+        try context.save()
+        print("✅ Deleted all existing data")
+
+        // Store new stage scores with corrected division codes
         var classificationScoresByDivision: [String: Int] = [:]
+        print("📝 Inserting \(data.stageScores.count) new match scores with corrected division codes...")
 
         for stageScore in data.stageScores {
             let score = SCMatchScore(
@@ -620,6 +662,7 @@ class SCWebScraper: ObservableObject {
                 classificationScoresByDivision[stageScore.division, default: 0] += 1
             }
         }
+        print("✅ Inserted \(data.stageScores.count) match scores")
 
         // Update shooter profile with classification info
         let profileDescriptor = FetchDescriptor<ShooterProfile>()
@@ -638,7 +681,9 @@ class SCWebScraper: ObservableObject {
             print("📊 Processing classification: \(classification.division) - \(classification.shooterClass) - \(classification.currentPercent)%")
 
             guard let division = Division(rawValue: classification.division) else {
-                print("⚠️ Could not find Division enum for code: '\(classification.division)' - skipping")
+                print("⚠️ Could not find Division enum for code: '\(classification.division)'")
+                print("   Available division codes in enum: \(Division.allCases.map { $0.rawValue }.joined(separator: ", "))")
+                print("   Skipping this classification")
                 continue
             }
 
@@ -672,6 +717,15 @@ class SCWebScraper: ObservableObject {
         }
 
         try context.save()
-        print("✅ Stored \(data.stageScores.count) stage scores")
+
+        // Summary of what was stored
+        let divisionBreakdown = Dictionary(grouping: data.stageScores) { $0.division }
+            .mapValues { $0.count }
+            .sorted { $0.key < $1.key }
+        print("✅ Stored \(data.stageScores.count) stage scores across divisions:")
+        for (division, count) in divisionBreakdown {
+            let classCount = classificationScoresByDivision[division] ?? 0
+            print("   - \(division): \(count) total scores (\(classCount) used for classification)")
+        }
     }
 }

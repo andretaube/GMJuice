@@ -15,6 +15,10 @@ struct StageDetailAnalysisView: View {
 
     @Query private var allScores: [SCMatchScore]
 
+    private var divisionDisplayName: String {
+        Division(rawValue: divisionCode)?.displayName ?? divisionCode
+    }
+
     private var stageScores: [SCMatchScore] {
         allScores.filter {
             $0.divisionCode == divisionCode &&
@@ -191,7 +195,7 @@ struct StageDetailAnalysisView: View {
             }
             .padding()
         }
-        .navigationTitle("\(stageAnalysis.stageCode) · \(divisionCode)")
+        .navigationTitle("\(stageAnalysis.stageCode) · \(divisionDisplayName)")
         .navigationBarTitleDisplayMode(.inline)
     }
 

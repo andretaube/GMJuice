@@ -15,6 +15,10 @@ struct StageProgressReportView: View {
     @Query private var allScores: [SCMatchScore]
     @Query private var allProfiles: [ShooterProfile]
 
+    private var divisionDisplayName: String {
+        Division(rawValue: divisionCode)?.displayName ?? divisionCode
+    }
+
     private var currentClassification: ShooterClass {
         guard let division = Division(rawValue: divisionCode),
               let profile = allProfiles.first,
@@ -94,7 +98,7 @@ struct StageProgressReportView: View {
                     ContentUnavailableView {
                         Label("No Scores", systemImage: "chart.line.uptrend.xyaxis")
                     } description: {
-                        Text("No match scores found for \(divisionCode)")
+                        Text("No match scores found for \(divisionDisplayName)")
                     }
                 } else {
                     ForEach(stageGroups, id: \.stageCode) { group in

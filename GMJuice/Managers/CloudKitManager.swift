@@ -44,6 +44,12 @@ class CloudKitManager: ObservableObject {
         isSyncing = true
         defer { isSyncing = false }
 
+        // Get GameCenter player ID if authenticated
+        let gamePlayerID = await GameCenterManager.shared.localPlayer?.gamePlayerID
+
+        // Check if schema exists, if not CloudKit will auto-create it on first save
+        print("📋 Syncing to CloudKit (schema will be auto-created if needed)")
+
         // Fetch only classification scores (usedForClassification == true)
         let descriptor = FetchDescriptor<SCMatchScore>(
             predicate: #Predicate { $0.memberNumber == memberNumber && $0.usedForClassification == true },
@@ -61,13 +67,32 @@ class CloudKitManager: ObservableObject {
             throw NSError(domain: "CloudKitManager", code: 2, userInfo: [NSLocalizedDescriptionKey: "No shooter profile found"])
         }
 
-        // Create or update CloudKit record
+        // Fetch existing record or create new one
         let recordID = CKRecord.ID(recordName: "uspsa_\(memberNumber)")
-        let record = CKRecord(recordType: recordType, recordID: recordID)
+        let record: CKRecord
+
+        do {
+            // Try to fetch existing record
+            record = try await publicDatabase.record(for: recordID)
+            print("✅ Found existing CloudKit record, updating...")
+        } catch let error as CKError where error.code == .unknownItem {
+            // Record doesn't exist, create new one
+            record = CKRecord(recordType: recordType, recordID: recordID)
+            print("📝 Creating new CloudKit record...")
+        } catch {
+            // Other fetch error, rethrow
+            throw error
+        }
 
         // Store profile metadata
         record["memberNumber"] = memberNumber as CKRecordValue
         record["lastUpdated"] = Date() as CKRecordValue
+
+        // Store GameCenter player ID for auto-lookup by friends
+        if let gamePlayerID = gamePlayerID {
+            record["gamePlayerID"] = gamePlayerID as CKRecordValue
+            print("📱 Linked GameCenter ID to profile")
+        }
 
         // Store division classifications
         var divisionData: [String: Any] = [:]
@@ -142,12 +167,45 @@ class CloudKitManager: ObservableObject {
         }
     }
 
-    /// Fetch a friend's USPSA profile from CloudKit
+    /// Fetch a friend's USPSA profile from CloudKit by GameCenter player ID
+    func fetchFriendProfileByGameCenter(gamePlayerID: String) async throws -> FriendPerformance {
+        print("🔍 Looking up friend by GameCenter ID: \(gamePlayerID)")
+
+        // Query for record with this gamePlayerID
+        let predicate = NSPredicate(format: "gamePlayerID == %@", gamePlayerID)
+        let query = CKQuery(recordType: recordType, predicate: predicate)
+
+        let (results, _) = try await publicDatabase.records(matching: query)
+
+        // Get the first matching record
+        guard let (_, recordResult) = results.first else {
+            throw NSError(domain: "CloudKitManager", code: 4, userInfo: [
+                NSLocalizedDescriptionKey: "Friend needs to re-sync their USPSA profile to enable auto-lookup."
+            ])
+        }
+
+        let record = try recordResult.get()
+
+        // Get member number from the record
+        guard let memberNumber = record["memberNumber"] as? String else {
+            throw NSError(domain: "CloudKitManager", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to parse member number"])
+        }
+
+        print("✅ Found friend's profile: \(memberNumber)")
+
+        // Parse the rest of the record
+        return try parseFriendProfile(from: record, memberNumber: memberNumber)
+    }
+
+    /// Fetch a friend's USPSA profile from CloudKit by member number
     func fetchFriendProfile(memberNumber: String) async throws -> FriendPerformance {
         let recordID = CKRecord.ID(recordName: "uspsa_\(memberNumber)")
-
         let record = try await publicDatabase.record(for: recordID)
+        return try parseFriendProfile(from: record, memberNumber: memberNumber)
+    }
 
+    /// Parse a friend's profile from a CloudKit record
+    private func parseFriendProfile(from record: CKRecord, memberNumber: String) throws -> FriendPerformance {
         // Parse divisions
         guard let divisionsJSON = record["divisions"] as? String,
               let divisionsData = divisionsJSON.data(using: .utf8),

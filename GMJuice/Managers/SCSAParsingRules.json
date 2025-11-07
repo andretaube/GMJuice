@@ -3,7 +3,7 @@
   "description": "Parsing rules for SCSA classification page",
   "rules": {
     "memberName": {
-      "selector": "h2",
+      "selector": "td:contains(Member Name) + td",
       "method": "first",
       "extract": "text"
     },
@@ -53,11 +53,18 @@
     "divisionMapping": {
       "Rimfire Pistol Open": "RFPO",
       "Rimfire Pistol Iron": "RFPI",
+      "Rimfire Rifle Open": "RFRO",
+      "Rimfire Rifle Iron": "RFRI",
       "Open": "OPN",
       "Carry Optics": "CO",
+      "Limited": "LTD",
       "Production": "PROD",
       "Single Stack": "SS",
       "PCC": "PCC",
+      "PCC Optics": "PCCO",
+      "PCC Iron": "PCCI",
+      "Open Sight Revolver": "OSR",
+      "Iron Sight Revolver": "ISR",
       "Revolver": "REV"
     },
     "classificationsSection": {

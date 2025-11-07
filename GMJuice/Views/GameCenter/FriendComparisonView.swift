@@ -20,11 +20,16 @@ struct FriendComparisonView: View {
     @State private var friendProfile: FriendPerformance?
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var friendMemberNumber: String = ""
-    @State private var showingMemberNumberPrompt = false
 
     private var myProfile: ShooterProfile? {
         profiles.first
+    }
+
+    private var navigationTitle: String {
+        if let myName = myProfile?.uspsaNumber, !myName.isEmpty {
+            return "Me - \(friend.displayName)"
+        }
+        return friend.displayName
     }
 
     var body: some View {
@@ -51,38 +56,39 @@ struct FriendComparisonView: View {
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
-
-                        Button("Try Again") {
-                            showingMemberNumberPrompt = true
-                        }
-                        .buttonStyle(.borderedProminent)
                     }
                 } else if let friendProfile = friendProfile {
                     comparisonView(friendProfile: friendProfile)
                 } else {
                     VStack(spacing: 16) {
-                        Image(systemName: "person.crop.circle.badge.questionmark")
+                        Image(systemName: "person.crop.circle.badge.clock")
                             .font(.largeTitle)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(.secondary)
 
-                        Text("Enter Friend's USPSA Number")
+                        Text("Profile Not Available")
                             .font(.headline)
 
-                        Text("To compare performance, enter your friend's USPSA member number")
+                        Text("\(friend.displayName) hasn't synced their USPSA profile to GMJuice yet.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
 
-                        Button("Enter Number") {
-                            showingMemberNumberPrompt = true
-                        }
-                        .buttonStyle(.borderedProminent)
+                        Text("Check back later once they've added their USPSA number.")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
                     }
+                    .padding()
                 }
             }
-            .navigationTitle(friend.displayName)
+            .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .task {
+                // Auto-fetch friend's profile by GameCenter ID
+                await autoLoadFriendProfile()
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Close") {
@@ -90,21 +96,21 @@ struct FriendComparisonView: View {
                     }
                 }
             }
-            .alert("Enter USPSA Member Number", isPresented: $showingMemberNumberPrompt) {
-                TextField("Member Number", text: $friendMemberNumber)
-                    .textInputAutocapitalization(.characters)
+        }
+    }
 
-                Button("Cancel", role: .cancel) {}
+    private func divisionsToShow(myProfile: ShooterProfile, friendProfile: FriendPerformance) -> [(division: Division, myDiv: DivisionProfile, friendDiv: FriendPerformance.DivisionPerformance)] {
+        var result: [(division: Division, myDiv: DivisionProfile, friendDiv: FriendPerformance.DivisionPerformance)] = []
 
-                Button("Load") {
-                    Task {
-                        await loadFriendProfile()
-                    }
-                }
-            } message: {
-                Text("Enter \(friend.displayName)'s USPSA member number to view their profile")
+        // Only show divisions where both have data
+        for division in Division.allCases {
+            if let myDiv = myProfile.divisions.first(where: { $0.division == division && $0.currentPercentage != nil }),
+               let friendDiv = friendProfile.divisions.first(where: { $0.divisionCode == division.rawValue }) {
+                result.append((division: division, myDiv: myDiv, friendDiv: friendDiv))
             }
         }
+
+        return result
     }
 
     @ViewBuilder
@@ -113,19 +119,35 @@ struct FriendComparisonView: View {
             VStack(spacing: 24) {
                 // Overall comparison
                 if let myProfile = myProfile {
-                    ForEach(Division.allCases, id: \.self) { division in
-                        if let myDiv = myProfile.divisions.first(where: { $0.division == division }),
-                           let myPercentage = myDiv.currentPercentage,
-                           let friendDiv = friendProfile.divisions.first(where: { $0.divisionCode == division.rawValue }) {
-
+                    ForEach(divisionsToShow(myProfile: myProfile, friendProfile: friendProfile), id: \.division) { item in
+                        VStack(spacing: 12) {
+                            // Division header
                             DivisionComparisonCard(
-                                division: division,
-                                myClassification: myDiv.classification,
-                                myPercentage: myPercentage,
+                                division: item.division,
+                                myClassification: item.myDiv.classification,
+                                myPercentage: item.myDiv.currentPercentage!,
                                 friendName: friend.displayName,
-                                friendClassification: ShooterClass(rawValue: friendDiv.classification) ?? .U,
-                                friendPercentage: friendDiv.currentPercentage
+                                friendClassification: ShooterClass(rawValue: item.friendDiv.classification) ?? .U,
+                                friendPercentage: item.friendDiv.currentPercentage
                             )
+
+                            // Stage-by-stage comparison
+                            ForEach(AllStages.filter { $0.code.hasPrefix("SC-") }, id: \.code) { stage in
+                                if let myScore = myScores.first(where: { $0.stageCode == stage.code && $0.divisionCode == item.division.rawValue && $0.usedForClassification }),
+                                   let friendScore = friendProfile.classificationScores.first(where: { $0.stageCode == stage.code && $0.divisionCode == item.division.rawValue }) {
+
+                                    StageComparisonRow(
+                                        stageCode: stage.code,
+                                        stageName: stage.name,
+                                        myClassification: item.myDiv.classification,
+                                        myTime: myScore.time,
+                                        myPercentage: myScore.peakTime > 0 ? (myScore.peakTime / myScore.time) * 100 : 0,
+                                        friendClassification: ShooterClass(rawValue: item.friendDiv.classification) ?? .U,
+                                        friendTime: friendScore.time,
+                                        friendPercentage: friendScore.peakTime > 0 ? (friendScore.peakTime / friendScore.time) * 100 : 0
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -140,17 +162,21 @@ struct FriendComparisonView: View {
         }
     }
 
-    private func loadFriendProfile() async {
-        guard !friendMemberNumber.isEmpty else { return }
+    private func autoLoadFriendProfile() async {
+        print("🔄 Auto-loading friend profile for: \(friend.displayName)")
 
         isLoading = true
         errorMessage = nil
 
         do {
-            let profile = try await cloudKitManager.fetchFriendProfile(memberNumber: friendMemberNumber)
+            // Try to fetch by GameCenter ID
+            let profile = try await cloudKitManager.fetchFriendProfileByGameCenter(gamePlayerID: friend.gamePlayerID)
             friendProfile = profile
+            print("✅ Auto-loaded friend's profile!")
         } catch {
-            errorMessage = "Could not load friend's profile. Make sure they have synced their USPSA data and enabled sharing."
+            print("⚠️ Could not auto-load: \(error.localizedDescription)")
+            // Don't set error - just show "Profile Not Available" message
+            errorMessage = nil
         }
 
         isLoading = false
@@ -228,29 +254,157 @@ private struct ComparisonBar: View {
     let myPercentage: Double
     let friendPercentage: Double
 
-    private var maxPercentage: Double {
-        max(myPercentage, friendPercentage, 100)
+    private var total: Double {
+        myPercentage + friendPercentage
+    }
+
+    private var myRatio: Double {
+        total > 0 ? myPercentage / total : 0.5
+    }
+
+    private var myColor: Color {
+        myPercentage >= friendPercentage ? .green : .red
+    }
+
+    private var friendColor: Color {
+        friendPercentage >= myPercentage ? .green : .red
     }
 
     var body: some View {
         GeometryReader { geometry in
-            HStack(spacing: 2) {
-                // My bar
+            HStack(spacing: 0) {
                 Rectangle()
-                    .fill(Color.blue.opacity(0.6))
-                    .frame(width: geometry.size.width * (myPercentage / maxPercentage) / 2)
+                    .fill(myColor.opacity(0.7))
+                    .frame(width: geometry.size.width * myRatio)
 
-                Spacer()
-                    .frame(width: 2)
-
-                // Friend's bar
                 Rectangle()
-                    .fill(Color.green.opacity(0.6))
-                    .frame(width: geometry.size.width * (friendPercentage / maxPercentage) / 2)
+                    .fill(friendColor.opacity(0.7))
             }
         }
         .frame(height: 8)
-        .background(Color(.tertiarySystemBackground))
+        .cornerRadius(4)
+    }
+}
+
+// MARK: - Stage Comparison Row
+
+private struct StageComparisonRow: View {
+    let stageCode: String
+    let stageName: String
+    let myClassification: ShooterClass
+    let myTime: Decimal
+    let myPercentage: Decimal
+    let friendClassification: ShooterClass
+    let friendTime: Decimal
+    let friendPercentage: Decimal
+
+    private var myPct: Double {
+        NSDecimalNumber(decimal: myPercentage).doubleValue
+    }
+
+    private var friendPct: Double {
+        NSDecimalNumber(decimal: friendPercentage).doubleValue
+    }
+
+    private var myColor: Color {
+        myPct >= friendPct ? .green : .red
+    }
+
+    private var friendColor: Color {
+        friendPct >= myPct ? .green : .red
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            // Stage code - name at top center
+            Text("\(stageCode) - \(stageName)")
+                .font(.subheadline)
+                .fontWeight(.medium)
+
+            // Shooter stats side by side
+            HStack(spacing: 12) {
+                // My stats
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(myClassification.rawValue)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(myColor)
+
+                    Text("\(NSDecimalNumber(decimal: myTime).doubleValue, specifier: "%.2f")s")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    Text("\(myPct, specifier: "%.2f")%")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Comparison bar
+                StageComparisonBar(
+                    myPercentage: myPct,
+                    friendPercentage: friendPct
+                )
+                .frame(height: 8)
+
+                // Friend's stats
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(friendClassification.rawValue)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(friendColor)
+
+                    Text("\(NSDecimalNumber(decimal: friendTime).doubleValue, specifier: "%.2f")s")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    Text("\(friendPct, specifier: "%.2f")%")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(.secondarySystemBackground).opacity(0.5))
+        .cornerRadius(8)
+    }
+}
+
+// MARK: - Stage Comparison Bar (no gap)
+
+private struct StageComparisonBar: View {
+    let myPercentage: Double
+    let friendPercentage: Double
+
+    private var total: Double {
+        myPercentage + friendPercentage
+    }
+
+    private var myRatio: Double {
+        total > 0 ? myPercentage / total : 0.5
+    }
+
+    private var myColor: Color {
+        myPercentage >= friendPercentage ? .green : .red
+    }
+
+    private var friendColor: Color {
+        friendPercentage >= myPercentage ? .green : .red
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(myColor.opacity(0.7))
+                    .frame(width: geometry.size.width * myRatio)
+
+                Rectangle()
+                    .fill(friendColor.opacity(0.7))
+            }
+        }
         .cornerRadius(4)
     }
 }

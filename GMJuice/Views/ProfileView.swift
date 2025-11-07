@@ -19,7 +19,6 @@ struct ProfileView: View {
     @State private var errorMessage = ""
     @State private var showingUSPSASettings = false
     @AppStorage("scsa_auto_sync_enabled") private var autoSyncEnabled = true
-    @AppStorage("cloudkit_sharing_enabled") private var cloudKitSharingEnabled = false
     @State private var showingCoachMarks = false
     @State private var trackedFrames: [String: CGRect] = [:]
     @AppStorage("hasSeenProfileCoachMarks") private var hasSeenCoachMarks = false
@@ -127,15 +126,13 @@ struct ProfileView: View {
                 previousUSPSANumber = profile.uspsaNumber
             }
 
-            // Sync to CloudKit if sharing is enabled
-            if cloudKitSharingEnabled {
-                do {
-                    try await cloudKitManager.syncUSPSAProfile(memberNumber: profile.uspsaNumber, context: context)
-                    print("✅ Synced profile to CloudKit for GameCenter sharing")
-                } catch {
-                    print("⚠️ CloudKit sync failed: \(error.localizedDescription)")
-                    // Don't show error to user - CloudKit sync is optional
-                }
+            // Always sync to CloudKit for GameCenter friends (SCSA scores are public data)
+            do {
+                try await cloudKitManager.syncUSPSAProfile(memberNumber: profile.uspsaNumber, context: context)
+                print("✅ Synced profile to CloudKit for GameCenter sharing")
+            } catch {
+                print("⚠️ CloudKit sync failed: \(error.localizedDescription)")
+                // Don't show error to user - CloudKit sync is optional
             }
         } catch let error as NSError where error.code == 404 {
             await MainActor.run {
@@ -247,7 +244,6 @@ struct ProfileView: View {
                     USPSASettingsSheet(
                         profile: profile,
                         autoSyncEnabled: $autoSyncEnabled,
-                        cloudKitSharingEnabled: $cloudKitSharingEnabled,
                         previousNumber: previousUSPSANumber,
                         hasExistingData: hasExistingData,
                         onSync: {
@@ -283,6 +279,16 @@ private struct ProfileStatsView: View {
     @Bindable var profile: ShooterProfile
     let onShowSettings: () -> Void
 
+    private func calculateTotalPeakTime(for division: Division) -> Decimal {
+        var total = Decimal(0)
+        for stage in AllStages {
+            if let benchmark = PeakBenchmarks.get(division: division, stageCode: stage.code) {
+                total += benchmark.peakTime
+            }
+        }
+        return total
+    }
+
     private var classificationScoresByDivision: [(division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [SCMatchScore])])] {
         // ONLY show scores where usedForClassification = true (one score per stage per division)
         let usedScores = allScores.filter { $0.usedForClassification }
@@ -301,10 +307,12 @@ private struct ProfileStatsView: View {
             .sorted { $0.division < $1.division }
         }
 
-        return byDivision.map { division, scores in
-            // Total time = sum of ONLY scores used for classification
+        // Start with all divisions that have a classification in the profile
+        var allDivisions: [(division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [SCMatchScore])])] = []
+
+        // Add divisions that have classification scores
+        for (division, scores) in byDivision {
             let totalTime = scores.reduce(Decimal(0)) { $0 + $1.time }
-            let totalPeakTime = scores.reduce(Decimal(0)) { $0 + $1.peakTime }
             let byStage = Dictionary(grouping: scores) { $0.stageCode }
             let stages = byStage.map { (stageCode: $0.key, stageName: $0.value.first?.stageName ?? $0.key, scores: $0.value.sorted { $0.scoreDate > $1.scoreDate }) }
                 .sorted { $0.stageCode < $1.stageCode }
@@ -316,9 +324,49 @@ private struct ProfileStatsView: View {
             let highPercentage = divProfile?.highPercentage
             let classificationDate = divProfile?.classificationDate
 
-            return (division: division, totalTime: totalTime, totalPeakTime: totalPeakTime, classification: classification, percentage: percentage, highPercentage: highPercentage, classificationDate: classificationDate, stages: stages)
+            // Calculate peak time for all 8 standard Steel Challenge stages (not just classification scores)
+            let totalPeakTime: Decimal
+            if let divisionEnum = Division(rawValue: division) {
+                totalPeakTime = AllStages.reduce(Decimal(0)) { total, stage in
+                    if let benchmark = PeakBenchmarks.get(division: divisionEnum, stageCode: stage.code) {
+                        return total + benchmark.peakTime
+                    }
+                    return total
+                }
+            } else {
+                totalPeakTime = scores.reduce(Decimal(0)) { $0 + $1.peakTime }
+            }
+
+            allDivisions.append((division: division, totalTime: totalTime, totalPeakTime: totalPeakTime, classification: classification, percentage: percentage, highPercentage: highPercentage, classificationDate: classificationDate, stages: stages))
         }
-        .sorted { $0.division < $1.division }
+
+        // Add divisions from profile that don't have classification scores yet but have a classification
+        for divProfile in profile.divisions where divProfile.classification != .U {
+            let divisionCode = divProfile.division.rawValue
+            // Skip if already added from match scores
+            if !allDivisions.contains(where: { $0.division == divisionCode }) {
+                // Calculate peak time for all 8 standard Steel Challenge stages
+                let allEightStagesPeakTime = AllStages.reduce(Decimal(0)) { total, stage in
+                    if let benchmark = PeakBenchmarks.get(division: divProfile.division, stageCode: stage.code) {
+                        return total + benchmark.peakTime
+                    }
+                    return total
+                }
+
+                allDivisions.append((
+                    division: divisionCode,
+                    totalTime: 0,
+                    totalPeakTime: allEightStagesPeakTime,
+                    classification: divProfile.classification.rawValue.uppercased(),
+                    percentage: divProfile.currentPercentage ?? 0,
+                    highPercentage: divProfile.highPercentage,
+                    classificationDate: divProfile.classificationDate,
+                    stages: []
+                ))
+            }
+        }
+
+        return allDivisions.sorted { $0.division < $1.division }
     }
 
     var body: some View {
@@ -535,8 +583,17 @@ private struct DivisionProfileSection: View {
                         }
                     }
 
-                    // Time to shave to reach next class (only if not GM)
-                    if let currentClass = ShooterClass(rawValue: divisionGroup.classification), currentClass != .GM {
+                    // Show message if no recent classification scores
+                    if divisionGroup.totalTime == 0 {
+                        Text("No recent classification scores")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .italic()
+                            .padding(.top, 4)
+                    }
+
+                    // Time to shave to reach next class (only if not GM and has classification scores)
+                    if divisionGroup.totalTime > 0, let currentClass = ShooterClass(rawValue: divisionGroup.classification), currentClass != .GM {
                         let nextThreshold = currentClass.nextClassThreshold
                         let currentTime = NSDecimalNumber(decimal: divisionGroup.totalTime).doubleValue
                         let peakTime = NSDecimalNumber(decimal: divisionGroup.totalPeakTime).doubleValue
@@ -774,13 +831,11 @@ private struct USPSASettingsSheet: View {
     @Environment(\.modelContext) private var context
     @Bindable var profile: ShooterProfile
     @Binding var autoSyncEnabled: Bool
-    @Binding var cloudKitSharingEnabled: Bool
     let previousNumber: String
     let hasExistingData: Bool
     let onSync: () -> Void
     let onDeleteData: () -> Void
     @StateObject private var scraper = SCWebScraper.shared
-    @StateObject private var cloudKitManager = CloudKitManager.shared
     @State private var initialNumber: String = ""
 
     var body: some View {
@@ -819,62 +874,7 @@ private struct USPSASettingsSheet: View {
                     } header: {
                         Text("Sync Settings")
                     } footer: {
-                        Text("Your classification data will sync automatically when you open the app. SCSA updates scores on Wednesdays.")
-                    }
-
-                    Section {
-                        Toggle("Share with GameCenter friends", isOn: $cloudKitSharingEnabled)
-                            .onChange(of: cloudKitSharingEnabled) { _, isEnabled in
-                                Task {
-                                    if isEnabled {
-                                        // Auto-sync to CloudKit when enabled
-                                        if !profile.uspsaNumber.isEmpty {
-                                            do {
-                                                try await cloudKitManager.syncUSPSAProfile(memberNumber: profile.uspsaNumber, context: context)
-                                                print("✅ Auto-synced profile to CloudKit")
-                                            } catch {
-                                                print("⚠️ Failed to auto-sync to CloudKit: \(error.localizedDescription)")
-                                            }
-                                        }
-                                    } else {
-                                        // Auto-delete from CloudKit when disabled
-                                        if !profile.uspsaNumber.isEmpty {
-                                            do {
-                                                try await cloudKitManager.deleteUSPSAProfile(memberNumber: profile.uspsaNumber)
-                                                print("✅ Removed profile from CloudKit")
-                                            } catch {
-                                                print("⚠️ Failed to remove from CloudKit: \(error.localizedDescription)")
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                        if cloudKitSharingEnabled, let lastSync = cloudKitManager.lastSyncDate {
-                            HStack {
-                                Text("Last shared")
-                                Spacer()
-                                Text(lastSync, format: .relative(presentation: .named))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .font(.subheadline)
-                        }
-
-                        if cloudKitManager.isSyncing {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                    .padding(.trailing, 8)
-                                Text(cloudKitSharingEnabled ? "Syncing..." : "Removing...")
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                            }
-                            .font(.subheadline)
-                        }
-                    } header: {
-                        Text("GameCenter Sharing")
-                    } footer: {
-                        Text("Share your official match scores (classification data only) with GameCenter friends. Training runs are never shared.")
+                        Text("Your classification data will sync automatically when you open the app. SCSA updates scores on Wednesdays. Your official match scores are automatically shared with GameCenter friends (training runs are never shared).")
                     }
 
                     Section {
