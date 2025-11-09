@@ -13,14 +13,26 @@ struct StageDetailAnalysisView: View {
     let stageAnalysis: StageAnalysis
     let divisionCode: String
 
-    @Query private var allScores: [SCMatchScore]
+    @Query private var allProfiles: [ShooterProfile]
 
     private var divisionDisplayName: String {
         Division(rawValue: divisionCode)?.displayName ?? divisionCode
     }
 
-    private var stageScores: [SCMatchScore] {
-        allScores.filter {
+    private var currentUserNumber: String? {
+        UserDefaults.standard.currentUserUSPSANumber
+    }
+
+    private var myProfile: ShooterProfile? {
+        guard let currentUser = currentUserNumber else {
+            return allProfiles.first
+        }
+        return allProfiles.first { $0.uspsaNumber == currentUser }
+    }
+
+    private var stageScores: [MatchScore] {
+        guard let profile = myProfile else { return [] }
+        return profile.matchScores.filter {
             $0.divisionCode == divisionCode &&
             $0.stageCode == stageAnalysis.stageCode &&
             NSDecimalNumber(decimal: $0.time).doubleValue <= 30.0
@@ -29,7 +41,7 @@ struct StageDetailAnalysisView: View {
     }
 
     // Scores used for average calculation (same logic as SCPerformanceAnalyzer)
-    private var recentScoresForAverage: [SCMatchScore] {
+    private var recentScoresForAverage: [MatchScore] {
         let lookbackDate = Calendar.current.date(byAdding: .day, value: -AnalysisConstants.recentDaysWindow, to: Date()) ?? Date()
         let recentScores = stageScores.filter { $0.scoreDate >= lookbackDate }
 
@@ -37,7 +49,7 @@ struct StageDetailAnalysisView: View {
     }
 
     // Calculate linear regression trend line
-    private func calculateTrendLine(for scores: [SCMatchScore]) -> [(x: Int, y: Double)] {
+    private func calculateTrendLine(for scores: [MatchScore]) -> [(x: Int, y: Double)] {
         guard scores.count >= 2 else { return [] }
 
         let points = scores.enumerated().map { (x: Double($0.offset + 1), y: NSDecimalNumber(decimal: $0.element.time).doubleValue) }

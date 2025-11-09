@@ -9,12 +9,27 @@ import SwiftUI
 import SwiftData
 
 struct MatchesView: View {
-    @Query(sort: \SCMatchScore.scoreDate, order: .reverse) private var allScores: [SCMatchScore]
     @Query private var profiles: [ShooterProfile]
     @State private var selectedTab = 0
 
+    private var currentUserNumber: String? {
+        UserDefaults.standard.currentUserUSPSANumber
+    }
+
+    private var myProfile: ShooterProfile? {
+        guard let currentUser = currentUserNumber else {
+            return profiles.first
+        }
+        return profiles.first { $0.uspsaNumber == currentUser }
+    }
+
+    private var myScores: [MatchScore] {
+        guard let profile = myProfile else { return [] }
+        return profile.matchScores.sorted { $0.scoreDate > $1.scoreDate }
+    }
+
     private var hasUSPSANumber: Bool {
-        guard let profile = profiles.first else { return false }
+        guard let profile = myProfile else { return false }
         return !profile.uspsaNumber.isEmpty
     }
 
@@ -35,9 +50,9 @@ struct MatchesView: View {
                     .padding(.vertical, 8)
 
                     if selectedTab == 0 {
-                        ClassificationTabView(allScores: allScores, profiles: profiles)
+                        ClassificationTabView(allScores: myScores, profiles: profiles)
                     } else if selectedTab == 1 {
-                        MyScoresTabView(allScores: allScores)
+                        MyScoresTabView(allScores: myScores)
                     } else {
                         PercentageTableTabView(profiles: profiles)
                     }
@@ -143,10 +158,10 @@ private struct InfoBenefitRow: View {
 
 // MARK: - Classification Tab
 private struct ClassificationTabView: View {
-    let allScores: [SCMatchScore]
+    let allScores: [MatchScore]
     let profiles: [ShooterProfile]
 
-    private var classificationScoresByDivision: [(division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [SCMatchScore])])] {
+    private var classificationScoresByDivision: [(division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [MatchScore])])] {
         // ONLY show scores where usedForClassification = true (one score per stage per division)
         let usedScores = allScores.filter { $0.usedForClassification }
         let byDivision = Dictionary(grouping: usedScores) { $0.divisionCode }
@@ -157,7 +172,7 @@ private struct ClassificationTabView: View {
                 let totalTime = scores.reduce(Decimal(0)) { $0 + $1.time }
                 let totalPeakTime = scores.reduce(Decimal(0)) { $0 + $1.peakTime }
                 let byStage = Dictionary(grouping: scores) { $0.stageCode }
-                let stages = byStage.map { (stageCode: $0.key, stageName: $0.value.first?.stageName ?? $0.key, scores: $0.value.sorted { $0.scoreDate > $1.scoreDate }) }
+                let stages = byStage.map { (stageCode: $0.key, stageName: stageName(for: $0.key), scores: $0.value.sorted { $0.scoreDate > $1.scoreDate }) }
                     .sorted { $0.stageCode < $1.stageCode }
                 return (division: division, totalTime: totalTime, totalPeakTime: totalPeakTime, classification: "U", percentage: 0, highPercentage: nil, classificationDate: nil, stages: stages)
             }
@@ -169,7 +184,7 @@ private struct ClassificationTabView: View {
             let totalTime = scores.reduce(Decimal(0)) { $0 + $1.time }
             let totalPeakTime = scores.reduce(Decimal(0)) { $0 + $1.peakTime }
             let byStage = Dictionary(grouping: scores) { $0.stageCode }
-            let stages = byStage.map { (stageCode: $0.key, stageName: $0.value.first?.stageName ?? $0.key, scores: $0.value.sorted { $0.scoreDate > $1.scoreDate }) }
+            let stages = byStage.map { (stageCode: $0.key, stageName: stageName(for: $0.key), scores: $0.value.sorted { $0.scoreDate > $1.scoreDate }) }
                 .sorted { $0.stageCode < $1.stageCode }
 
             // Get classification info from profile
@@ -215,7 +230,7 @@ private struct ClassificationTabView: View {
 
 // MARK: - Division Section
 private struct DivisionSection: View {
-    let divisionGroup: (division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [SCMatchScore])])
+    let divisionGroup: (division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [MatchScore])])
 
     var body: some View {
         Section {
@@ -361,7 +376,7 @@ private struct DivisionSection: View {
                             Text(score.stageCode)
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
-                            Text(score.stageName)
+                            Text(stageName(for: score.stageCode))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -414,7 +429,7 @@ private struct DivisionSection: View {
 
 // MARK: - Match Scores Tab
 private struct MyScoresTabView: View {
-    let allScores: [SCMatchScore]
+    let allScores: [MatchScore]
     @Query private var profiles: [ShooterProfile]
     @State private var selectedDivision: String? = nil
 
@@ -423,7 +438,7 @@ private struct MyScoresTabView: View {
         return uniqueDivisions.sorted()
     }
 
-    private var filteredScores: [SCMatchScore] {
+    private var filteredScores: [MatchScore] {
         if let selected = selectedDivision {
             return allScores.filter { $0.divisionCode == selected }
         }
@@ -431,7 +446,7 @@ private struct MyScoresTabView: View {
     }
 
     // Group scores by date, then by match name
-    private var groupedScores: [(date: Date, matchName: String, divisions: [String], scores: [SCMatchScore])] {
+    private var groupedScores: [(date: Date, matchName: String, divisions: [String], scores: [MatchScore])] {
         // Group by date first
         let calendar = Calendar.current
         let byDate = Dictionary(grouping: filteredScores) { score in
@@ -546,7 +561,7 @@ private struct MyScoresTabView: View {
                                 }
                             }
 
-                            Text(score.stageName)
+                            Text(stageName(for: score.stageCode))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }

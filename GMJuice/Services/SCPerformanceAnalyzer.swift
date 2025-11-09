@@ -113,12 +113,12 @@ class SCPerformanceAnalyzer {
     /// Analyze all available performance data
     func analyzePerformance() throws -> CoachingAnalysis {
         // Fetch all scores for this member and division
-        let descriptor = FetchDescriptor<SCMatchScore>(
-            predicate: #Predicate<SCMatchScore> { score in
-                score.memberNumber == memberNumber &&
+        let descriptor = FetchDescriptor<MatchScore>(
+            predicate: #Predicate<MatchScore> { score in
+                score.profile?.uspsaNumber == memberNumber &&
                 score.divisionCode == divisionCode
             },
-            sortBy: [SortDescriptor(\SCMatchScore.scoreDate)]
+            sortBy: [SortDescriptor(\MatchScore.scoreDate)]
         )
 
         let allScores = try context.fetch(descriptor)
@@ -191,13 +191,13 @@ class SCPerformanceAnalyzer {
 
     // MARK: - Private Analysis Methods
 
-    private func analyzeStage(stageCode: String, scores: [SCMatchScore]) -> StageAnalysis? {
+    private func analyzeStage(stageCode: String, scores: [MatchScore]) -> StageAnalysis? {
         guard !scores.isEmpty else { return nil }
 
         // CRITICAL: Ensure scores are sorted by date (ascending) since Dictionary grouping doesn't preserve order
         let scores = scores.sorted { $0.scoreDate < $1.scoreDate }
 
-        let stageName = scores.first?.stageName ?? stageCode
+        let stageName = stageName(for: stageCode)
 
         // Filter for recent scores: last N days OR minimum M matches (whichever gives more data)
         let lookbackDate = Calendar.current.date(byAdding: .day, value: -AnalysisConstants.recentDaysWindow, to: Date()) ?? Date()
@@ -296,7 +296,7 @@ class SCPerformanceAnalyzer {
         )
     }
 
-    private func calculateStageTrend(scores: [SCMatchScore]) -> Decimal {
+    private func calculateStageTrend(scores: [MatchScore]) -> Decimal {
         guard scores.count >= AnalysisConstants.TrendCalculation.minimumScoresForTrend else { return 0 }
 
         let sortedScores = scores.sorted { $0.scoreDate < $1.scoreDate }
@@ -350,7 +350,7 @@ class SCPerformanceAnalyzer {
         return totalConsistency / Decimal(analyses.count)
     }
 
-    private func calculateRecentTrend(from scores: [SCMatchScore]) -> CoachingAnalysis.TrendDirection {
+    private func calculateRecentTrend(from scores: [MatchScore]) -> CoachingAnalysis.TrendDirection {
         guard scores.count >= AnalysisConstants.TrendCalculation.minimumScoresForDirection else { return .stable }
 
         let sortedScores = scores.sorted { $0.scoreDate < $1.scoreDate }
@@ -382,7 +382,7 @@ class SCPerformanceAnalyzer {
 
     // MARK: - Temporal Analysis Methods
 
-    private func calculateTemporalAnalysis(from scores: [SCMatchScore]) -> TemporalAnalysis {
+    private func calculateTemporalAnalysis(from scores: [MatchScore]) -> TemporalAnalysis {
         guard !scores.isEmpty else {
             return TemporalAnalysis(
                 daysSinceLastMatch: 0,
@@ -412,7 +412,7 @@ class SCPerformanceAnalyzer {
         )
     }
 
-    private func calculateCurrentTime(from scores: [SCMatchScore]) -> (Decimal?, Int) {
+    private func calculateCurrentTime(from scores: [MatchScore]) -> (Decimal?, Int) {
         // Filter for classification scores (should be one per stage)
         let classificationScores = scores.filter { $0.usedForClassification }
 
@@ -426,7 +426,7 @@ class SCPerformanceAnalyzer {
         return (totalTime, classificationScores.count)
     }
 
-    private func calculateImprovedStages(from scores: [SCMatchScore]) -> Int {
+    private func calculateImprovedStages(from scores: [MatchScore]) -> Int {
         // Get scores from last N days that were used for classification
         let lookbackDate = Calendar.current.date(byAdding: .day, value: -AnalysisConstants.TemporalThresholds.improvedStagesLookbackDays, to: Date()) ?? Date()
         let recentClassificationScores = scores.filter {
@@ -457,7 +457,7 @@ class SCPerformanceAnalyzer {
         return improvedStages.count
     }
 
-    private func calculateTrainingFrequency(scores: [SCMatchScore]) -> (TemporalAnalysis.TrainingCadence, Double) {
+    private func calculateTrainingFrequency(scores: [MatchScore]) -> (TemporalAnalysis.TrainingCadence, Double) {
         guard scores.count >= 2 else {
             return (.insufficient, 0)
         }

@@ -37,34 +37,63 @@ struct CoachMarkOverlay: View {
 
     var body: some View {
         ZStack {
-            // Semi-transparent overlay with spotlight cutout
-            SpotlightOverlay(cutoutFrame: currentMark.highlightFrame)
-                .zIndex(1000)
+            // If no valid highlight frame (zero or very small), just show overlay without spotlight
+            let hasValidHighlight = currentMark.highlightFrame.width > 1 && currentMark.highlightFrame.height > 1
+
+            if hasValidHighlight {
+                // Semi-transparent overlay with spotlight cutout
+                SpotlightOverlay(cutoutFrame: currentMark.highlightFrame)
+                    .zIndex(1000)
+            } else {
+                // Just a dimmed background without spotlight
+                Color.black.opacity(0.75)
+                    .ignoresSafeArea(.all)
+                    .zIndex(1000)
+            }
 
             // Callout bubble
             VStack {
-                if currentMark.calloutPosition == .bottom {
+                if hasValidHighlight {
+                    // Position relative to highlighted element
+                    if currentMark.calloutPosition == .bottom {
+                        Spacer()
+                            .frame(height: currentMark.highlightFrame.maxY + 20)
+                    }
+
+                    if currentMark.calloutPosition == .top {
+                        CalloutBubble(
+                            title: currentMark.title,
+                            message: currentMark.message,
+                            currentStep: currentStep + 1,
+                            totalSteps: marks.count,
+                            onNext: nextStep,
+                            onSkip: skip
+                        )
+                        .padding(.horizontal, 20)
+                        .zIndex(1001)
+
+                        Spacer()
+                            .frame(height: UIScreen.main.bounds.height - currentMark.highlightFrame.minY + 20)
+                    }
+
+                    if currentMark.calloutPosition == .bottom {
+                        CalloutBubble(
+                            title: currentMark.title,
+                            message: currentMark.message,
+                            currentStep: currentStep + 1,
+                            totalSteps: marks.count,
+                            onNext: nextStep,
+                            onSkip: skip
+                        )
+                        .padding(.horizontal, 20)
+                        .zIndex(1001)
+
+                        Spacer()
+                    }
+                } else {
+                    // Center the callout when no highlight
                     Spacer()
-                        .frame(height: currentMark.highlightFrame.maxY + 20)
-                }
 
-                if currentMark.calloutPosition == .top {
-                    CalloutBubble(
-                        title: currentMark.title,
-                        message: currentMark.message,
-                        currentStep: currentStep + 1,
-                        totalSteps: marks.count,
-                        onNext: nextStep,
-                        onSkip: skip
-                    )
-                    .padding(.horizontal, 20)
-                    .zIndex(1001)
-
-                    Spacer()
-                        .frame(height: UIScreen.main.bounds.height - currentMark.highlightFrame.minY + 20)
-                }
-
-                if currentMark.calloutPosition == .bottom {
                     CalloutBubble(
                         title: currentMark.title,
                         message: currentMark.message,

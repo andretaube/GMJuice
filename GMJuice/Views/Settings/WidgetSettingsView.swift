@@ -19,9 +19,42 @@ struct WidgetSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Text("Configure which divisions and data to display in your home screen widgets.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Home screen widgets display your classification data at a glance without opening the app.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("To add a widget:")
+                            .font(.callout)
+                            .fontWeight(.semibold)
+
+                        Text("1. Long-press on your home screen")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("2. Tap the \"+\" button in the top corner")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("3. Search for \"GMJuice\"")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("4. Select your preferred widget size")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("5. Tap \"Add Widget\"")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    Text("Configure which divisions and data to display in your widgets below.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("About Widgets")
             }
 
             Section {
@@ -144,7 +177,7 @@ struct WidgetSettingsView: View {
     private func loadAvailableDivisions() {
         do {
             // Fetch divisions that have match data
-            let scoresDescriptor = FetchDescriptor<SCMatchScore>()
+            let scoresDescriptor = FetchDescriptor<MatchScore>()
             let allScores = try modelContext.fetch(scoresDescriptor)
 
             let divisionCodes = Set(allScores.map { $0.divisionCode })

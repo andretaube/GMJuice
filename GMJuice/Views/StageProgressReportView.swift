@@ -12,24 +12,35 @@ import Charts
 struct StageProgressReportView: View {
     let divisionCode: String
 
-    @Query private var allScores: [SCMatchScore]
     @Query private var allProfiles: [ShooterProfile]
 
     private var divisionDisplayName: String {
         Division(rawValue: divisionCode)?.displayName ?? divisionCode
     }
 
+    private var currentUserNumber: String? {
+        UserDefaults.standard.currentUserUSPSANumber
+    }
+
+    private var myProfile: ShooterProfile? {
+        guard let currentUser = currentUserNumber else {
+            return allProfiles.first
+        }
+        return allProfiles.first { $0.uspsaNumber == currentUser }
+    }
+
     private var currentClassification: ShooterClass {
         guard let division = Division(rawValue: divisionCode),
-              let profile = allProfiles.first,
+              let profile = myProfile,
               let divProfile = profile.divisions.first(where: { $0.division == division }) else {
             return .U
         }
         return divProfile.classification
     }
 
-    private var divisionScores: [SCMatchScore] {
-        allScores.filter {
+    private var divisionScores: [MatchScore] {
+        guard let profile = myProfile else { return [] }
+        return profile.matchScores.filter {
             $0.divisionCode == divisionCode &&
             NSDecimalNumber(decimal: $0.time).doubleValue <= 30.0
         }
@@ -38,7 +49,7 @@ struct StageProgressReportView: View {
 
     // Remove high outliers using IQR (Interquartile Range) method
     // Keep low outliers (fast times are achievements!)
-    private func removeOutliers(from scores: [SCMatchScore]) -> [SCMatchScore] {
+    private func removeOutliers(from scores: [MatchScore]) -> [MatchScore] {
         guard scores.count >= 4 else { return scores } // Need at least 4 data points for IQR
 
         let times = scores.map { NSDecimalNumber(decimal: $0.time).doubleValue }.sorted()
@@ -61,14 +72,14 @@ struct StageProgressReportView: View {
         }
     }
 
-    private var stageGroups: [(stageCode: String, stageName: String, scores: [SCMatchScore])] {
+    private var stageGroups: [(stageCode: String, stageName: String, scores: [MatchScore])] {
         let grouped = Dictionary(grouping: divisionScores) { $0.stageCode }
-        return grouped.map { (stageCode: $0.key, stageName: $0.value.first?.stageName ?? $0.key, scores: removeOutliers(from: $0.value.sorted { $0.scoreDate < $1.scoreDate })) }
+        return grouped.map { (stageCode: $0.key, stageName: stageName(for: $0.key), scores: removeOutliers(from: $0.value.sorted { $0.scoreDate < $1.scoreDate })) }
             .sorted { $0.stageCode < $1.stageCode }
     }
 
     // Calculate linear regression trend line
-    private func calculateTrendLine(for scores: [SCMatchScore]) -> [(x: Int, y: Double)] {
+    private func calculateTrendLine(for scores: [MatchScore]) -> [(x: Int, y: Double)] {
         guard scores.count >= 2 else { return [] }
 
         let points = scores.enumerated().map { (x: Double($0.offset + 1), y: NSDecimalNumber(decimal: $0.element.time).doubleValue) }
@@ -300,16 +311,14 @@ struct StageProgressReportView: View {
     let times = [8.5, 8.2, 7.9, 7.6]
 
     for (index, date) in dates.enumerated() {
-        let score = SCMatchScore(
+        let score = MatchScore(
             matchName: "Match \(index + 1)",
             scoreDate: date,
             stageCode: "SC-101",
-            stageName: "5 To Go",
             divisionCode: "RFPO",
             time: Decimal(times[index]),
             peakTime: Decimal(7.10),
-            usedForClassification: true,
-            memberNumber: "L6266"
+            usedForClassification: true
         )
         context.insert(score)
     }

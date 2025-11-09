@@ -9,11 +9,26 @@ import SwiftUI
 import SwiftData
 
 struct CoachingHomeView: View {
-    @Query(sort: \SCMatchScore.scoreDate, order: .reverse) private var allScores: [SCMatchScore]
     @Query private var profiles: [ShooterProfile]
 
+    private var currentUserNumber: String? {
+        UserDefaults.standard.currentUserUSPSANumber
+    }
+
+    private var myProfile: ShooterProfile? {
+        guard let currentUser = currentUserNumber else {
+            return profiles.first
+        }
+        return profiles.first { $0.uspsaNumber == currentUser }
+    }
+
+    private var myScores: [MatchScore] {
+        guard let profile = myProfile else { return [] }
+        return profile.matchScores.sorted { $0.scoreDate > $1.scoreDate }
+    }
+
     private var hasUSPSANumber: Bool {
-        guard let profile = profiles.first else { return false }
+        guard let profile = myProfile else { return false }
         return !profile.uspsaNumber.isEmpty
     }
 
@@ -27,18 +42,13 @@ struct CoachingHomeView: View {
                     ScrollView {
                         VStack(spacing: 24) {
                             // Division Cards
-                            DivisionCoachingListView(allScores: allScores)
+                            DivisionCoachingListView(allScores: myScores)
                         }
                         .padding(.vertical, 32)
                     }
                 }
             }
             .navigationTitle("Analysis")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    UserProfileButton()
-                }
-            }
         }
     }
 }
@@ -140,7 +150,7 @@ private struct CoachingBenefitRow: View {
 // MARK: - Division Coaching List
 
 private struct DivisionCoachingListView: View {
-    let allScores: [SCMatchScore]
+    let allScores: [MatchScore]
 
     private var divisionGroups: [(division: String, matchCount: Int, mostRecentDate: Date)] {
         let grouped = Dictionary(grouping: allScores) { $0.divisionCode }

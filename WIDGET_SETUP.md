@@ -150,7 +150,7 @@ This ensures you see progress across all your divisions throughout the day.
 ## Troubleshooting
 
 ### Widget Shows "No Match Data"
-- Make sure you have SCMatchScore entries with `usedForClassification = true`
+- Make sure you have MatchScore entries with `usedForClassification = true`
 - Check that your ShooterProfile has DivisionProfile entries with non-U classifications
 - Verify App Groups are properly configured in both targets
 

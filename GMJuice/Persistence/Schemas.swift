@@ -1,6 +1,395 @@
 import SwiftData
 import Foundation
 
+// MARK: - V7 (Current - Bug Fix)
+enum Schema007: VersionedSchema {
+    static var versionIdentifier = Schema.Version(0, 0, 8)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            StringShot.self,
+            StringRun.self,
+            DivisionProfile.self,
+            ShooterProfile.self,
+            MatchScore.self
+        ]
+    }
+
+    @Model
+    final class StringShot {
+        var now: Decimal
+        var split: Decimal
+        var first: Decimal
+
+        init(now: Decimal, split: Decimal, first: Decimal) {
+            self.now = now
+            self.split = split
+            self.first = first
+        }
+    }
+
+    @Model
+    final class StringRun {
+        var stageId: String
+        var divisionId: String
+        var date: Date
+        var time: Decimal
+
+        private var missedTargetsData: Data?
+
+        var missedTargets: [Int] {
+            get {
+                guard let data = missedTargetsData else { return [] }
+                return (try? JSONDecoder().decode([Int].self, from: data)) ?? []
+            }
+            set {
+                missedTargetsData = try? JSONEncoder().encode(newValue)
+            }
+        }
+
+        @Relationship(deleteRule: .cascade)
+        var stringShots: [StringShot] = []
+
+        init(stageId: String, divisionId: String) {
+            self.stageId = stageId
+            self.divisionId = divisionId
+            self.date = Date()
+            self.time = 0
+            self.missedTargetsData = nil
+        }
+
+        init(stageId: String, divisionId: String, date: Date, time: Decimal) {
+            self.stageId = stageId
+            self.divisionId = divisionId
+            self.date = date
+            self.time = time
+            self.missedTargetsData = nil
+        }
+    }
+
+    @Model
+    final class DivisionProfile {
+        var division: Division
+        var classification: ShooterClass = ShooterClass.U
+        var isVisible: Bool = true  // Show this division in comparisons and profile
+
+        // Classification percentages from SCSA
+        var currentPercentage: Decimal?
+        var highPercentage: Decimal?
+        var classificationDate: Date?
+
+        init(division: Division, isVisible: Bool = true) {
+            self.division = division
+            self.isVisible = isVisible
+        }
+    }
+
+    @Model
+    final class ShooterProfile {
+        @Attribute(.unique) var uspsaNumber: String = ""
+        var name: String = ""
+        var lastSyncDate: Date?
+
+        @Relationship(deleteRule: .cascade)
+        var divisions: [DivisionProfile] = []
+
+        @Relationship(deleteRule: .cascade, inverse: \MatchScore.profile)
+        var matchScores: [MatchScore] = []
+
+        init(uspsaNumber: String = "", name: String = "", lastSyncDate: Date? = nil) {
+            self.uspsaNumber = uspsaNumber
+            self.name = name
+            self.lastSyncDate = lastSyncDate
+        }
+    }
+
+    // MARK: - Steel Challenge Match Score
+    @Model
+    final class MatchScore {
+        // BUG FIX: Removed @Attribute(.unique) to prevent cross-profile data corruption
+        // Multiple shooters can have same stage/division/date, so ID shouldn't be unique globally
+        var id: String
+        var matchName: String
+        var scoreDate: Date
+        var stageCode: String      // SC-101, SC-102, etc.
+        var divisionCode: String   // RFPO, RFPI, CO, etc.
+        var time: Decimal
+        var peakTime: Decimal
+        var usedForClassification: Bool
+
+        var profile: ShooterProfile?
+
+        init(matchName: String, scoreDate: Date, stageCode: String, divisionCode: String, time: Decimal, peakTime: Decimal, usedForClassification: Bool) {
+            self.id = "\(stageCode)-\(divisionCode)-\(Int(scoreDate.timeIntervalSince1970))"
+            self.matchName = matchName
+            self.scoreDate = scoreDate
+            self.stageCode = stageCode
+            self.divisionCode = divisionCode
+            self.time = time
+            self.peakTime = peakTime
+            self.usedForClassification = usedForClassification
+            self.profile = nil
+        }
+    }
+
+}
+
+// MARK: - V6 (Legacy - with unique constraint bug)
+enum Schema006: VersionedSchema {
+    static var versionIdentifier = Schema.Version(0, 0, 7)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            StringShot.self,
+            StringRun.self,
+            DivisionProfile.self,
+            ShooterProfile.self,
+            MatchScore.self
+        ]
+    }
+
+    @Model
+    final class StringShot {
+        var now: Decimal
+        var split: Decimal
+        var first: Decimal
+
+        init(now: Decimal, split: Decimal, first: Decimal) {
+            self.now = now
+            self.split = split
+            self.first = first
+        }
+    }
+
+    @Model
+    final class StringRun {
+        var stageId: String
+        var divisionId: String
+        var date: Date
+        var time: Decimal
+
+        private var missedTargetsData: Data?
+
+        var missedTargets: [Int] {
+            get {
+                guard let data = missedTargetsData else { return [] }
+                return (try? JSONDecoder().decode([Int].self, from: data)) ?? []
+            }
+            set {
+                missedTargetsData = try? JSONEncoder().encode(newValue)
+            }
+        }
+
+        @Relationship(deleteRule: .cascade)
+        var stringShots: [StringShot] = []
+
+        init(stageId: String, divisionId: String) {
+            self.stageId = stageId
+            self.divisionId = divisionId
+            self.date = Date()
+            self.time = 0
+            self.missedTargetsData = nil
+        }
+
+        init(stageId: String, divisionId: String, date: Date, time: Decimal) {
+            self.stageId = stageId
+            self.divisionId = divisionId
+            self.date = date
+            self.time = time
+            self.missedTargetsData = nil
+        }
+    }
+
+    @Model
+    final class DivisionProfile {
+        var division: Division
+        var classification: ShooterClass = ShooterClass.U
+
+        // Classification percentages from SCSA
+        var currentPercentage: Decimal?
+        var highPercentage: Decimal?
+        var classificationDate: Date?
+
+        init(division: Division) {
+            self.division = division
+        }
+    }
+
+    @Model
+    final class ShooterProfile {
+        var uspsaNumber: String = ""
+        var name: String = ""
+        var lastSyncDate: Date?
+
+        @Relationship(deleteRule: .cascade)
+        var divisions: [DivisionProfile] = []
+
+        @Relationship(deleteRule: .cascade, inverse: \MatchScore.profile)
+        var matchScores: [MatchScore] = []
+
+        init(uspsaNumber: String = "", name: String = "", lastSyncDate: Date? = nil) {
+            self.uspsaNumber = uspsaNumber
+            self.name = name
+            self.lastSyncDate = lastSyncDate
+        }
+    }
+
+    // MARK: - Steel Challenge Match Score
+    @Model
+    final class MatchScore {
+        @Attribute(.unique) var id: String  // BUG: This causes cross-profile corruption!
+        var matchName: String
+        var scoreDate: Date
+        var stageCode: String      // SC-101, SC-102, etc.
+        var divisionCode: String   // RFPO, RFPI, CO, etc.
+        var time: Decimal
+        var peakTime: Decimal
+        var usedForClassification: Bool
+
+        var profile: ShooterProfile?
+
+        init(matchName: String, scoreDate: Date, stageCode: String, divisionCode: String, time: Decimal, peakTime: Decimal, usedForClassification: Bool) {
+            self.id = "\(stageCode)-\(divisionCode)-\(Int(scoreDate.timeIntervalSince1970))"
+            self.matchName = matchName
+            self.scoreDate = scoreDate
+            self.stageCode = stageCode
+            self.divisionCode = divisionCode
+            self.time = time
+            self.peakTime = peakTime
+            self.usedForClassification = usedForClassification
+            self.profile = nil
+        }
+    }
+
+}
+
+// MARK: - V5 (Legacy)
+enum Schema005: VersionedSchema {
+    static var versionIdentifier = Schema.Version(0, 0, 6)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            StringShot.self,
+            StringRun.self,
+            DivisionProfile.self,
+            ShooterProfile.self,
+            MatchScore.self
+        ]
+    }
+
+    @Model
+    final class StringShot {
+        var now: Decimal
+        var split: Decimal
+        var first: Decimal
+
+        init(now: Decimal, split: Decimal, first: Decimal) {
+            self.now = now
+            self.split = split
+            self.first = first
+        }
+    }
+
+    @Model
+    final class StringRun {
+        var stageId: String
+        var divisionId: String
+        var date: Date
+        var time: Decimal
+
+        private var missedTargetsData: Data?
+
+        var missedTargets: [Int] {
+            get {
+                guard let data = missedTargetsData else { return [] }
+                return (try? JSONDecoder().decode([Int].self, from: data)) ?? []
+            }
+            set {
+                missedTargetsData = try? JSONEncoder().encode(newValue)
+            }
+        }
+
+        @Relationship(deleteRule: .cascade)
+        var stringShots: [StringShot] = []
+
+        init(stageId: String, divisionId: String) {
+            self.stageId = stageId
+            self.divisionId = divisionId
+            self.date = Date()
+            self.time = 0
+            self.missedTargetsData = nil
+        }
+
+        init(stageId: String, divisionId: String, date: Date, time: Decimal) {
+            self.stageId = stageId
+            self.divisionId = divisionId
+            self.date = date
+            self.time = time
+            self.missedTargetsData = nil
+        }
+    }
+
+    @Model
+    final class DivisionProfile {
+        var division: Division
+        var classification: ShooterClass = ShooterClass.U
+
+        // Classification percentages from SCSA
+        var currentPercentage: Decimal?
+        var highPercentage: Decimal?
+        var classificationDate: Date?
+
+        init(division: Division) {
+            self.division = division
+        }
+    }
+
+    @Model
+    final class ShooterProfile {
+        var uspsaNumber: String = ""
+        var name: String = ""
+
+        @Relationship(deleteRule: .cascade)
+        var divisions: [DivisionProfile] = []
+
+        @Relationship(deleteRule: .cascade, inverse: \MatchScore.profile)
+        var matchScores: [MatchScore] = []
+
+        init(uspsaNumber: String = "", name: String = "") {
+            self.uspsaNumber = uspsaNumber
+            self.name = name
+        }
+    }
+
+    // MARK: - Steel Challenge Match Score
+    @Model
+    final class MatchScore {
+        @Attribute(.unique) var id: String
+        var matchName: String
+        var scoreDate: Date
+        var stageCode: String      // SC-101, SC-102, etc.
+        var divisionCode: String   // RFPO, RFPI, CO, etc.
+        var time: Decimal
+        var peakTime: Decimal
+        var usedForClassification: Bool
+
+        var profile: ShooterProfile?
+
+        init(matchName: String, scoreDate: Date, stageCode: String, divisionCode: String, time: Decimal, peakTime: Decimal, usedForClassification: Bool) {
+            self.id = "\(stageCode)-\(divisionCode)-\(Int(scoreDate.timeIntervalSince1970))"
+            self.matchName = matchName
+            self.scoreDate = scoreDate
+            self.stageCode = stageCode
+            self.divisionCode = divisionCode
+            self.time = time
+            self.peakTime = peakTime
+            self.usedForClassification = usedForClassification
+            self.profile = nil
+        }
+    }
+
+}
+
 // MARK: - V4 (Current)
 enum Schema004: VersionedSchema {
     static var versionIdentifier = Schema.Version(0, 0, 5)

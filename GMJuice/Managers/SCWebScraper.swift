@@ -343,13 +343,13 @@ class SCWebScraper: ObservableObject {
             }
             var currentElement = try header.nextElementSibling()
             var searchDepth = 0
-            while currentElement != nil && searchDepth < 10 {
-                let tagName = try currentElement?.tagName()
+            while let element = currentElement, searchDepth < 10 {
+                let tagName = element.tagName()
                 if tagName == "table" {
                     print("✅ Found table as sibling #\(searchDepth)")
-                    return currentElement
+                    return element
                 }
-                currentElement = try currentElement?.nextElementSibling()
+                currentElement = try element.nextElementSibling()
                 searchDepth += 1
             }
             print("⚠️ No table found as sibling after \(searchDepth) elements")
@@ -405,19 +405,14 @@ class SCWebScraper: ObservableObject {
                 headerElement: classificationsHeader
             ) {
                 let rows = try table.select(rules.classificationsSection.rowSelector)
-                print("DEBUG: Found \(rows.count) classification rows")
+                print("✅ Found \(rows.count) classification rows")
 
                 for row in rows {
                     let cells = try row.select("td")
                     // Classifications table has 6 columns: Division Name, Division Code, Class, Current%, High%, Date
                     guard cells.count >= 6 else {
-                        print("DEBUG: Skipping row with only \(cells.count) cells")
                         continue
                     }
-
-                    // Debug: Print all cell values
-                    let cellTexts = try cells.map { try $0.text() }
-                    print("DEBUG: Row cells: \(cellTexts)")
 
                     // Extract division code (index 1) - this is the second column (CO, PCCO, PROD, RFRO, etc.)
                     let divisionIndex = rules.classificationsSection.cells.division.index
@@ -463,7 +458,6 @@ class SCWebScraper: ObservableObject {
                     )
 
                     data.classifications.append(classification)
-                    print("DEBUG: Parsed classification - \(divisionCode): \(shooterClass) - Current: \(currentPercent)% - High: \(highPercent ?? 0)%")
                 }
             } else {
                 print("⚠️ Could not find classifications table")
@@ -507,7 +501,7 @@ class SCWebScraper: ObservableObject {
 
         // Find all division headers using rules
         let divisionHeaders = try table.select(rules.divisionHeaders.selector)
-        print("DEBUG: Found \(divisionHeaders.count) division sections")
+        print("✅ Found \(divisionHeaders.count) division sections")
 
         var currentDivision = "Unknown"
 
@@ -520,7 +514,7 @@ class SCWebScraper: ObservableObject {
                 let divisionName = try divHeader.text().trimmingCharacters(in: .whitespacesAndNewlines)
                 currentDivision = divisionName
                 let divisionCode = rules.divisionMapping[divisionName] ?? divisionName
-                print("DEBUG: Found division: '\(divisionName)' → mapped to code: '\(divisionCode)'")
+                print("   ✅ Found division: '\(divisionName)' → '\(divisionCode)'")
                 continue
             }
 
@@ -589,140 +583,279 @@ class SCWebScraper: ObservableObject {
                 )
 
                 data.stageScores.append(stageScore)
-
-                #if DEBUG
-                if currentDivision != divisionCode {
-                    print("DEBUG: Parsed - \(stageCode) (\(currentDivision) → \(divisionCode)) - \(matchName) - \(time)s vs \(peak)s - used: \(usedForClassification)")
-                } else {
-                    print("DEBUG: Parsed - \(stageCode) (\(divisionCode)) - \(matchName) - \(time)s vs \(peak)s - used: \(usedForClassification)")
-                }
-                #endif
             }
         }
 
-        print("DEBUG: Parsed \(data.stageScores.count) total stage scores")
+        print("✅ Parsed \(data.stageScores.count) total stage scores")
 
         return data
     }
 
     private func storeClassificationData(_ data: AllClassificationData, memberNumber: String, context: ModelContext) async throws {
-        // Fetch existing match scores for this member
-        let descriptor = FetchDescriptor<SCMatchScore>(
-            predicate: #Predicate { $0.memberNumber == memberNumber }
-        )
-        let existing = try context.fetch(descriptor)
-        let existingCount = existing.count
-        let newCount = data.stageScores.count
+        print("🔍 ========================================")
+        print("🔍 Syncing data for member: \(memberNumber)")
+        print("🔍 ========================================")
 
-        print("📊 Data comparison: existing=\(existingCount), new=\(newCount)")
-
-        // Safety check: Don't overwrite if we're getting fewer records than we already have
-        // This prevents data loss if the website is having issues or partially loaded
-        if existingCount > 0 && newCount < existingCount {
-            let message = "Sync aborted: Found \(newCount) stage scores but you already have \(existingCount) saved. This could indicate the website didn't fully load. Your existing data has been preserved."
+        // Validate we got meaningful data
+        guard !data.stageScores.isEmpty else {
+            let message = "Sync aborted: No match scores found for \(memberNumber). The website may not have loaded correctly."
             print("⚠️ \(message)")
             throw NSError(domain: "SCWebScraper", code: 100, userInfo: [
-                NSLocalizedDescriptionKey: message,
-                NSLocalizedRecoverySuggestionErrorKey: "Try syncing again in a few moments, or check scsa.org to verify your data is available."
+                NSLocalizedDescriptionKey: message
             ])
         }
 
-        // If we have the same or more records, proceed with update
-        print("✅ Safe to update: new data has \(newCount) records (existing: \(existingCount))")
-
-        // Delete ALL existing match scores to ensure clean data (removes old division codes)
-        print("🗑️ Deleting \(existingCount) existing match scores...")
-        for score in existing {
-            context.delete(score)
+        guard !data.classifications.isEmpty else {
+            let message = "Sync aborted: No classification data found for \(memberNumber). The website may not have loaded correctly."
+            print("⚠️ \(message)")
+            throw NSError(domain: "SCWebScraper", code: 101, userInfo: [
+                NSLocalizedDescriptionKey: message
+            ])
         }
 
-        // Force save deletions before inserting new data
-        try context.save()
-        print("✅ Deleted all existing data")
+        print("✅ Validated scraped data: \(data.stageScores.count) match scores, \(data.classifications.count) classifications")
 
-        // Store new stage scores with corrected division codes
+        // CRITICAL: Verify all existing profiles before making any changes
+        // IMPORTANT: Capture counts as VALUES, not references to live objects
+        let allProfilesDescriptor = FetchDescriptor<ShooterProfile>()
+        let allProfiles = try context.fetch(allProfilesDescriptor)
+
+        // Snapshot the BEFORE state as plain values (not live object references)
+        let beforeState = allProfiles.map { profile in
+            (uspsaNumber: profile.uspsaNumber, scoreCount: profile.matchScores.count, divCount: profile.divisions.count)
+        }
+
+        print("📊 Database state BEFORE sync:")
+        print("   Total profiles in database: \(allProfiles.count)")
+        for state in beforeState {
+            print("   - USPSA# \(state.uspsaNumber): \(state.scoreCount) scores, \(state.divCount) divisions")
+        }
+
+        // Check if profile exists for THIS member number
+        // Note: uspsaNumber has @Attribute(.unique) so there can only be one profile per number
+        var profileDescriptor = FetchDescriptor<ShooterProfile>(
+            predicate: #Predicate { $0.uspsaNumber == memberNumber }
+        )
+
+        // CRITICAL: Disable relationship prefetching to avoid observation issues
+        profileDescriptor.relationshipKeyPathsForPrefetching = []
+
+        let existingProfiles = try context.fetch(profileDescriptor)
+        let profileExists = !existingProfiles.isEmpty
+        let existingCount = existingProfiles.first?.matchScores.count ?? 0
+
+        print("📌 Target profile: \(memberNumber)")
+        if profileExists {
+            print("   Status: EXISTS")
+            print("   Current scores: \(existingCount)")
+        } else {
+            print("   Status: NEW PROFILE")
+        }
+
+        // EXTRACT visibility settings BEFORE any modifications
+        // Do this in a separate query to avoid observation conflicts
+        var divisionVisibilitySettings: [String: Bool] = [:]
+
+        if profileExists {
+            // Re-fetch to get a fresh instance not observed by views
+            let freshProfiles = try context.fetch(profileDescriptor)
+            if let freshProfile = freshProfiles.first {
+                print("💾 Preserving visibility settings for \(freshProfile.divisions.count) divisions...")
+                for divProfile in freshProfile.divisions {
+                    let divCode = divProfile.division.rawValue
+                    let visible = divProfile.isVisible
+                    divisionVisibilitySettings[divCode] = visible
+                }
+                print("💾 Preserved visibility settings for \(divisionVisibilitySettings.count) divisions")
+            }
+        }
+
+        // UPDATE-IN-PLACE APPROACH:
+        // Fetch the profile one more time for modification to ensure we have a fresh instance
+        let modifyProfiles = try context.fetch(profileDescriptor)
+        let profile: ShooterProfile
+
+        if let existingProfile = modifyProfiles.first {
+            print("🔄 Updating existing profile for \(memberNumber)")
+            profile = existingProfile
+
+            // Update profile info
+            profile.name = data.memberName ?? ""
+            profile.lastSyncDate = Date()
+
+            // Delete all existing match scores
+            print("🗑️ Removing \(profile.matchScores.count) old match scores")
+            while !profile.matchScores.isEmpty {
+                let score = profile.matchScores.removeLast()
+                context.delete(score)
+            }
+
+            // Delete all existing divisions
+            print("🗑️ Removing \(profile.divisions.count) old divisions")
+            while !profile.divisions.isEmpty {
+                let divProfile = profile.divisions.removeLast()
+                context.delete(divProfile)
+            }
+
+            // CRITICAL: Save immediately after deletion to commit the changes
+            // This ensures views don't try to access deleted objects
+            print("💾 Saving deletion changes...")
+            try context.save()
+
+            print("✅ Cleared old data from existing profile")
+        } else {
+            // Create fresh profile for new member
+            print("✨ Creating new profile for \(memberNumber)")
+            profile = ShooterProfile(
+                uspsaNumber: memberNumber,
+                name: data.memberName ?? "",
+                lastSyncDate: Date()
+            )
+            context.insert(profile)
+        }
+
+        // Verify the profile was created with correct USPSA number
+        guard profile.uspsaNumber == memberNumber else {
+            print("❌❌❌ CRITICAL ERROR: New profile has wrong USPSA number!")
+            print("   Expected: \(memberNumber)")
+            print("   Got: \(profile.uspsaNumber)")
+            throw NSError(domain: "SCWebScraper", code: 998, userInfo: [
+                NSLocalizedDescriptionKey: "Profile creation error - sync aborted"
+            ])
+        }
+        print("   New profile ID: \(profile.persistentModelID)")
+
+        // Insert all new match scores
         var classificationScoresByDivision: [String: Int] = [:]
-        print("📝 Inserting \(data.stageScores.count) new match scores with corrected division codes...")
+        print("📝 Inserting \(data.stageScores.count) new match scores for \(memberNumber)...")
 
         for stageScore in data.stageScores {
-            let score = SCMatchScore(
+            let score = MatchScore(
                 matchName: stageScore.matchName,
                 scoreDate: stageScore.date ?? Date(),
                 stageCode: stageScore.stage,
-                stageName: stageName(for: stageScore.stage),
                 divisionCode: stageScore.division,
                 time: Decimal(stageScore.time),
                 peakTime: Decimal(stageScore.peakTime),
-                usedForClassification: stageScore.usedForClassification,
-                memberNumber: memberNumber
+                usedForClassification: stageScore.usedForClassification
             )
+            score.profile = profile
             context.insert(score)
+
+            // Verify the score is linked to the correct profile
+            guard score.profile?.uspsaNumber == memberNumber else {
+                print("❌❌❌ CRITICAL ERROR: Score linked to wrong profile!")
+                print("   Expected: \(memberNumber)")
+                print("   Got: \(score.profile?.uspsaNumber ?? "nil")")
+                throw NSError(domain: "SCWebScraper", code: 997, userInfo: [
+                    NSLocalizedDescriptionKey: "Score linkage error - sync aborted"
+                ])
+            }
 
             if stageScore.usedForClassification {
                 classificationScoresByDivision[stageScore.division, default: 0] += 1
             }
         }
-        print("✅ Inserted \(data.stageScores.count) match scores")
 
-        // Update shooter profile with classification info
-        let profileDescriptor = FetchDescriptor<ShooterProfile>()
-        let profiles = try context.fetch(profileDescriptor)
+        print("✅ All \(data.stageScores.count) scores verified to belong to \(memberNumber)")
 
-        let profile: ShooterProfile
-        if let existingProfile = profiles.first {
-            profile = existingProfile
-        } else {
-            profile = ShooterProfile(uspsaNumber: memberNumber)
-            context.insert(profile)
-        }
+        // Create division profiles from Classifications data
+        print("📊 Creating division profiles from \(data.classifications.count) classifications...")
 
-        // Update division profiles using Classifications data from the page
         for classification in data.classifications {
-            print("📊 Processing classification: \(classification.division) - \(classification.shooterClass) - \(classification.currentPercent)%")
-
             guard let division = Division(rawValue: classification.division) else {
                 print("⚠️ Could not find Division enum for code: '\(classification.division)'")
-                print("   Available division codes in enum: \(Division.allCases.map { $0.rawValue }.joined(separator: ", "))")
-                print("   Skipping this classification")
+                print("   Available division codes: \(Division.allCases.map { $0.rawValue }.joined(separator: ", "))")
                 continue
             }
 
-            let divProfile: DivisionProfile
-            if let existing = profile.divisions.first(where: { $0.division == division }) {
-                divProfile = existing
-                print("✅ Found existing division profile for \(classification.division)")
-            } else {
-                divProfile = DivisionProfile(division: division)
-                profile.divisions.append(divProfile)
-                print("✅ Created new division profile for \(classification.division)")
-            }
+            // Restore the isVisible setting if it was previously saved, otherwise default to true
+            let isVisible = divisionVisibilitySettings[classification.division] ?? true
 
-            // Set current percentage from Classifications section
+            let divProfile = DivisionProfile(division: division, isVisible: isVisible)
             divProfile.currentPercentage = Decimal(classification.currentPercent)
-            print("✅ Set currentPercentage to \(classification.currentPercent)")
-
-            // Determine classification from percentage
-            let shooterClass = ShooterClass.shooterClass(percentage: Decimal(classification.currentPercent))
-            divProfile.classification = shooterClass
-
-            // Set classification date
+            divProfile.classification = ShooterClass.shooterClass(percentage: Decimal(classification.currentPercent))
             divProfile.classificationDate = classification.date
 
-            // Set high percentage from SCSA data
             if let highPct = classification.highPercent {
                 divProfile.highPercentage = Decimal(highPct)
             }
 
-            print("📊 Updated \(classification.division): \(shooterClass.rawValue) - Current: \(String(format: "%.2f", classification.currentPercent))% - High: \(classification.highPercent.map { String(format: "%.2f", $0) } ?? "N/A")%")
+            profile.divisions.append(divProfile)
+
+            let visibilityIndicator = isVisible ? "👁️" : "🚫"
+            print("   ✅ \(classification.division): \(divProfile.classification.rawValue) - Current: \(String(format: "%.2f", classification.currentPercent))% - High: \(classification.highPercent.map { String(format: "%.2f", $0) } ?? "N/A")% \(visibilityIndicator)")
         }
 
+        // Save everything in one transaction
+        print("💾 Saving all changes...")
         try context.save()
+        print("✅ Save successful")
 
-        // Summary of what was stored
+        // CRITICAL: Verify final database state
+        let finalProfiles = try context.fetch(allProfilesDescriptor)
+        print("📊 ========================================")
+        print("📊 FINAL Database state AFTER sync:")
+        print("📊 ========================================")
+        print("   Total profiles in database: \(finalProfiles.count)")
+        for p in finalProfiles {
+            let scoreCount = p.matchScores.count
+            let divCount = p.divisions.count
+            print("   - USPSA# \(p.uspsaNumber): \(scoreCount) scores, \(divCount) divisions")
+
+            // Extra verification for the profile we just synced
+            if p.uspsaNumber == memberNumber {
+                print("     ✓ This is the profile we just synced")
+                if scoreCount != data.stageScores.count {
+                    print("     ⚠️⚠️⚠️ WARNING: Score count mismatch!")
+                    print("        Expected: \(data.stageScores.count)")
+                    print("        Got: \(scoreCount)")
+                }
+                if divCount != data.classifications.count {
+                    print("     ⚠️⚠️⚠️ WARNING: Division count mismatch!")
+                    print("        Expected: \(data.classifications.count)")
+                    print("        Got: \(divCount)")
+                }
+            }
+        }
+
+        // Verify NO other profiles were affected
+        let otherProfiles = finalProfiles.filter { $0.uspsaNumber != memberNumber }
+        if !otherProfiles.isEmpty {
+            print("📌 Verifying other profiles were NOT affected:")
+            for p in otherProfiles {
+                // Compare with pre-sync SNAPSHOT (not live object reference)
+                if let beforeSnapshot = beforeState.first(where: { $0.uspsaNumber == p.uspsaNumber }) {
+                    let currentScoreCount = p.matchScores.count
+                    let currentDivCount = p.divisions.count
+                    let scoreDiff = currentScoreCount - beforeSnapshot.scoreCount
+                    let divDiff = currentDivCount - beforeSnapshot.divCount
+
+                    if scoreDiff != 0 || divDiff != 0 {
+                        print("   🚨🚨🚨 CRITICAL BUG DETECTED! Profile \(p.uspsaNumber) WAS AFFECTED!")
+                        print("      Score change: \(beforeSnapshot.scoreCount) → \(currentScoreCount) (diff: \(scoreDiff))")
+                        print("      Division change: \(beforeSnapshot.divCount) → \(currentDivCount) (diff: \(divDiff))")
+                        print("      THIS IS THE BUG - OTHER PROFILE DATA CHANGED DURING SYNC!")
+
+                        // Abort the sync to prevent data corruption
+                        throw NSError(domain: "SCWebScraper", code: 996, userInfo: [
+                            NSLocalizedDescriptionKey: "Cross-profile data corruption detected! Profile \(p.uspsaNumber) lost \(abs(scoreDiff)) scores. Sync aborted."
+                        ])
+                    } else {
+                        print("   ✅ Profile \(p.uspsaNumber) unchanged: \(currentScoreCount) scores, \(currentDivCount) divisions")
+                    }
+                }
+            }
+        }
+
+        print("🔍 ========================================")
+        print("🔍 Sync complete for: \(memberNumber)")
+        print("🔍 ========================================")
+
         let divisionBreakdown = Dictionary(grouping: data.stageScores) { $0.division }
             .mapValues { $0.count }
             .sorted { $0.key < $1.key }
-        print("✅ Stored \(data.stageScores.count) stage scores across divisions:")
+
         for (division, count) in divisionBreakdown {
             let classCount = classificationScoresByDivision[division] ?? 0
             print("   - \(division): \(count) total scores (\(classCount) used for classification)")

@@ -10,27 +10,82 @@ import SwiftData
 
 struct ProfileView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: \SCMatchScore.scoreDate, order: .reverse) private var allScores: [SCMatchScore]
+    @Environment(\.dismiss) private var dismiss
     @Query private var profiles: [ShooterProfile]
-    @State private var selectedTab = 0
     @StateObject private var scraper = SCWebScraper.shared
-    @EnvironmentObject var cloudKitManager: CloudKitManager
+
+    // Optional USPSA number - if provided, show that profile; otherwise show current user
+    let uspsaNumber: String?
+
+    @State private var selectedTab = 0
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var showingUSPSASettings = false
-    @AppStorage("scsa_auto_sync_enabled") private var autoSyncEnabled = true
     @State private var showingCoachMarks = false
+    @State private var showingCompare = false
+    @State private var showingDeleteConfirmation = false
     @State private var trackedFrames: [String: CGRect] = [:]
     @AppStorage("hasSeenProfileCoachMarks") private var hasSeenCoachMarks = false
     @State private var previousUSPSANumber: String = ""
 
+    init(uspsaNumber: String? = nil) {
+        self.uspsaNumber = uspsaNumber
+    }
+
+    private var currentUserNumber: String? {
+        UserDefaults.standard.currentUserUSPSANumber
+    }
+
+    // Check if viewing current user's profile or a followed shooter
+    private var isCurrentUser: Bool {
+        if let uspsaNumber = uspsaNumber {
+            return uspsaNumber == currentUserNumber
+        }
+        return true // Default to current user if no USPSA number specified
+    }
+
+    // Get the profile to display (either specified USPSA number or current user)
+    private var myProfile: ShooterProfile? {
+        if let uspsaNumber = uspsaNumber {
+            // Show specific profile by USPSA number
+            return profiles.first { $0.uspsaNumber == uspsaNumber }
+        } else {
+            // Show current user's profile
+            guard let currentUser = currentUserNumber else {
+                // No current user set - use first profile for backward compatibility
+                return profiles.first
+            }
+            return profiles.first { $0.uspsaNumber == currentUser }
+        }
+    }
+
+    // Get current user's profile for comparison (when viewing a followed shooter)
+    private var currentUserProfile: ShooterProfile? {
+        guard let currentUser = currentUserNumber else { return nil }
+        return profiles.first { $0.uspsaNumber == currentUser }
+    }
+
+    // Get current user's scores from their profile relationship - with error recovery
+    private var myScores: [MatchScore] {
+        guard let profile = myProfile else { return [] }
+
+        // Safely access match scores with error recovery
+        return ProfileErrorRecovery.safelyAccessProfile(
+            context: context,
+            profileNumber: profile.uspsaNumber,
+            autoRecover: true
+        ) {
+            profile.matchScores.sorted { $0.scoreDate > $1.scoreDate }
+        } ?? []
+    }
+
     private var hasUSPSANumber: Bool {
-        guard let profile = profiles.first else { return false }
+        guard let profile = myProfile else { return false }
         return !profile.uspsaNumber.isEmpty
     }
 
     private var hasExistingData: Bool {
-        return !allScores.isEmpty || profiles.first?.divisions.isEmpty == false
+        return !myScores.isEmpty || myProfile?.divisions.isEmpty == false
     }
 
     // Create coach marks from tracked frames
@@ -39,22 +94,30 @@ struct ProfileView: View {
         guard hasUSPSANumber else { return nil }
 
         guard let uspsaNumberFrame = trackedFrames["uspsaNumber"],
-              let matchScoresTabFrame = trackedFrames["matchScoresTab"],
+              let tabPickerFrame = trackedFrames["tabPicker"],
               let firstDivisionFrame = trackedFrames["firstDivision"] else {
             return nil
         }
 
         var marks: [CoachMark] = []
 
-        // 1. USPSA Number
+        // 1. Tab Navigation
+        marks.append(CoachMark(
+            title: "Navigation Tabs",
+            message: "Switch between Profile, Match Scores, and Following tabs to view different aspects of your shooting data.",
+            highlightFrame: tabPickerFrame,
+            calloutPosition: .bottom
+        ))
+
+        // 2. USPSA Number
         marks.append(CoachMark(
             title: "Edit USPSA Number",
-            message: "Tap here to edit your USPSA member number or adjust auto-sync settings for your classification data.",
+            message: "Tap here to edit your USPSA member number and view sync status for your classification data.",
             highlightFrame: uspsaNumberFrame,
             calloutPosition: .bottom
         ))
 
-        // 2. Division Section
+        // 3. Division Section
         marks.append(CoachMark(
             title: "Division Summary",
             message: "Each division shows your classification level, current percentage, total time, and peak time. The chevron indicates you can tap to expand and view individual stage scores.",
@@ -62,7 +125,7 @@ struct ProfileView: View {
             calloutPosition: .top
         ))
 
-        // 3. Expand for stages (only if we have the chevron frame)
+        // 4. Expand for stages (only if we have the chevron frame)
         if let chevronFrame = trackedFrames["divisionChevron"] {
             marks.append(CoachMark(
                 title: "Expand Division",
@@ -72,21 +135,40 @@ struct ProfileView: View {
             ))
         }
 
-        // 4. Match Scores Tab
-        marks.append(CoachMark(
-            title: "View All Match Scores",
-            message: "Switch to this tab to view all your match scores from every competition, not just the ones used for classification.",
-            highlightFrame: matchScoresTabFrame,
-            calloutPosition: .bottom
-        ))
+        // 5. Match Scores Division Filter (only if we have the frame from Match Scores tab)
+        if let divisionFilterFrame = trackedFrames["divisionFilter"] {
+            marks.append(CoachMark(
+                title: "Filter by Division",
+                message: "Use these pills to filter your match scores by division. Tap 'All' to see scores from all divisions, or select a specific division to view only those scores.",
+                highlightFrame: divisionFilterFrame,
+                calloutPosition: .bottom
+            ))
+        }
+
+        // 6. Following Tab (only if current user and has followed shooters)
+        if isCurrentUser,
+           let followingTabFrame = trackedFrames["followingTab"],
+           let currentUser = currentUserNumber {
+            let followedCount = profiles.filter { $0.uspsaNumber != currentUser && !$0.uspsaNumber.isEmpty }.count
+            if followedCount > 0 {
+                marks.append(CoachMark(
+                    title: "Compare with Others",
+                    message: "View shooters you're following and compare your performance against them to track your progress.",
+                    highlightFrame: followingTabFrame,
+                    calloutPosition: .bottom
+                ))
+            }
+        }
 
         return marks
     }
 
     private func ensureProfile() -> ShooterProfile {
-        if let first = profiles.first {
-            return first
+        // Use myProfile which handles current user logic
+        if let profile = myProfile {
+            return profile
         }
+        // No profile exists yet - create one
         let created = ShooterProfile()
         context.insert(created)
         do { try context.save() } catch { print("Initial save failed: \(error)") }
@@ -96,7 +178,7 @@ struct ProfileView: View {
     private func deleteUSPSAData() {
         // Delete all match scores (USPSA-related data)
         do {
-            try context.delete(model: SCMatchScore.self)
+            try context.delete(model: MatchScore.self)
 
             // Clear division profiles but keep the profile
             if let profile = profiles.first {
@@ -125,15 +207,6 @@ struct ProfileView: View {
             await MainActor.run {
                 previousUSPSANumber = profile.uspsaNumber
             }
-
-            // Always sync to CloudKit for GameCenter friends (SCSA scores are public data)
-            do {
-                try await cloudKitManager.syncUSPSAProfile(memberNumber: profile.uspsaNumber, context: context)
-                print("✅ Synced profile to CloudKit for GameCenter sharing")
-            } catch {
-                print("⚠️ CloudKit sync failed: \(error.localizedDescription)")
-                // Don't show error to user - CloudKit sync is optional
-            }
         } catch let error as NSError where error.code == 404 {
             await MainActor.run {
                 errorMessage = "Unable to find USPSA member number. Please check the number and try again."
@@ -142,6 +215,7 @@ struct ProfileView: View {
                 // If there was no data before, clear the USPSA number
                 if !hadDataBefore {
                     profile.uspsaNumber = ""
+                    UserDefaults.standard.currentUserUSPSANumber = nil
                     try? context.save()
                 }
             }
@@ -153,6 +227,7 @@ struct ProfileView: View {
                 // If there was no data before, clear the USPSA number
                 if !hadDataBefore {
                     profile.uspsaNumber = ""
+                    UserDefaults.standard.currentUserUSPSANumber = nil
                     try? context.save()
                 }
             }
@@ -164,6 +239,7 @@ struct ProfileView: View {
                 // If there was no data before, clear the USPSA number
                 if !hadDataBefore {
                     profile.uspsaNumber = ""
+                    UserDefaults.standard.currentUserUSPSANumber = nil
                     try? context.save()
                 }
             }
@@ -177,34 +253,48 @@ struct ProfileView: View {
         ZStack {
             NavigationStack {
                 VStack(spacing: 0) {
-                    // Tab picker
-                    Picker("View", selection: $selectedTab) {
-                        Text("Profile").tag(0)
-                        Text("Match Scores").tag(1)
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .background(
-                        GeometryReader { geometry in
-                            Color.clear.preference(
-                                key: FramePreferenceKey.self,
-                                value: ["matchScoresTab": geometry.frame(in: .global).offsetBy(dx: geometry.size.width / 2, dy: 0)]
-                            )
+                    // Tab picker - hide "Following" tab when viewing someone else's profile
+                    if isCurrentUser {
+                        Picker("View", selection: $selectedTab) {
+                            Text("Profile").tag(0)
+                            Text("Match Scores").tag(1)
+                                .trackFrame(named: "matchScoresTab")
+                            Text("Following").tag(2)
+                                .trackFrame(named: "followingTab")
                         }
-                    )
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .trackFrame(named: "tabPicker")
+                    } else {
+                        Picker("View", selection: $selectedTab) {
+                            Text("Profile").tag(0)
+                            Text("Match Scores").tag(1)
+                                .trackFrame(named: "matchScoresTab")
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .trackFrame(named: "tabPicker")
+                    }
 
                     if selectedTab == 0 {
                         ProfileStatsView(
-                            allScores: allScores,
-                            profiles: profiles,
+                            allScores: myScores,
                             profile: profile,
+                            isCurrentUser: isCurrentUser,
+                            currentUserProfile: currentUserProfile,
                             onShowSettings: {
                                 showingUSPSASettings = true
+                            },
+                            onCompare: {
+                                showingCompare = true
                             }
                         )
+                    } else if selectedTab == 1 {
+                        MyScoresTabView(allScores: myScores, trackedFrames: $trackedFrames)
                     } else {
-                        MyScoresTabView(allScores: allScores)
+                        FollowingView()
                     }
                 }
                 .onAppear {
@@ -213,53 +303,55 @@ struct ProfileView: View {
                         previousUSPSANumber = profile.uspsaNumber
                     }
                 }
-                .navigationTitle("Profile")
+                .navigationTitle(isCurrentUser ? "Profile" : (myProfile?.name.isEmpty == false ? myProfile!.name : "USPSA# \(uspsaNumber ?? "")"))
+                .navigationBarTitleDisplayMode(isCurrentUser ? .automatic : .inline)
                 .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        UserProfileButton()
-                    }
-
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            if createCoachMarks() != nil {
+                    if isCurrentUser && hasUSPSANumber && createCoachMarks() != nil {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button {
                                 showingCoachMarks = true
+                            } label: {
+                                Image(systemName: "info.circle")
                             }
-                        } label: {
-                            Image(systemName: "info.circle")
                         }
                     }
                 }
                 .onPreferenceChange(FramePreferenceKey.self) { frames in
                     trackedFrames = frames
-
-                    // Show coach marks on first visit once frames are available and user has USPSA number
-                    if !hasSeenCoachMarks && !showingCoachMarks && !frames.isEmpty && hasUSPSANumber {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            showingCoachMarks = true
-                            hasSeenCoachMarks = true
-                        }
-                    }
                 }
                 .sheet(isPresented: $showingUSPSASettings) {
-                    USPSASettingsSheet(
-                        profile: profile,
-                        autoSyncEnabled: $autoSyncEnabled,
-                        previousNumber: previousUSPSANumber,
-                        hasExistingData: hasExistingData,
-                        onSync: {
-                            Task {
-                                await syncClassificationData(profile: profile)
+                    if let profile = myProfile {
+                        USPSANumberSheet(
+                            profile: profile,
+                            isEditable: isCurrentUser,
+                            onUnfollow: isCurrentUser ? nil : {
+                                showingDeleteConfirmation = true
                             }
-                        },
-                        onDeleteData: {
-                            deleteUSPSAData()
-                        }
-                    )
+                        )
+                    }
+                }
+                .sheet(isPresented: $showingCompare) {
+                    if let currentUser = currentUserProfile, let theirProfile = myProfile {
+                        CompareProfilesView(
+                            myProfile: currentUser,
+                            theirProfile: theirProfile
+                        )
+                    }
                 }
                 .alert("Sync Error", isPresented: $showingError) {
                     Button("OK", role: .cancel) {}
                 } message: {
                     Text(errorMessage)
+                }
+                .alert("Unfollow Shooter", isPresented: $showingDeleteConfirmation) {
+                    Button("Cancel", role: .cancel) { }
+                    Button("Unfollow", role: .destructive) {
+                        deleteProfile()
+                    }
+                } message: {
+                    if let profile = myProfile {
+                        Text("Are you sure you want to unfollow \(profile.name.isEmpty ? "USPSA# \(profile.uspsaNumber)" : profile.name)? This will delete their profile and all saved data.")
+                    }
                 }
             }
 
@@ -269,15 +361,34 @@ struct ProfileView: View {
             }
         }
     }
+
+    private func deleteProfile() {
+        guard let profile = myProfile else { return }
+
+        // Delete the profile (cascade delete will handle match scores and divisions)
+        context.delete(profile)
+
+        do {
+            try context.save()
+            print("✅ Successfully deleted followed profile: \(profile.uspsaNumber)")
+            dismiss()
+        } catch {
+            print("❌ Error deleting profile: \(error)")
+            errorMessage = "Failed to delete profile: \(error.localizedDescription)"
+            showingError = true
+        }
+    }
 }
 
 // MARK: - Profile Stats View
 
 private struct ProfileStatsView: View {
-    let allScores: [SCMatchScore]
-    let profiles: [ShooterProfile]
+    let allScores: [MatchScore]
     @Bindable var profile: ShooterProfile
+    let isCurrentUser: Bool
+    let currentUserProfile: ShooterProfile?
     let onShowSettings: () -> Void
+    let onCompare: () -> Void
 
     private func calculateTotalPeakTime(for division: Division) -> Decimal {
         var total = Decimal(0)
@@ -289,36 +400,27 @@ private struct ProfileStatsView: View {
         return total
     }
 
-    private var classificationScoresByDivision: [(division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [SCMatchScore])])] {
+    private var classificationScoresByDivision: [(division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [MatchScore])])] {
         // ONLY show scores where usedForClassification = true (one score per stage per division)
         let usedScores = allScores.filter { $0.usedForClassification }
         let byDivision = Dictionary(grouping: usedScores) { $0.divisionCode }
 
-        guard let profile = profiles.first else {
-            return byDivision.map { division, scores in
-                // Total time = sum of ONLY scores used for classification
-                let totalTime = scores.reduce(Decimal(0)) { $0 + $1.time }
-                let totalPeakTime = scores.reduce(Decimal(0)) { $0 + $1.peakTime }
-                let byStage = Dictionary(grouping: scores) { $0.stageCode }
-                let stages = byStage.map { (stageCode: $0.key, stageName: $0.value.first?.stageName ?? $0.key, scores: $0.value.sorted { $0.scoreDate > $1.scoreDate }) }
-                    .sorted { $0.stageCode < $1.stageCode }
-                return (division: division, totalTime: totalTime, totalPeakTime: totalPeakTime, classification: "U", percentage: 0, highPercentage: nil, classificationDate: nil, stages: stages)
-            }
-            .sorted { $0.division < $1.division }
-        }
-
         // Start with all divisions that have a classification in the profile
-        var allDivisions: [(division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [SCMatchScore])])] = []
+        var allDivisions: [(division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [MatchScore])])] = []
 
         // Add divisions that have classification scores
         for (division, scores) in byDivision {
-            let totalTime = scores.reduce(Decimal(0)) { $0 + $1.time }
-            let byStage = Dictionary(grouping: scores) { $0.stageCode }
-            let stages = byStage.map { (stageCode: $0.key, stageName: $0.value.first?.stageName ?? $0.key, scores: $0.value.sorted { $0.scoreDate > $1.scoreDate }) }
-                .sorted { $0.stageCode < $1.stageCode }
-
             // Get classification info from profile
             let divProfile = profile.divisions.first { $0.division.rawValue == division }
+
+            // Skip if division is not visible
+            guard divProfile?.isVisible ?? true else { continue }
+
+            let totalTime = scores.reduce(Decimal(0)) { $0 + $1.time }
+            let byStage = Dictionary(grouping: scores) { $0.stageCode }
+            let stages = byStage.map { (stageCode: $0.key, stageName: stageName(for: $0.key), scores: $0.value.sorted { $0.scoreDate > $1.scoreDate }) }
+                .sorted { $0.stageCode < $1.stageCode }
+
             let classification = divProfile?.classification.rawValue.uppercased() ?? "U"
             let percentage = divProfile?.currentPercentage ?? 0
             let highPercentage = divProfile?.highPercentage
@@ -341,7 +443,7 @@ private struct ProfileStatsView: View {
         }
 
         // Add divisions from profile that don't have classification scores yet but have a classification
-        for divProfile in profile.divisions where divProfile.classification != .U {
+        for divProfile in profile.divisions where divProfile.classification != .U && divProfile.isVisible {
             let divisionCode = divProfile.division.rawValue
             // Skip if already added from match scores
             if !allDivisions.contains(where: { $0.division == divisionCode }) {
@@ -468,13 +570,23 @@ private struct ProfileStatsView: View {
                                 .foregroundStyle(.blue)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("USPSA Member")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(profile.uspsaNumber)
-                                    .font(.title3)
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(.primary)
+                                if !profile.name.isEmpty {
+                                    Text(profile.name)
+                                        .font(.title3)
+                                        .fontWeight(.bold)
+                                        .foregroundStyle(.primary)
+                                    Text("USPSA# \(profile.uspsaNumber)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                } else {
+                                    Text("USPSA Member")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text(profile.uspsaNumber)
+                                        .font(.title3)
+                                        .fontWeight(.bold)
+                                        .foregroundStyle(.primary)
+                                }
                             }
 
                             Spacer()
@@ -485,8 +597,27 @@ private struct ProfileStatsView: View {
                         }
                         .padding(.vertical, 8)
                     }
-                    .trackFrame(named: "uspsaNumber")
+
+                    // Compare button - only show when viewing someone else's profile
+                    if !isCurrentUser {
+                        Button {
+                            onCompare()
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.left.arrow.right")
+                                    .foregroundStyle(.purple)
+                                Text("Compare Performances")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .disabled(currentUserProfile == nil)
+                    }
                 }
+                .trackFrame(named: "uspsaNumber")
 
                 // Division sections
                 ForEach(Array(classificationScoresByDivision.enumerated()), id: \.element.division) { index, divisionGroup in
@@ -504,8 +635,8 @@ private struct ProfileStatsView: View {
 // MARK: - Division Section
 
 private struct DivisionProfileSection: View {
-    let divisionGroup: (division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [SCMatchScore])])
-    let allScores: [SCMatchScore]
+    let divisionGroup: (division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [MatchScore])])
+    let allScores: [MatchScore]
     var isFirst: Bool = false
 
     @State private var isExpanded = false
@@ -652,7 +783,7 @@ private struct DivisionProfileSection: View {
 // MARK: - Stage Score Row
 
 private struct StageScoreRow: View {
-    let score: SCMatchScore
+    let score: MatchScore
 
     var body: some View {
         let percentage = score.peakTime > 0 ? (score.peakTime / score.time) * 100 : 0
@@ -687,7 +818,7 @@ private struct StageScoreRow: View {
                 Text(score.stageCode)
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                Text(score.stageName)
+                Text(stageName(for: score.stageCode))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -739,9 +870,9 @@ private struct StageScoreRow: View {
 private struct StageDetailAnalysisViewWrapper: View {
     let divisionCode: String
     let stageCode: String
-    let allScores: [SCMatchScore]
+    let allScores: [MatchScore]
 
-    @Query private var allMatchScores: [SCMatchScore]
+    @Query private var allMatchScores: [MatchScore]
 
     // Create a fake StageAnalysis from the score data
     private var stageAnalysis: StageAnalysis? {
@@ -791,7 +922,7 @@ private struct StageDetailAnalysisViewWrapper: View {
 
         return StageAnalysis(
             stageCode: stageCode,
-            stageName: divisionScores.first?.stageName ?? stageCode,
+            stageName: stageName(for: stageCode),
             matchCount: divisionScores.count,
             averageTime: averageTime,
             bestTime: bestTime,
@@ -874,7 +1005,7 @@ private struct USPSASettingsSheet: View {
                     } header: {
                         Text("Sync Settings")
                     } footer: {
-                        Text("Your classification data will sync automatically when you open the app. SCSA updates scores on Wednesdays. Your official match scores are automatically shared with GameCenter friends (training runs are never shared).")
+                        Text("Your classification data will sync automatically when you open the app. SCSA updates scores on Wednesdays.")
                     }
 
                     Section {
@@ -910,9 +1041,12 @@ private struct USPSASettingsSheet: View {
                                 onDeleteData()
                             }
 
-                            // Save the new number
+                            // Save the new number to profile
                             profile.uspsaNumber = newNumber
                             try? context.save()
+
+                            // Also save to UserDefaults to mark this as "my" profile
+                            UserDefaults.standard.currentUserUSPSANumber = newNumber
 
                             dismiss()
 
@@ -926,6 +1060,10 @@ private struct USPSASettingsSheet: View {
                             // Number was cleared - just save and dismiss
                             profile.uspsaNumber = ""
                             try? context.save()
+
+                            // Also clear from UserDefaults
+                            UserDefaults.standard.currentUserUSPSANumber = nil
+
                             dismiss()
                         } else {
                             // No change or invalid change - dismiss without sync
@@ -965,7 +1103,8 @@ private struct ProfileBenefitRow: View {
 // MARK: - Match Scores Tab (reused from MatchesView)
 
 private struct MyScoresTabView: View {
-    let allScores: [SCMatchScore]
+    let allScores: [MatchScore]
+    @Binding var trackedFrames: [String: CGRect]
     @Query private var profiles: [ShooterProfile]
     @State private var selectedDivision: String? = nil
 
@@ -974,7 +1113,7 @@ private struct MyScoresTabView: View {
         return uniqueDivisions.sorted()
     }
 
-    private var filteredScores: [SCMatchScore] {
+    private var filteredScores: [MatchScore] {
         if let selected = selectedDivision {
             return allScores.filter { $0.divisionCode == selected }
         }
@@ -982,7 +1121,7 @@ private struct MyScoresTabView: View {
     }
 
     // Group scores by date, then by match name
-    private var groupedScores: [(date: Date, matchName: String, divisions: [String], scores: [SCMatchScore])] {
+    private var groupedScores: [(date: Date, matchName: String, divisions: [String], scores: [MatchScore])] {
         // Group by date first
         let calendar = Calendar.current
         let byDate = Dictionary(grouping: filteredScores) { score in
@@ -1056,6 +1195,10 @@ private struct MyScoresTabView: View {
                     .padding(.vertical, 12)
                 }
                 .background(Color(.systemBackground))
+                .trackFrame(named: "divisionFilter")
+                .onPreferenceChange(FramePreferenceKey.self) { frames in
+                    trackedFrames.merge(frames) { _, new in new }
+                }
 
                 Divider()
 
@@ -1097,7 +1240,7 @@ private struct MyScoresTabView: View {
                                             }
                                         }
 
-                                        Text(score.stageName)
+                                        Text(stageName(for: score.stageCode))
                                             .font(.subheadline)
                                             .foregroundStyle(.secondary)
                                     }
@@ -1145,5 +1288,425 @@ private struct MyScoresTabView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Compare Profiles View
+
+struct CompareProfilesView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Bindable var myProfile: ShooterProfile
+    @Bindable var theirProfile: ShooterProfile
+
+    // Get divisions that both shooters compete in AND have visible
+    private var commonDivisions: [Division] {
+        let myVisibleDivisions = Set(myProfile.divisions.filter { $0.isVisible }.map { $0.division })
+        let theirVisibleDivisions = Set(theirProfile.divisions.filter { $0.isVisible }.map { $0.division })
+        return Array(myVisibleDivisions.intersection(theirVisibleDivisions)).sorted { $0.rawValue < $1.rawValue }
+    }
+
+    var body: some View {
+        NavigationStack {
+            if commonDivisions.isEmpty {
+                ContentUnavailableView(
+                    "No Common Divisions",
+                    systemImage: "arrow.triangle.branch",
+                    description: Text("You and \(theirProfile.name.isEmpty ? "USPSA# \(theirProfile.uspsaNumber)" : theirProfile.name) don't compete in any common divisions")
+                )
+            } else {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        ForEach(commonDivisions, id: \.self) { division in
+                            VStack(alignment: .leading, spacing: 16) {
+                                // Division header
+                                VStack(alignment: .leading, spacing: 16) {
+                                    HStack {
+                                        Image(systemName: "target")
+                                            .font(.title)
+                                            .foregroundStyle(.blue)
+
+                                        Text(division.rawValue)
+                                            .font(.title)
+                                            .fontWeight(.bold)
+                                            .foregroundStyle(.primary)
+
+                                        Spacer()
+                                    }
+
+                                    // Division overall stats
+                                    CompareDivisionHeader(
+                                        division: division,
+                                        myProfile: myProfile,
+                                        theirProfile: theirProfile
+                                    )
+                                }
+                                .padding(20)
+
+                                // Individual stage comparisons
+                                VStack(spacing: 8) {
+                                    ForEach(AllStages) { stage in
+                                        CompareStageRow(
+                                            stage: stage,
+                                            division: division,
+                                            myProfile: myProfile,
+                                            theirProfile: theirProfile
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding()
+                }
+            }
+        }
+        .navigationTitle("Compare")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Done") {
+                    dismiss()
+                }
+            }
+        }
+    }
+}
+
+private struct CompareDivisionHeader: View {
+    let division: Division
+    @Bindable var myProfile: ShooterProfile
+    @Bindable var theirProfile: ShooterProfile
+
+    private var myDivision: DivisionProfile? {
+        myProfile.divisions.first { $0.division == division }
+    }
+
+    private var theirDivision: DivisionProfile? {
+        theirProfile.divisions.first { $0.division == division }
+    }
+
+    private var myTotalTime: Decimal {
+        myProfile.matchScores
+            .filter { $0.usedForClassification && $0.divisionCode == division.rawValue }
+            .reduce(Decimal(0)) { $0 + $1.time }
+    }
+
+    private var theirTotalTime: Decimal {
+        theirProfile.matchScores
+            .filter { $0.usedForClassification && $0.divisionCode == division.rawValue }
+            .reduce(Decimal(0)) { $0 + $1.time }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // My stats (left side)
+            VStack(spacing: 8) {
+                Text("You")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(myDivision?.classification.rawValue ?? "U")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(formatDecimal(myTotalTime) + "s")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.primary)
+                            .monospacedDigit()
+
+                        Text(formatDecimal(myDivision?.currentPercentage ?? 0) + "%")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 120)
+            .padding(16)
+            .background(
+                (myDivision?.currentPercentage ?? 0) > (theirDivision?.currentPercentage ?? 0) && (myDivision?.currentPercentage ?? 0) > 0 ?
+                    Color.green.opacity(0.1) :
+                    (myDivision?.currentPercentage ?? 0) < (theirDivision?.currentPercentage ?? 0) && (myDivision?.currentPercentage ?? 0) > 0 ?
+                        Color.red.opacity(0.1) :
+                        Color(.systemBackground)
+            )
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        (myDivision?.currentPercentage ?? 0) > (theirDivision?.currentPercentage ?? 0) && (myDivision?.currentPercentage ?? 0) > 0 ? Color.green :
+                            (myDivision?.currentPercentage ?? 0) < (theirDivision?.currentPercentage ?? 0) && (myDivision?.currentPercentage ?? 0) > 0 ? Color.red : Color(.systemGray5),
+                        lineWidth: 2
+                    )
+            )
+
+            // Their stats (right side)
+            VStack(spacing: 8) {
+                Text(theirProfile.name.isEmpty ? "Them" : theirProfile.name)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .lineLimit(1)
+
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(theirDivision?.classification.rawValue ?? "U")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(formatDecimal(theirTotalTime) + "s")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.primary)
+                            .monospacedDigit()
+
+                        Text(formatDecimal(theirDivision?.currentPercentage ?? 0) + "%")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 120)
+            .padding(16)
+            .background(
+                (theirDivision?.currentPercentage ?? 0) > (myDivision?.currentPercentage ?? 0) && (theirDivision?.currentPercentage ?? 0) > 0 ?
+                    Color.green.opacity(0.1) :
+                    (theirDivision?.currentPercentage ?? 0) < (myDivision?.currentPercentage ?? 0) && (theirDivision?.currentPercentage ?? 0) > 0 ?
+                        Color.red.opacity(0.1) :
+                        Color(.systemBackground)
+            )
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        (theirDivision?.currentPercentage ?? 0) > (myDivision?.currentPercentage ?? 0) && (theirDivision?.currentPercentage ?? 0) > 0 ? Color.green :
+                            (theirDivision?.currentPercentage ?? 0) < (myDivision?.currentPercentage ?? 0) && (theirDivision?.currentPercentage ?? 0) > 0 ? Color.red : Color(.systemGray5),
+                        lineWidth: 2
+                    )
+            )
+        }
+    }
+
+    private func formatDecimal(_ value: Decimal) -> String {
+        String(format: "%.2f", NSDecimalNumber(decimal: value).doubleValue)
+    }
+
+    private func timeColor(mine: Decimal, theirs: Decimal) -> Color {
+        if mine == 0 || theirs == 0 { return .primary }
+        return mine < theirs ? .green : (mine > theirs ? .red : .primary)
+    }
+
+    private func percentageColor(mine: Decimal?, theirs: Decimal?) -> Color {
+        guard let mine = mine, let theirs = theirs else { return .primary }
+        if mine == 0 || theirs == 0 { return .primary }
+        return mine > theirs ? .green : (mine < theirs ? .red : .primary)
+    }
+}
+
+private struct CompareStageRow: View {
+    let stage: Stage
+    let division: Division
+    @Bindable var myProfile: ShooterProfile
+    @Bindable var theirProfile: ShooterProfile
+
+    private var myScore: MatchScore? {
+        myProfile.matchScores
+            .filter { $0.usedForClassification && $0.divisionCode == division.rawValue && $0.stageCode == stage.code }
+            .first
+    }
+
+    private var theirScore: MatchScore? {
+        theirProfile.matchScores
+            .filter { $0.usedForClassification && $0.divisionCode == division.rawValue && $0.stageCode == stage.code }
+            .first
+    }
+
+    private var myPercentage: Decimal {
+        guard let score = myScore, score.peakTime > 0 else { return 0 }
+        return (score.peakTime / score.time) * 100
+    }
+
+    private var theirPercentage: Decimal {
+        guard let score = theirScore, score.peakTime > 0 else { return 0 }
+        return (score.peakTime / score.time) * 100
+    }
+
+    private var myClass: ShooterClass {
+        ShooterClass.shooterClass(percentage: myPercentage)
+    }
+
+    private var theirClass: ShooterClass {
+        ShooterClass.shooterClass(percentage: theirPercentage)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Stage name header
+            HStack(spacing: 8) {
+                Text(stage.code)
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.gradient)
+                    .cornerRadius(6)
+
+                Text(stage.name)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color(.systemGray6).opacity(0.5))
+
+            // Scores comparison
+            HStack(spacing: 0) {
+                // My score
+                if let score = myScore {
+                    HStack(spacing: 12) {
+                        Text(myClass.rawValue)
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundStyle(percentageColor(mine: myPercentage, theirs: theirPercentage))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                            .frame(width: 50)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(formatDecimal(score.time) + "s")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.white)
+                                .monospacedDigit()
+
+                            Text("\(formatDecimal(myPercentage))%")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.white)
+                                .monospacedDigit()
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text("No Score")
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                // Divider
+                Rectangle()
+                    .fill(Color(.systemGray4))
+                    .frame(width: 1)
+                    .padding(.vertical, 8)
+
+                // Their score
+                if let score = theirScore {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(formatDecimal(score.time) + "s")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.white)
+                                .monospacedDigit()
+
+                            Text("\(formatDecimal(theirPercentage))%")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.white)
+                                .monospacedDigit()
+                        }
+
+                        Text(theirClass.rawValue)
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundStyle(percentageColor(mine: theirPercentage, theirs: myPercentage))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                            .frame(width: 50)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                } else {
+                    Text("No Score")
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+
+            // Visual performance bar - full width proportional
+            if myScore != nil || theirScore != nil {
+                GeometryReader { geometry in
+                    let myPct = NSDecimalNumber(decimal: myPercentage).doubleValue
+                    let theirPct = NSDecimalNumber(decimal: theirPercentage).doubleValue
+                    let total = myPct + theirPct
+
+                    // Calculate proportional widths (stretches full width)
+                    let myWidth = total > 0 ? (myPct / total) * geometry.size.width : geometry.size.width / 2
+
+                    HStack(spacing: 0) {
+                        // My portion (left side)
+                        if myScore != nil {
+                            Rectangle()
+                                .fill(
+                                    myPercentage > theirPercentage ?
+                                        Color.green :
+                                        Color.red
+                                )
+                                .frame(width: myWidth)
+                        }
+
+                        // Their portion (right side)
+                        if theirScore != nil {
+                            Rectangle()
+                                .fill(
+                                    theirPercentage > myPercentage ?
+                                        Color.green :
+                                        Color.red
+                                )
+                        }
+                    }
+                }
+                .frame(height: 8)
+            }
+        }
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(.systemGray4), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+    }
+
+    private func formatDecimal(_ value: Decimal) -> String {
+        String(format: "%.2f", NSDecimalNumber(decimal: value).doubleValue)
+    }
+
+    private func timeColor(mine: Decimal?, theirs: Decimal?) -> Color {
+        guard let mine = mine, let theirs = theirs else { return .primary }
+        return mine < theirs ? .green : (mine > theirs ? .red : .primary)
+    }
+
+    private func percentageColor(mine: Decimal, theirs: Decimal) -> Color {
+        if mine == 0 || theirs == 0 { return .primary }
+        return mine > theirs ? .green : (mine < theirs ? .red : .primary)
     }
 }

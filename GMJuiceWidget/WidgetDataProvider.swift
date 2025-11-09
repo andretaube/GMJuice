@@ -193,15 +193,15 @@ struct PerformanceProvider: TimelineProvider {
             let divisionCode = selectedDivision.division.rawValue
 
             // Fetch classification scores for this division
-            let scoresDescriptor = FetchDescriptor<SCMatchScore>(
-                predicate: #Predicate<SCMatchScore> { score in
+            let scoresDescriptor = FetchDescriptor<MatchScore>(
+                predicate: #Predicate<MatchScore> { score in
                     score.divisionCode == divisionCode &&
                     score.usedForClassification == true
                 },
-                sortBy: [SortDescriptor(\SCMatchScore.scoreDate, order: .reverse)]
+                sortBy: [SortDescriptor(\MatchScore.scoreDate, order: .reverse)]
             )
 
-            let classificationScores: [SCMatchScore] = try context.fetch(scoresDescriptor)
+            let classificationScores: [MatchScore] = try context.fetch(scoresDescriptor)
 
             // Calculate metrics
             let totalTime = classificationScores.reduce(Decimal(0)) { $0 + $1.time }
@@ -219,14 +219,14 @@ struct PerformanceProvider: TimelineProvider {
             }
 
             // Calculate days since last match (reuse divisionCode variable)
-            let allScoresDescriptor = FetchDescriptor<SCMatchScore>(
-                predicate: #Predicate<SCMatchScore> { score in
+            let allScoresDescriptor = FetchDescriptor<MatchScore>(
+                predicate: #Predicate<MatchScore> { score in
                     score.divisionCode == divisionCode
                 },
-                sortBy: [SortDescriptor(\SCMatchScore.scoreDate, order: .reverse)]
+                sortBy: [SortDescriptor(\MatchScore.scoreDate, order: .reverse)]
             )
 
-            let allScores: [SCMatchScore] = try context.fetch(allScoresDescriptor)
+            let allScores: [MatchScore] = try context.fetch(allScoresDescriptor)
             let daysSinceLastMatch: Int?
             if let lastMatchDate = allScores.first?.scoreDate {
                 let days = Calendar.current.dateComponents([.day], from: lastMatchDate, to: Date()).day
@@ -356,11 +356,11 @@ struct PerformanceProvider: TimelineProvider {
 
         for division in divisions {
             let divisionCode = division.division.rawValue
-            let scoresDescriptor = FetchDescriptor<SCMatchScore>(
-                predicate: #Predicate<SCMatchScore> { score in
+            let scoresDescriptor = FetchDescriptor<MatchScore>(
+                predicate: #Predicate<MatchScore> { score in
                     score.divisionCode == divisionCode
                 },
-                sortBy: [SortDescriptor(\SCMatchScore.scoreDate, order: .reverse)]
+                sortBy: [SortDescriptor(\MatchScore.scoreDate, order: .reverse)]
             )
 
             if let scores = try? context.fetch(scoresDescriptor),

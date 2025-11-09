@@ -39,15 +39,7 @@ struct TrainView: View {
 
         var marks: [CoachMark] = []
 
-        // Always show division picker tip first
-        marks.append(CoachMark(
-            title: "Choose Your Division",
-            message: "Select which USPSA division you're training with. This determines the GM benchmark times used for performance tracking.",
-            highlightFrame: divisionFrame,
-            calloutPosition: .bottom
-        ))
-
-        // If no timer is saved, show connection tip in settings
+        // First tip: Connect timer (if not connected)
         let hasTimerSaved = UserDefaults.standard.string(forKey: "ble_saved_uuid") != nil
         if !hasTimerSaved {
             marks.append(CoachMark(
@@ -57,6 +49,14 @@ struct TrainView: View {
                 calloutPosition: .bottom
             ))
         }
+
+        // Division picker tip
+        marks.append(CoachMark(
+            title: "Choose Your Division",
+            message: "Select which USPSA division you're training with. This determines the GM benchmark times used for performance tracking.",
+            highlightFrame: divisionFrame,
+            calloutPosition: .bottom
+        ))
 
         // Timer button tip
         marks.append(CoachMark(
@@ -210,10 +210,6 @@ struct TrainView: View {
                 }
                 .navigationTitle("Train")
                 .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        UserProfileButton()
-                    }
-
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
                             // Show coach marks if frames are available, otherwise fallback to tutorial sheet
@@ -234,14 +230,6 @@ struct TrainView: View {
             }
             .onPreferenceChange(FramePreferenceKey.self) { frames in
                 trackedFrames = frames
-
-                // Show coach marks on first visit once frames are available
-                if !hasSeenCoachMarks && !showingCoachMarks && !frames.isEmpty {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        showingCoachMarks = true
-                        hasSeenCoachMarks = true
-                    }
-                }
             }
             .navigationDestination(for: NavigationDestination.self) { destination in
                 switch destination {

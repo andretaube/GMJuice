@@ -18,8 +18,6 @@ struct GMJuice: App {
     @StateObject private var bleManager = BLEManager.shared
     @StateObject private var announcer = Announcer.shared
     @StateObject private var notificationManager = NotificationManager.shared
-    @StateObject private var gameCenterManager = GameCenterManager.shared
-    @StateObject private var cloudKitManager = CloudKitManager.shared
 
     @AppStorage("announcer_enabled") private var announcerEnabled = true
     @AppStorage("appearanceMode") private var appearanceMode: String = "dark"
@@ -46,7 +44,7 @@ struct GMJuice: App {
     }
 
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema(versionedSchema: Schema004.self)
+        let schema = Schema(versionedSchema: Schema007.self)
 
         // Use App Group for data sharing with widget
         let appGroupID = "group.com.andretaube.gmjuice"
@@ -59,8 +57,7 @@ struct GMJuice: App {
             modelURL = URL.applicationSupportDirectory.appending(path: "default.store")
         }
 
-        // Disable CloudKit auto-sync - we handle CloudKit manually for sharing profiles
-        let modelConfiguration = ModelConfiguration(url: modelURL, cloudKitDatabase: .none)
+        let modelConfiguration = ModelConfiguration(url: modelURL)
 
         do {
             return try ModelContainer(
@@ -79,12 +76,8 @@ struct GMJuice: App {
                     RootTabs()
                         .environmentObject(bleManager)
                         .environmentObject(notificationManager)
-                        .environmentObject(gameCenterManager)
-                        .environmentObject(cloudKitManager)
                         .onAppear {
                             bleManager.start()
-                            // Authenticate with GameCenter
-                            gameCenterManager.authenticate()
                             // Check if user needs to accept terms
                             if !hasAcceptedTerms {
                                 showingTermsAcceptance = true
@@ -125,13 +118,11 @@ struct GMJuice: App {
 
 #Preview {
     let schema = Schema(versionedSchema: Schema004.self)
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: schema, configurations: [config])
 
     return RootTabs()
         .environmentObject(BLEManager.shared)
         .environmentObject(NotificationManager.shared)
-        .environmentObject(GameCenterManager.shared)
-        .environmentObject(CloudKitManager.shared)
         .modelContainer(container)
 }
