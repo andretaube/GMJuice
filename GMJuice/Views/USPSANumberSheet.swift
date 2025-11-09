@@ -220,7 +220,29 @@ struct USPSANumberSheet: View {
                 UserDefaults.standard.currentUserUSPSANumber = trimmedNumber
             }
 
-            dismiss()
+            // Sync data before dismissing
+            isRefreshing = true
+
+            Task {
+                do {
+                    print("🔄 Syncing profile data for new USPSA number: \(trimmedNumber)")
+                    try await scraper.syncClassificationData(memberNumber: trimmedNumber, context: context)
+
+                    await MainActor.run {
+                        print("✅ Successfully synced profile data")
+                        isRefreshing = false
+                        dismiss()
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("❌ Error syncing profile: \(error)")
+                        errorMessage = "Failed to sync profile data: \(error.localizedDescription)"
+                        showingError = true
+                        isRefreshing = false
+                        // Don't dismiss on error - let user see the error and try again
+                    }
+                }
+            }
         } catch {
             errorMessage = "Failed to save: \(error.localizedDescription)"
             showingError = true

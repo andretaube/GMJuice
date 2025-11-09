@@ -7,9 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		65806C1B2EBD92AC0075E677 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 65806C1A2EBD92AC0075E677 /* WidgetKit.framework */; };
-		65806C1D2EBD92AC0075E677 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 65806C1C2EBD92AC0075E677 /* SwiftUI.framework */; };
-		65806C2E2EBD92AD0075E677 /* GMJuiceWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 65806C182EBD92AC0075E677 /* GMJuiceWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		65CE18762EB96E8900125A6C /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 65CE18752EB96E8900125A6C /* SwiftSoup */; };
 /* End PBXBuildFile section */
 
@@ -21,13 +18,6 @@
 			remoteGlobalIDString = 65E4D8122E971EC5006D3B3D;
 			remoteInfo = GMJuice;
 		};
-		65806C2C2EBD92AD0075E677 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 65E4D80B2E971EC5006D3B3D /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 65806C172EBD92AC0075E677;
-			remoteInfo = GMJuiceWidgetExtension;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -37,7 +27,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				65806C2E2EBD92AD0075E677 /* GMJuiceWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -47,23 +36,12 @@
 /* Begin PBXFileReference section */
 		653D10232EBAB64900B3857C /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		657782692EB3D96400FD297C /* GMJuiceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GMJuiceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		65806C182EBD92AC0075E677 /* GMJuiceWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GMJuiceWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		65806C1A2EBD92AC0075E677 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		65806C1C2EBD92AC0075E677 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		65E4D8132E971EC5006D3B3D /* GMJuice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GMJuice.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		65806C3C2EBD94370075E677 /* Exceptions for "GMJuice" folder in "GMJuiceWidgetExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Data/Division.swift,
-				Data/ShooterClass.swift,
-				Persistence/ModelAliases.swift,
-				Persistence/Schemas.swift,
-			);
-			target = 65806C172EBD92AC0075E677 /* GMJuiceWidgetExtension */;
-		};
 		65998E982EA00A0400F270C1 /* Exceptions for "GMJuice" folder in "GMJuice" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -79,16 +57,10 @@
 			path = GMJuiceTests;
 			sourceTree = "<group>";
 		};
-		65806C1E2EBD92AC0075E677 /* GMJuiceWidget */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = GMJuiceWidget;
-			sourceTree = "<group>";
-		};
 		65E4D8152E971EC5006D3B3D /* GMJuice */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				65998E982EA00A0400F270C1 /* Exceptions for "GMJuice" folder in "GMJuice" target */,
-				65806C3C2EBD94370075E677 /* Exceptions for "GMJuice" folder in "GMJuiceWidgetExtension" target */,
 			);
 			path = GMJuice;
 			sourceTree = "<group>";
@@ -100,15 +72,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		65806C152EBD92AC0075E677 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				65806C1D2EBD92AC0075E677 /* SwiftUI.framework in Frameworks */,
-				65806C1B2EBD92AC0075E677 /* WidgetKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -137,7 +100,6 @@
 			children = (
 				65E4D8152E971EC5006D3B3D /* GMJuice */,
 				6577826A2EB3D96400FD297C /* GMJuiceTests */,
-				65806C1E2EBD92AC0075E677 /* GMJuiceWidget */,
 				65806C192EBD92AC0075E677 /* Frameworks */,
 				65E4D8142E971EC5006D3B3D /* Products */,
 				653D10232EBAB64900B3857C /* Config.xcconfig */,
@@ -149,7 +111,6 @@
 			children = (
 				65E4D8132E971EC5006D3B3D /* GMJuice.app */,
 				657782692EB3D96400FD297C /* GMJuiceTests.xctest */,
-				65806C182EBD92AC0075E677 /* GMJuiceWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -180,28 +141,6 @@
 			productReference = 657782692EB3D96400FD297C /* GMJuiceTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		65806C172EBD92AC0075E677 /* GMJuiceWidgetExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 65806C322EBD92AD0075E677 /* Build configuration list for PBXNativeTarget "GMJuiceWidgetExtension" */;
-			buildPhases = (
-				65806C142EBD92AC0075E677 /* Sources */,
-				65806C152EBD92AC0075E677 /* Frameworks */,
-				65806C162EBD92AC0075E677 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				65806C1E2EBD92AC0075E677 /* GMJuiceWidget */,
-			);
-			name = GMJuiceWidgetExtension;
-			packageProductDependencies = (
-			);
-			productName = GMJuiceWidgetExtension;
-			productReference = 65806C182EBD92AC0075E677 /* GMJuiceWidgetExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		65E4D8122E971EC5006D3B3D /* GMJuice */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 65E4D8392E971EC6006D3B3D /* Build configuration list for PBXNativeTarget "GMJuice" */;
@@ -214,7 +153,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				65806C2D2EBD92AD0075E677 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				65E4D8152E971EC5006D3B3D /* GMJuice */,
@@ -241,9 +179,6 @@
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = 65E4D8122E971EC5006D3B3D;
 					};
-					65806C172EBD92AC0075E677 = {
-						CreatedOnToolsVersion = 16.2;
-					};
 					65E4D8122E971EC5006D3B3D = {
 						CreatedOnToolsVersion = 16.2;
 					};
@@ -268,20 +203,12 @@
 			targets = (
 				65E4D8122E971EC5006D3B3D /* GMJuice */,
 				657782682EB3D96400FD297C /* GMJuiceTests */,
-				65806C172EBD92AC0075E677 /* GMJuiceWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		657782672EB3D96400FD297C /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		65806C162EBD92AC0075E677 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -305,13 +232,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		65806C142EBD92AC0075E677 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		65E4D80F2E971EC5006D3B3D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -326,11 +246,6 @@
 			isa = PBXTargetDependency;
 			target = 65E4D8122E971EC5006D3B3D /* GMJuice */;
 			targetProxy = 6577826D2EB3D96400FD297C /* PBXContainerItemProxy */;
-		};
-		65806C2D2EBD92AD0075E677 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 65806C172EBD92AC0075E677 /* GMJuiceWidgetExtension */;
-			targetProxy = 65806C2C2EBD92AD0075E677 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -370,62 +285,6 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GMJuice.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/GMJuice";
-			};
-			name = Release;
-		};
-		65806C302EBD92AD0075E677 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_ENTITLEMENTS = GMJuiceWidget/GMJuiceWidget.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2W7T76LY33;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = GMJuiceWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = GMJuiceWidget;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.andretaube.gmjuice.GMJuiceWidget;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		65806C312EBD92AD0075E677 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_ENTITLEMENTS = GMJuiceWidget/GMJuiceWidget.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2W7T76LY33;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = GMJuiceWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = GMJuiceWidget;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.andretaube.gmjuice.GMJuiceWidget;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -642,15 +501,6 @@
 			buildConfigurations = (
 				6577826F2EB3D96400FD297C /* Debug */,
 				657782702EB3D96400FD297C /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		65806C322EBD92AD0075E677 /* Build configuration list for PBXNativeTarget "GMJuiceWidgetExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				65806C302EBD92AD0075E677 /* Debug */,
-				65806C312EBD92AD0075E677 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
