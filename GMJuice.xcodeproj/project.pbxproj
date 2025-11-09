@@ -54,13 +54,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		65806C332EBD92AD0075E677 /* Exceptions for "GMJuiceWidget" folder in "GMJuiceWidgetExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 65806C172EBD92AC0075E677 /* GMJuiceWidgetExtension */;
-		};
 		65806C3C2EBD94370075E677 /* Exceptions for "GMJuice" folder in "GMJuiceWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -88,9 +81,6 @@
 		};
 		65806C1E2EBD92AC0075E677 /* GMJuiceWidget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				65806C332EBD92AD0075E677 /* Exceptions for "GMJuiceWidget" folder in "GMJuiceWidgetExtension" target */,
-			);
 			path = GMJuiceWidget;
 			sourceTree = "<group>";
 		};

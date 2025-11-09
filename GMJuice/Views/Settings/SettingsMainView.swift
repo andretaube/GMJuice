@@ -39,13 +39,6 @@ struct SettingsMainView: View {
                     )
 
                     SettingsCard(
-                        title: "Widgets",
-                        icon: "square.grid.2x2",
-                        color: .green,
-                        destination: WidgetSettingsView()
-                    )
-
-                    SettingsCard(
                         title: "Appearance",
                         icon: "paintbrush",
                         color: .pink,
@@ -107,17 +100,6 @@ struct SettingsMainView: View {
                     title: "Privacy Policy",
                     content: LegalDocuments.privacyPolicy
                 )
-            }
-            .onOpenURL { url in
-                // Handle deep link from widget
-                if url.scheme == "gmjuice" && url.host == "settings" && url.path == "/widget" {
-                    navigationPath.append("widget")
-                }
-            }
-            .navigationDestination(for: String.self) { destination in
-                if destination == "widget" {
-                    WidgetSettingsView()
-                }
             }
         }
     }

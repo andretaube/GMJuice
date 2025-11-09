@@ -46,18 +46,46 @@ struct GMJuice: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema(versionedSchema: Schema007.self)
 
-        // Use App Group for data sharing with widget
+        // Migrate data from old app group location to default location if needed
         let appGroupID = "group.com.andretaube.gmjuice"
-        let modelURL: URL
+        let defaultURL = URL.applicationSupportDirectory.appending(path: "default.store")
 
-        if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
-            modelURL = groupURL.appendingPathComponent("default.store")
-        } else {
-            // Fallback to default location if App Group not configured
-            modelURL = URL.applicationSupportDirectory.appending(path: "default.store")
+        if let oldGroupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
+            let oldStoreURL = oldGroupURL.appendingPathComponent("default.store")
+
+            // If old data exists and new location doesn't, migrate it
+            if FileManager.default.fileExists(atPath: oldStoreURL.path) &&
+               !FileManager.default.fileExists(atPath: defaultURL.path) {
+                print("📦 Migrating data from app group to default location...")
+
+                do {
+                    // Create destination directory if needed
+                    try FileManager.default.createDirectory(
+                        at: defaultURL.deletingLastPathComponent(),
+                        withIntermediateDirectories: true
+                    )
+
+                    // Copy the store file and its supporting files
+                    let fileManager = FileManager.default
+                    let oldDir = oldStoreURL.deletingLastPathComponent()
+
+                    // Copy all files that start with "default.store"
+                    let files = try fileManager.contentsOfDirectory(at: oldDir, includingPropertiesForKeys: nil)
+                    for file in files where file.lastPathComponent.hasPrefix("default.store") {
+                        let destURL = defaultURL.deletingLastPathComponent().appendingPathComponent(file.lastPathComponent)
+                        try fileManager.copyItem(at: file, to: destURL)
+                        print("  ✅ Copied \(file.lastPathComponent)")
+                    }
+
+                    print("✅ Data migration complete")
+                } catch {
+                    print("⚠️ Failed to migrate data: \(error)")
+                    print("   Old data remains at app group location")
+                }
+            }
         }
 
-        let modelConfiguration = ModelConfiguration(url: modelURL)
+        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {
             return try ModelContainer(
