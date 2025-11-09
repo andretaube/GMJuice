@@ -754,7 +754,7 @@ struct AnalysisTabView: View {
                     .foregroundStyle(.purple)
 
                 ForEach(Array(analysis.stageAnalyses.enumerated()), id: \.element.stageCode) { index, stage in
-                    NavigationLink(destination: StageDetailAnalysisView(stageAnalysis: stage, divisionCode: analysis.divisionCode)) {
+                    NavigationLink(destination: StageDetailAnalysisView(stageAnalysis: stage, divisionCode: analysis.divisionCode, profileUSPSANumber: nil)) {
                         StagePerformanceCard(stage: stage, userLevel: analysis.currentClassification)
                     }
                     .buttonStyle(.plain)
@@ -1283,7 +1283,7 @@ struct PerformanceBarGraph: View {
 
             // Legend
             HStack(spacing: 12) {
-                legendItem(color: performanceBarColor, label: "Your Avg")
+                legendItem(color: performanceBarColor, label: "\(AnalysisConstants.recentDaysWindow)d Avg")
                 legendItem(color: .green.opacity(0.3), label: "Your Best")
                 legendItem(color: .gray.opacity(0.2), label: "GM Peak")
             }

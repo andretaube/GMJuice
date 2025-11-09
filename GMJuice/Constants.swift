@@ -33,8 +33,16 @@ enum AnalysisConstants {
     /// Number of recent matches to use for average/trend/consistency calculations
     static let recentMatchesThreshold = 10
 
-    /// Number of days to look back for recent performance data
-    static let recentDaysWindow = 90
+    /// Number of days to look back for recent performance data (used for average, consistency, trend)
+    static let recentDaysWindow = 180
+
+    // MARK: - Chart Time Windows
+
+    /// Number of days to show in Performance Timeline chart
+    static let performanceTimelineDays = 730  // 2 years
+
+    /// Number of days to show in Recent Performance chart (same as average calculation)
+    static let recentPerformanceDays = recentDaysWindow  // 180 days
 
     // MARK: - Practice Priority Weights
 
@@ -233,15 +241,14 @@ enum AnalysisConstants {
     ///   - allScores: All available scores
     /// - Returns: Array of scores to use (recent window or last N matches)
     static func getRecentScores<T>(recentScores: [T], allScores: [T]) -> [T] {
-        if recentScores.count >= recentMatchesThreshold {
-            // Have enough recent data (within days window)
+        // Get last N matches
+        let lastNMatches = Array(allScores.suffix(recentMatchesThreshold))
+
+        // Use whichever is larger: last 90 days OR last N matches
+        if recentScores.count > lastNMatches.count {
             return recentScores
-        } else if allScores.count >= recentMatchesThreshold {
-            // Not enough in window, use last N matches
-            return Array(allScores.suffix(recentMatchesThreshold))
         } else {
-            // Less than N total, use all
-            return allScores
+            return lastNMatches
         }
     }
 }

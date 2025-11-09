@@ -12,6 +12,7 @@ import Charts
 struct StageDetailAnalysisView: View {
     let stageAnalysis: StageAnalysis
     let divisionCode: String
+    let profileUSPSANumber: String?  // Optional: if nil, use current user
 
     @Query private var allProfiles: [ShooterProfile]
 
@@ -23,7 +24,13 @@ struct StageDetailAnalysisView: View {
         UserDefaults.standard.currentUserUSPSANumber
     }
 
-    private var myProfile: ShooterProfile? {
+    private var targetProfile: ShooterProfile? {
+        // If profileUSPSANumber is provided, use that profile; otherwise use current user
+        if let profileNumber = profileUSPSANumber {
+            return allProfiles.first { $0.uspsaNumber == profileNumber }
+        }
+
+        // Fall back to current user
         guard let currentUser = currentUserNumber else {
             return allProfiles.first
         }
@@ -31,17 +38,45 @@ struct StageDetailAnalysisView: View {
     }
 
     private var stageScores: [MatchScore] {
-        guard let profile = myProfile else { return [] }
-        return profile.matchScores.filter {
+        guard let profile = targetProfile else { return [] }
+
+        // First check ALL scores for this stage/division before filtering
+        let allStageScores = profile.matchScores.filter {
             $0.divisionCode == divisionCode &&
-            $0.stageCode == stageAnalysis.stageCode &&
-            NSDecimalNumber(decimal: $0.time).doubleValue <= 30.0
+            $0.stageCode == stageAnalysis.stageCode
+        }
+
+        // Filter for valid times: > 0 and <= 30
+        let filtered = allStageScores.filter {
+            let timeValue = NSDecimalNumber(decimal: $0.time).doubleValue
+            return timeValue > 0.0 && timeValue <= 30.0
         }
         .sorted { $0.scoreDate < $1.scoreDate }
+
+        return filtered
+    }
+
+    // Scores for Performance Timeline (last 2 years)
+    private var twoYearScores: [MatchScore] {
+        let lookbackDate = Calendar.current.date(byAdding: .day, value: -AnalysisConstants.performanceTimelineDays, to: Date()) ?? Date()
+        return stageScores.filter { $0.scoreDate >= lookbackDate }
+    }
+
+    private func debugScores() {
+        // Debug: Stage detail analysis (commented out to reduce console output)
+        // print("🔍 StageDetailAnalysisView - Stage: \(stageAnalysis.stageCode), Valid scores: \(stageScores.count)")
     }
 
     // Scores used for average calculation (same logic as SCPerformanceAnalyzer)
     private var recentScoresForAverage: [MatchScore] {
+        let lookbackDate = Calendar.current.date(byAdding: .day, value: -AnalysisConstants.recentDaysWindow, to: Date()) ?? Date()
+        let recentScores = stageScores.filter { $0.scoreDate >= lookbackDate }
+
+        return AnalysisConstants.getRecentScores(recentScores: recentScores, allScores: stageScores)
+    }
+
+    // Scores for distribution chart (recentDaysWindow OR recentMatchesThreshold, whichever is larger)
+    private var distributionScores: [MatchScore] {
         let lookbackDate = Calendar.current.date(byAdding: .day, value: -AnalysisConstants.recentDaysWindow, to: Date()) ?? Date()
         let recentScores = stageScores.filter { $0.scoreDate >= lookbackDate }
 
@@ -90,7 +125,7 @@ struct StageDetailAnalysisView: View {
                         )
 
                         summaryStatBox(
-                            title: "Average",
+                            title: "\(AnalysisConstants.recentDaysWindow)d Avg",
                             value: String(format: "%.2fs", NSDecimalNumber(decimal: stageAnalysis.averageTime).doubleValue),
                             subtitle: stageAnalysis.averageClassification.rawValue,
                             color: .blue
@@ -131,12 +166,17 @@ struct StageDetailAnalysisView: View {
                 .background(Color(.systemGray6))
                 .cornerRadius(12)
 
-                // Time Series Chart
-                if stageScores.count >= 2 {
+                // Time Series Chart (Performance Timeline)
+                if twoYearScores.count >= 2 {
+                    let years = AnalysisConstants.performanceTimelineDays / 365
                     VStack(alignment: .leading, spacing: 12) {
-                        Label("Performance Timeline", systemImage: "chart.line.uptrend.xyaxis")
+                        Label("\(years) Year Performance", systemImage: "chart.line.uptrend.xyaxis")
                             .font(.headline)
                             .foregroundStyle(.blue)
+
+                        Text("\(years) years / \(twoYearScores.count) matches")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
 
                         timeSeriesChart
                     }
@@ -148,11 +188,11 @@ struct StageDetailAnalysisView: View {
                 // Recent Performance Chart (used for average calculation)
                 if recentScoresForAverage.count >= 2 && recentScoresForAverage.count != stageScores.count {
                     VStack(alignment: .leading, spacing: 12) {
-                        Label("Recent Performance", systemImage: "clock.arrow.circlepath")
+                        Label("\(AnalysisConstants.recentDaysWindow) Day Performance", systemImage: "clock.arrow.circlepath")
                             .font(.headline)
                             .foregroundStyle(.green)
 
-                        Text("Data used for average calculation")
+                        Text("\(AnalysisConstants.recentDaysWindow) days / \(recentScoresForAverage.count) matches")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -164,11 +204,15 @@ struct StageDetailAnalysisView: View {
                 }
 
                 // Distribution Chart (if enough data)
-                if stageScores.count >= 5 {
+                if distributionScores.count >= 5 {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Time Distribution", systemImage: "chart.bar.fill")
                             .font(.headline)
                             .foregroundStyle(.orange)
+
+                        Text("\(AnalysisConstants.recentDaysWindow) days / \(distributionScores.count) matches")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
 
                         distributionChart
                     }
@@ -180,7 +224,7 @@ struct StageDetailAnalysisView: View {
                 // Recent vs Historical (if enough data)
                 if stageScores.count >= 6 {
                     VStack(alignment: .leading, spacing: 12) {
-                        Label("Recent Form", systemImage: "clock.fill")
+                        Label("Recent vs All-Time", systemImage: "clock.fill")
                             .font(.headline)
                             .foregroundStyle(.green)
 
@@ -209,6 +253,9 @@ struct StageDetailAnalysisView: View {
         }
         .navigationTitle("\(stageAnalysis.stageCode) · \(divisionDisplayName)")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            debugScores()
+        }
     }
 
     // MARK: - Charts
@@ -251,7 +298,7 @@ struct StageDetailAnalysisView: View {
                 .foregroundStyle(.orange)
                 .lineStyle(StrokeStyle(lineWidth: 2, dash: [3, 3]))
                 .annotation(position: .top, alignment: .trailing) {
-                    Text("Avg")
+                    Text("\(AnalysisConstants.recentDaysWindow)d Avg")
                         .font(.caption2)
                         .foregroundStyle(.orange)
                         .padding(4)
@@ -312,7 +359,7 @@ struct StageDetailAnalysisView: View {
     }
 
     private var timeSeriesChart: some View {
-        let times = stageScores.map { NSDecimalNumber(decimal: $0.time).doubleValue }
+        let times = twoYearScores.map { NSDecimalNumber(decimal: $0.time).doubleValue }
         let peakTime = NSDecimalNumber(decimal: stageAnalysis.peakTime).doubleValue
         let allValues = times + [peakTime]
         let minValue = allValues.min() ?? 0
@@ -324,10 +371,10 @@ struct StageDetailAnalysisView: View {
         let yMin = max(0, minValue - padding)
         let yMax = maxValue + padding
 
-        let scoreCount = stageScores.count
+        let scoreCount = twoYearScores.count
         let xMax = max(6, scoreCount)
 
-        let trendLine = calculateTrendLine(for: stageScores)
+        let trendLine = calculateTrendLine(for: twoYearScores)
 
         return Chart {
             // Trend line
@@ -356,7 +403,7 @@ struct StageDetailAnalysisView: View {
             }
 
             // Actual times
-            ForEach(Array(stageScores.enumerated()), id: \.offset) { index, score in
+            ForEach(Array(twoYearScores.enumerated()), id: \.offset) { index, score in
                 LineMark(
                     x: .value("Match", index + 1),
                     y: .value("Time", NSDecimalNumber(decimal: score.time).doubleValue)
@@ -391,7 +438,7 @@ struct StageDetailAnalysisView: View {
     // MARK: - Distribution Chart
 
     private var distributionChart: some View {
-        let times = stageScores.map { NSDecimalNumber(decimal: $0.time).doubleValue }
+        let times = distributionScores.map { NSDecimalNumber(decimal: $0.time).doubleValue }
         let minTime = times.min() ?? 0
         let maxTime = times.max() ?? 30
         let range = maxTime - minTime

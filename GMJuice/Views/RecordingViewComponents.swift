@@ -523,14 +523,24 @@ struct RecordingStringReward: View {
 
 // MARK: - Helper Functions
 
-/// Calculate the sum of best N times from an array
+/// Calculate the sum of best N times from the most recent M times
+/// This matches the classification logic in PeakBenchmarks.percent()
+/// For example: take most recent 5 runs, find best 4, sum them
 private func calculateBestNSum(times: [Decimal], n: Int) -> Decimal? {
-    guard times.count >= n else { return nil }
     let validTimes = times.filter { $0 > 0 }
-    guard validTimes.count >= n else { return nil }
 
-    let bestN = validTimes.sorted().prefix(n)
-    return bestN.reduce(0, +)
+    // We need n+1 runs to calculate best n (excluding the slowest)
+    let m = n + 1
+    guard validTimes.count >= m else { return nil }
+
+    // Take most recent m runs
+    let recentM = Array(validTimes.suffix(m))
+
+    // Find the slowest of these recent runs
+    guard let slowest = recentM.max() else { return nil }
+
+    // Sum all recent runs minus the slowest = best n of recent m
+    return recentM.reduce(0, +) - slowest
 }
 
 // MARK: - View Extensions

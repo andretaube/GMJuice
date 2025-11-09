@@ -403,6 +403,10 @@ private struct ProfileStatsView: View {
     private var classificationScoresByDivision: [(division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [MatchScore])])] {
         // ONLY show scores where usedForClassification = true (one score per stage per division)
         let usedScores = allScores.filter { $0.usedForClassification }
+
+        // DEBUG: Print classification scores summary
+        print("📊 ProfileView - Classification Scores for \(profile.uspsaNumber): \(usedScores.count) total")
+
         let byDivision = Dictionary(grouping: usedScores) { $0.divisionCode }
 
         // Start with all divisions that have a classification in the profile
@@ -606,7 +610,7 @@ private struct ProfileStatsView: View {
                             HStack {
                                 Image(systemName: "arrow.left.arrow.right")
                                     .foregroundStyle(.purple)
-                                Text("Compare Performances")
+                                Text("Stage-by-Stage Comparison")
                                     .foregroundStyle(.primary)
                                 Spacer()
                                 Image(systemName: "chevron.right")
@@ -624,6 +628,7 @@ private struct ProfileStatsView: View {
                     DivisionProfileSection(
                         divisionGroup: divisionGroup,
                         allScores: allScores,
+                        profileUSPSANumber: profile.uspsaNumber,
                         isFirst: index == 0
                     )
                 }
@@ -637,6 +642,7 @@ private struct ProfileStatsView: View {
 private struct DivisionProfileSection: View {
     let divisionGroup: (division: String, totalTime: Decimal, totalPeakTime: Decimal, classification: String, percentage: Decimal, highPercentage: Decimal?, classificationDate: Date?, stages: [(stageCode: String, stageName: String, scores: [MatchScore])])
     let allScores: [MatchScore]
+    let profileUSPSANumber: String
     var isFirst: Bool = false
 
     @State private var isExpanded = false
@@ -768,7 +774,8 @@ private struct DivisionProfileSection: View {
                             StageDetailAnalysisViewWrapper(
                                 divisionCode: divisionGroup.division,
                                 stageCode: score.stageCode,
-                                allScores: allScores
+                                allScores: allScores,
+                                profileUSPSANumber: profileUSPSANumber
                             )
                         } label: {
                             StageScoreRow(score: score)
@@ -871,39 +878,67 @@ private struct StageDetailAnalysisViewWrapper: View {
     let divisionCode: String
     let stageCode: String
     let allScores: [MatchScore]
-
-    @Query private var allMatchScores: [MatchScore]
+    let profileUSPSANumber: String
 
     // Create a fake StageAnalysis from the score data
     private var stageAnalysis: StageAnalysis? {
-        let divisionScores = allMatchScores.filter {
+        let divisionScores = allScores.filter {
             $0.divisionCode == divisionCode &&
             $0.stageCode == stageCode
         }
 
+        // Debug: Stage analysis wrapper
+        // print("🎯 StageDetailAnalysisViewWrapper - Stage: \(stageCode), Division: \(divisionCode), Scores: \(divisionScores.count)")
+
         guard !divisionScores.isEmpty else { return nil }
 
-        let times = divisionScores.map { $0.time }
-        let bestTime = times.min() ?? 0
-        let averageTime = times.reduce(Decimal(0), +) / Decimal(times.count)
-        let peakTime = divisionScores.first?.peakTime ?? 0
+        // Filter out invalid times (≤ 0) before calculating stats
+        let validScores = divisionScores.filter { $0.time > 0 }
+        guard !validScores.isEmpty else {
+            print("⚠️ All scores for \(stageCode) have invalid times (≤0)")
+            return nil
+        }
+
+        // Use same logic as SCPerformanceAnalyzer: last 90 days OR minimum 10 matches
+        let lookbackDate = Calendar.current.date(byAdding: .day, value: -AnalysisConstants.recentDaysWindow, to: Date()) ?? Date()
+        let recentScores = validScores.filter { $0.scoreDate >= lookbackDate }
+        let scoresToUse = AnalysisConstants.getRecentScores(recentScores: recentScores, allScores: validScores)
+
+        let times = scoresToUse.map { $0.time }
+        let allTimes = validScores.map { $0.time }
+        let bestTime = allTimes.min() ?? 0  // Best time from ALL history
+        let averageTime = times.reduce(Decimal(0), +) / Decimal(times.count)  // Average from recent scores
+        let peakTime = validScores.first?.peakTime ?? 0
 
         let bestPercentage = peakTime > 0 ? (peakTime / bestTime) * 100 : 0
         let avgPercentage = peakTime > 0 ? (peakTime / averageTime) * 100 : 0
 
-        // Calculate consistency (coefficient of variation)
-        let mean = NSDecimalNumber(decimal: averageTime).doubleValue
-        let variance = times.map { NSDecimalNumber(decimal: $0).doubleValue }
-            .reduce(0.0) { $0 + pow($1 - mean, 2) } / Double(times.count)
-        let stdDev = sqrt(variance)
-        let cv = (stdDev / mean) * 100.0
+        // Calculate consistency using Mean Absolute Deviation (MAD)
+        // This measures how much your scores vary (lower = more consistent)
+        let consistencyScore: Decimal
+        if peakTime > 0 && avgPercentage > 0 {
+            // Calculate each score's performance %
+            let scorePerformances = scoresToUse.map { score -> Double in
+                NSDecimalNumber(decimal: (peakTime / score.time) * 100).doubleValue
+            }
+
+            // Calculate MAD: average of absolute deviations from mean
+            let avgPerformance = NSDecimalNumber(decimal: avgPercentage).doubleValue
+            let absoluteDeviations = scorePerformances.map { abs($0 - avgPerformance) }
+            let mad = absoluteDeviations.reduce(0.0, +) / Double(absoluteDeviations.count)
+            consistencyScore = Decimal(mad)
+        } else {
+            consistencyScore = 0
+        }
 
         // Calculate trend (simple: compare first half vs second half)
-        let halfCount = times.count / 2
-        let firstHalf = Array(times.prefix(halfCount))
-        let secondHalf = Array(times.suffix(halfCount))
-        let firstAvg = firstHalf.isEmpty ? 0 : NSDecimalNumber(decimal: firstHalf.reduce(Decimal(0), +) / Decimal(firstHalf.count)).doubleValue
-        let secondAvg = secondHalf.isEmpty ? 0 : NSDecimalNumber(decimal: secondHalf.reduce(Decimal(0), +) / Decimal(secondHalf.count)).doubleValue
+        let halfCount = scoresToUse.count / 2
+        let sortedScores = scoresToUse.sorted { $0.scoreDate < $1.scoreDate }
+        let firstHalf = Array(sortedScores.prefix(halfCount))
+        let secondHalf = Array(sortedScores.suffix(halfCount))
+
+        let firstAvg = firstHalf.isEmpty ? 0 : NSDecimalNumber(decimal: firstHalf.map { $0.time }.reduce(Decimal(0), +) / Decimal(firstHalf.count)).doubleValue
+        let secondAvg = secondHalf.isEmpty ? 0 : NSDecimalNumber(decimal: secondHalf.map { $0.time }.reduce(Decimal(0), +) / Decimal(secondHalf.count)).doubleValue
         let trend = firstAvg > 0 ? ((firstAvg - secondAvg) / firstAvg) * 100.0 : 0
 
         // Calculate improvement potential
@@ -923,12 +958,12 @@ private struct StageDetailAnalysisViewWrapper: View {
         return StageAnalysis(
             stageCode: stageCode,
             stageName: stageName(for: stageCode),
-            matchCount: divisionScores.count,
+            matchCount: validScores.count,
             averageTime: averageTime,
             bestTime: bestTime,
-            standardDeviation: Decimal(stdDev),
+            standardDeviation: 0,  // Not used in display
             peakTime: peakTime,
-            consistencyScore: Decimal(cv),
+            consistencyScore: consistencyScore,
             performanceVsPeak: avgPercentage,
             recentTrend: Decimal(trend),
             bestClassification: bestClassification,
@@ -937,14 +972,14 @@ private struct StageDetailAnalysisViewWrapper: View {
             nextClassification: nextClassification,
             timeToNextLevel: timeToNextLevel,
             gainToNextLevel: gainToNextLevel,
-            mostRecentDate: divisionScores.map { $0.scoreDate }.max(),
-            oldestDate: divisionScores.map { $0.scoreDate }.min()
+            mostRecentDate: validScores.map { $0.scoreDate }.max(),
+            oldestDate: validScores.map { $0.scoreDate }.min()
         )
     }
 
     var body: some View {
         if let analysis = stageAnalysis {
-            StageDetailAnalysisView(stageAnalysis: analysis, divisionCode: divisionCode)
+            StageDetailAnalysisView(stageAnalysis: analysis, divisionCode: divisionCode, profileUSPSANumber: profileUSPSANumber)
         } else {
             ContentUnavailableView {
                 Label("No Data", systemImage: "chart.line.uptrend.xyaxis")
