@@ -11,6 +11,8 @@
 	<string>GMJuice needs camera access to record your shooting practice sessions.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>GMJuice needs microphone access to record audio with your practice videos.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>GMJuice uses speech recognition to help you quickly create notes about your shooting sessions by speaking instead of typing.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>GMJuice needs permission to save your practice videos to your photo library.</string>
 	<key>ANTHROPIC_API_KEY</key>

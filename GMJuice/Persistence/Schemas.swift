@@ -1,7 +1,188 @@
 import SwiftData
 import Foundation
 
-// MARK: - V7 (Current - Bug Fix)
+// MARK: - V8 (Current - Notes Feature)
+enum Schema008: VersionedSchema {
+    static var versionIdentifier = Schema.Version(0, 0, 9)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            StringShot.self,
+            StringRun.self,
+            DivisionProfile.self,
+            ShooterProfile.self,
+            MatchScore.self,
+            SessionNote.self
+        ]
+    }
+
+    @Model
+    final class StringShot {
+        var now: Decimal
+        var split: Decimal
+        var first: Decimal
+
+        init(now: Decimal, split: Decimal, first: Decimal) {
+            self.now = now
+            self.split = split
+            self.first = first
+        }
+    }
+
+    @Model
+    final class StringRun {
+        var stageId: String
+        var divisionId: String
+        var date: Date
+        var time: Decimal
+
+        private var missedTargetsData: Data?
+
+        var missedTargets: [Int] {
+            get {
+                guard let data = missedTargetsData else { return [] }
+                return (try? JSONDecoder().decode([Int].self, from: data)) ?? []
+            }
+            set {
+                missedTargetsData = try? JSONEncoder().encode(newValue)
+            }
+        }
+
+        @Relationship(deleteRule: .cascade)
+        var stringShots: [StringShot] = []
+
+        init(stageId: String, divisionId: String) {
+            self.stageId = stageId
+            self.divisionId = divisionId
+            self.date = Date()
+            self.time = 0
+            self.missedTargetsData = nil
+        }
+
+        init(stageId: String, divisionId: String, date: Date, time: Decimal) {
+            self.stageId = stageId
+            self.divisionId = divisionId
+            self.date = date
+            self.time = time
+            self.missedTargetsData = nil
+        }
+    }
+
+    @Model
+    final class DivisionProfile {
+        var division: Division
+        var classification: ShooterClass = ShooterClass.U
+        var isVisible: Bool = true
+
+        var currentPercentage: Decimal?
+        var highPercentage: Decimal?
+        var classificationDate: Date?
+
+        init(division: Division, isVisible: Bool = true) {
+            self.division = division
+            self.isVisible = isVisible
+        }
+    }
+
+    @Model
+    final class ShooterProfile {
+        @Attribute(.unique) var uspsaNumber: String = ""
+        var name: String = ""
+        var lastSyncDate: Date?
+
+        @Relationship(deleteRule: .cascade)
+        var divisions: [DivisionProfile] = []
+
+        @Relationship(deleteRule: .cascade, inverse: \MatchScore.profile)
+        var matchScores: [MatchScore] = []
+
+        init(uspsaNumber: String = "", name: String = "", lastSyncDate: Date? = nil) {
+            self.uspsaNumber = uspsaNumber
+            self.name = name
+            self.lastSyncDate = lastSyncDate
+        }
+    }
+
+    @Model
+    final class MatchScore {
+        var id: String
+        var matchName: String
+        var scoreDate: Date
+        var stageCode: String
+        var divisionCode: String
+        var time: Decimal
+        var peakTime: Decimal
+        var usedForClassification: Bool
+
+        var profile: ShooterProfile?
+
+        init(matchName: String, scoreDate: Date, stageCode: String, divisionCode: String, time: Decimal, peakTime: Decimal, usedForClassification: Bool) {
+            self.id = "\(stageCode)-\(divisionCode)-\(Int(scoreDate.timeIntervalSince1970))"
+            self.matchName = matchName
+            self.scoreDate = scoreDate
+            self.stageCode = stageCode
+            self.divisionCode = divisionCode
+            self.time = time
+            self.peakTime = peakTime
+            self.usedForClassification = usedForClassification
+            self.profile = nil
+        }
+    }
+
+    // MARK: - Session Notes (Match or Practice)
+    @Model
+    final class SessionNote {
+        var createdDate: Date
+        var sessionDate: Date?  // When the shooting session occurred
+        var rawInput: String    // Original speech/text input
+        var processedContentData: Data?  // NoteContent encoded as JSON
+        var sessionType: String?  // "match" or "practice" (optional)
+        var additionHistoryData: Data?  // Array of NoteAddition encoded as JSON
+
+        // Optional: Link to match when results come in later
+        var linkedMatchName: String?
+        var linkedMatchDate: Date?
+
+        var processedContent: NoteContent {
+            get {
+                guard let data = processedContentData else { return NoteContent() }
+                return (try? JSONDecoder().decode(NoteContent.self, from: data)) ?? NoteContent()
+            }
+            set {
+                processedContentData = try? JSONEncoder().encode(newValue)
+            }
+        }
+
+        var additionHistory: [NoteAddition] {
+            get {
+                guard let data = additionHistoryData else { return [] }
+                return (try? JSONDecoder().decode([NoteAddition].self, from: data)) ?? []
+            }
+            set {
+                additionHistoryData = try? JSONEncoder().encode(newValue)
+            }
+        }
+
+        init(rawInput: String, sessionDate: Date? = nil, sessionType: String? = nil) {
+            self.createdDate = Date()
+            self.sessionDate = sessionDate
+            self.rawInput = rawInput
+            self.processedContentData = nil
+            self.sessionType = sessionType
+            self.linkedMatchName = nil
+            self.linkedMatchDate = nil
+            self.additionHistoryData = nil
+        }
+    }
+
+    /// Represents an addition to a note
+    struct NoteAddition: Codable {
+        let date: Date
+        let input: String
+    }
+}
+
+// MARK: - V7 (Legacy)
 enum Schema007: VersionedSchema {
     static var versionIdentifier = Schema.Version(0, 0, 8)
 

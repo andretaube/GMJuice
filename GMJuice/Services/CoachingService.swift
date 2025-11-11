@@ -14,20 +14,18 @@ import CryptoKit
 class CoachingService {
     static let shared = CoachingService()
 
-    internal let apiKey: String?
-    private let apiURL = "https://api.anthropic.com/v1/messages"
-    private let modelName = "claude-3-5-haiku-20241022"  // Claude 3.5 Haiku for cost efficiency
+    private let apiClient = ClaudeAPIClient.shared
+    private let modelName = "claude-3-haiku-20240307"  // Claude 3 Haiku for cost efficiency
 
     private init() {
-        // Try to load API key from environment or plist
-        self.apiKey = Self.loadAPIKey()
+        // API key is now managed by ClaudeAPIClient
     }
 
     // MARK: - Public API
 
     /// Generate only the match card (practice card is built in Swift)
     func generateMatchCard(for analysis: CoachingAnalysis) async throws -> MatchCard {
-        guard let apiKey = apiKey, !apiKey.isEmpty else {
+        guard apiClient.isConfigured else {
             throw CoachingError.noAPIKey
         }
 
@@ -35,7 +33,7 @@ class CoachingService {
         let prompt = buildMatchCardPrompt(from: analysis)
 
         // Call Claude API
-        let response = try await callClaudeAPI(prompt: prompt, apiKey: apiKey)
+        let response = try await callClaudeAPI(prompt: prompt)
 
         // Parse the JSON response
         let matchCard = try parseMatchCardResponse(response)
@@ -45,7 +43,7 @@ class CoachingService {
 
     /// Generate coaching cards for a performance analysis (legacy - prefer generateMatchCard)
     func generateCoaching(for analysis: CoachingAnalysis) async throws -> CoachingCards {
-        guard let apiKey = apiKey, !apiKey.isEmpty else {
+        guard apiClient.isConfigured else {
             throw CoachingError.noAPIKey
         }
 
@@ -53,7 +51,7 @@ class CoachingService {
         let prompt = buildPrompt(from: analysis)
 
         // Call Claude API
-        let response = try await callClaudeAPI(prompt: prompt, apiKey: apiKey)
+        let response = try await callClaudeAPI(prompt: prompt)
 
         // Parse the JSON response
         let cards = try parseResponse(response, analysis: analysis)
@@ -191,21 +189,6 @@ class CoachingService {
         }
     }
 
-    private static func loadAPIKey() -> String? {
-        // First try environment variable
-        if let envKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] {
-            return envKey
-        }
-
-        // Then try Info.plist
-        if let path = Bundle.main.path(forResource: "Info", ofType: "plist"),
-           let dict = NSDictionary(contentsOfFile: path) as? [String: Any],
-           let key = dict["ANTHROPIC_API_KEY"] as? String {
-            return key
-        }
-
-        return nil
-    }
 
     private func buildPrompt(from analysis: CoachingAnalysis) -> String {
         let divisionStrategy = getDivisionStrategy(analysis.divisionCode)
@@ -484,51 +467,8 @@ class CoachingService {
         }
     }
 
-    internal func callClaudeAPI(prompt: String, apiKey: String) async throws -> String {
-        guard let url = URL(string: apiURL) else {
-            throw CoachingError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-
-        let requestBody: [String: Any] = [
-            "model": modelName,
-            "max_tokens": 2048,
-            "messages": [
-                [
-                    "role": "user",
-                    "content": prompt
-                ]
-            ]
-        ]
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw CoachingError.invalidResponse
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            print("❌ Claude API error: \(httpResponse.statusCode) - \(errorMessage)")
-            throw CoachingError.apiError(httpResponse.statusCode, errorMessage)
-        }
-
-        // Parse Claude API response
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        guard let content = json?["content"] as? [[String: Any]],
-              let firstContent = content.first,
-              let text = firstContent["text"] as? String else {
-            throw CoachingError.invalidResponse
-        }
-
-        return text
+    internal func callClaudeAPI(prompt: String) async throws -> String {
+        return try await apiClient.makeRequest(prompt: prompt, model: modelName, maxTokens: 2048)
     }
 
     private func parseResponse(_ response: String, analysis: CoachingAnalysis) throws -> CoachingCards {
@@ -660,21 +600,12 @@ class CoachingService {
 
     enum CoachingError: Error, LocalizedError {
         case noAPIKey
-        case invalidURL
-        case invalidResponse
-        case apiError(Int, String)
         case parsingFailed
 
         var errorDescription: String? {
             switch self {
             case .noAPIKey:
-                return "Anthropic API key not configured. Please add ANTHROPIC_API_KEY to your environment or Info.plist."
-            case .invalidURL:
-                return "Invalid API URL"
-            case .invalidResponse:
-                return "Invalid response from Claude API"
-            case .apiError(let code, let message):
-                return "Claude API error (\(code)): \(message)"
+                return "Anthropic API key not configured. Please add ANTHROPIC_API_KEY to Info.plist."
             case .parsingFailed:
                 return "Failed to parse coaching response"
             }

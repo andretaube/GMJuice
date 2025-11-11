@@ -31,6 +31,11 @@ struct RootTabs: View {
                     Label("Analysis", systemImage: "chart.bar.xaxis")
                 }
 
+            NotesListView()
+                .tabItem {
+                    Label("Notes", systemImage: "note.text")
+                }
+
             SettingsMainView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")

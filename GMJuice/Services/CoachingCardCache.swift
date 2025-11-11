@@ -615,7 +615,7 @@ class CoachingCardCache {
         """
 
         // Call AI (if available)
-        guard let apiKey = CoachingService.shared.apiKey, !apiKey.isEmpty else {
+        guard ClaudeAPIClient.shared.isConfigured else {
             print("⚠️ No API key, using defaults for match content")
             return MatchAIContent(
                 matchTheme: "Execute consistently and play to your strengths",
@@ -626,7 +626,7 @@ class CoachingCardCache {
         }
 
         do {
-            let response = try await CoachingService.shared.callClaudeAPI(prompt: prompt, apiKey: apiKey)
+            let response = try await CoachingService.shared.callClaudeAPI(prompt: prompt)
             let jsonString = CoachingService.shared.extractJSON(from: response)
 
             guard let data = jsonString.data(using: .utf8) else {
@@ -771,7 +771,7 @@ class CoachingCardCache {
         #endif
 
         do {
-            let response = try await CoachingService.shared.callClaudeAPI(prompt: prompt, apiKey: CoachingService.shared.apiKey ?? "")
+            let response = try await CoachingService.shared.callClaudeAPI(prompt: prompt)
 
             #if DEBUG
             print("\n📥 Raw Claude Response (Practice Content):")

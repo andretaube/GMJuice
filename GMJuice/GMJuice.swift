@@ -44,7 +44,7 @@ struct GMJuice: App {
     }
 
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema(versionedSchema: Schema007.self)
+        let schema = Schema(versionedSchema: Schema008.self)
 
         // Migrate data from old app group location to default location if needed
         let appGroupID = "group.com.andretaube.gmjuice"
