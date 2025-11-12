@@ -34,10 +34,12 @@ struct NotesListView: View {
                 }
             }
             .sheet(isPresented: $showingCreateNote) {
-                CreateNoteView()
+                CreateNoteViewV2()
             }
             .sheet(item: $selectedNote) { note in
-                NoteDetailView(note: note)
+                NavigationStack {
+                    NoteDetailViewV2(note: note)
+                }
             }
             .alert("Delete Note?", isPresented: $showingDeleteConfirmation) {
                 Button("Cancel", role: .cancel) {
@@ -55,7 +57,7 @@ struct NotesListView: View {
             .onAppear {
                 print("📝 Notes List loaded: \(notes.count) notes found")
                 for (index, note) in notes.enumerated() {
-                    print("   Note \(index + 1): \(note.sessionType ?? "unknown") - \(note.sessionDate ?? note.createdDate)")
+                    print("   Note \(index + 1): \(note.sessionType) - \(note.sessionDate)")
                 }
             }
         }
@@ -91,12 +93,16 @@ struct NotesListView: View {
             ForEach(notes) { note in
                 NoteRow(note: note)
                     .contentShape(Rectangle())
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                     .onTapGesture {
                         selectedNote = note
                     }
             }
             .onDelete(perform: deleteNotes)
         }
+        .listStyle(.plain)
     }
 
     private func deleteNotes(at offsets: IndexSet) {
@@ -108,7 +114,7 @@ struct NotesListView: View {
     }
 
     private func confirmDeleteNote(_ note: SessionNote) {
-        print("🗑️ Deleting note: \(note.sessionType ?? "unknown") - \(note.sessionDate ?? note.createdDate)")
+        print("🗑️ Deleting note: \(note.sessionType) - \(note.sessionDate)")
         modelContext.delete(note)
 
         do {
@@ -124,65 +130,151 @@ struct NoteRow: View {
     let note: SessionNote
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                // Type indicator
-                if let sessionType = note.sessionType {
-                    Label(sessionType.capitalized, systemImage: sessionType == "match" ? "trophy.fill" : "figure.run")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            // Header with type and date
+            HStack(alignment: .top) {
+                // Type indicator with icon
+                HStack(spacing: 6) {
+                    Image(systemName: note.sessionType == "match" ? "trophy.fill" : "figure.run")
+                        .font(.title3)
+                        .foregroundStyle(note.sessionType == "match" ? .orange : .blue)
+                    Text(note.sessionType.capitalized)
+                        .font(.headline)
+                        .fontWeight(.semibold)
                 }
 
                 Spacer()
 
                 // Date
-                Text(note.sessionDate ?? note.createdDate, style: .date)
-                    .font(.caption)
+                Text(note.sessionDate, style: .date)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
             // Summary (high-level overview)
-            let content = note.processedContent
+            let content = note.processedContentV2
             if let summary = content.summary {
                 Text(summary)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .font(.body)
+                    .foregroundColor(.primary)
                     .lineLimit(2)
             }
 
+            // Domain indicators
+            HStack(spacing: 8) {
+                // Preparation
+                if content.preparation.averageScore() != nil {
+                    DomainBadge(icon: "moon.stars.fill", color: .purple, score: content.preparation.averageScore())
+                }
+                // Performance
+                if content.performance.averageScore() != nil {
+                    DomainBadge(icon: "target", color: .blue, score: content.performance.averageScore())
+                }
+                // External
+                if content.external.averageScore() != nil {
+                    DomainBadge(icon: "cloud.sun.fill", color: .cyan, score: content.external.averageScore())
+                }
+                // Outcomes
+                if content.outcomes.hasContent() {
+                    DomainBadge(icon: "star.fill", color: .yellow, score: nil)
+                }
+
+                // Linked indicator
+                if !note.linkedStringRunIds.isEmpty || note.linkedMatchName != nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "link")
+                            .font(.caption2)
+                            .foregroundStyle(.green)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(8)
+                }
+            }
+
+            // Footer with overall score and completion
             HStack {
-                // Overall score from quality ratings
+                // Overall score
                 if let scoreEmoji = content.overallScoreEmoji(),
                    let scoreDisplay = content.overallScoreDisplay() {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 6) {
                         Text(scoreEmoji)
-                            .font(.title2)
+                            .font(.title3)
                         Text(scoreDisplay)
                             .font(.headline)
+                            .fontWeight(.semibold)
                             .foregroundColor(.primary)
-                        Text("Overall")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(8)
                 }
 
                 Spacer()
 
-                // Completion indicator - encourage adding more
-                let completion = content.completionPercentage()
-                if completion < 0.8 {
+                // Completion indicator
+                if note.completeness < 0.8 {
                     HStack(spacing: 4) {
                         Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.blue)
+                            .font(.caption)
+                        Text("\(Int(note.completeness * 100))%")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
-                        Text("Add more")
+                            .font(.caption)
+                        Text("Complete")
                             .font(.caption)
                             .foregroundColor(.green)
                             .fontWeight(.medium)
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(8)
                 }
             }
         }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+}
+
+struct DomainBadge: View {
+    let icon: String
+    let color: Color
+    let score: Double?
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption2)
+                .foregroundStyle(color)
+
+            if let score = score {
+                Text(String(format: "%.1f", score))
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(color)
+            }
+        }
+        .padding(.horizontal, 8)
         .padding(.vertical, 4)
+        .background(color.opacity(0.1))
+        .cornerRadius(8)
     }
 }
 

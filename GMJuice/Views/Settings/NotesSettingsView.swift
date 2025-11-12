@@ -97,32 +97,46 @@ struct NotesSettingsView: View {
             }
 
             Section {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Note Sections")
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Note Domains")
                         .font(.headline)
 
-                    ForEach(NoteSections.all) { section in
-                        HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: section.required ? "checkmark.circle.fill" : "circle")
-                                .foregroundColor(section.required ? .blue : .secondary)
-                                .font(.caption)
+                    // Preparation & Routine
+                    DomainInfoRow(
+                        icon: "moon.stars.fill",
+                        color: .purple,
+                        title: "Preparation & Routine",
+                        description: "Sleep, nutrition, mental prep, warmup, arrival"
+                    )
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(section.title)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
+                    // Performance Factors
+                    DomainInfoRow(
+                        icon: "target",
+                        color: .blue,
+                        title: "Performance Factors",
+                        description: "Focus, speed, accuracy, consistency, overall feeling"
+                    )
 
-                                Text(section.prompt)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
+                    // External Factors
+                    DomainInfoRow(
+                        icon: "cloud.sun.fill",
+                        color: .cyan,
+                        title: "External Factors",
+                        description: "Environment, equipment, social, time pressure"
+                    )
+
+                    // Outcomes & Learning
+                    DomainInfoRow(
+                        icon: "star.fill",
+                        color: .yellow,
+                        title: "Outcomes & Learning",
+                        description: "Achievements, challenges, lessons, next steps"
+                    )
                 }
             } header: {
                 Text("Note Structure")
             } footer: {
-                Text("Sections marked with • are required for a complete note (~80% target)")
+                Text("Notes are organized into 4 domains with 14 factors + outcomes. AI helps categorize your input automatically.")
                     .font(.caption)
             }
 
@@ -209,6 +223,34 @@ struct APIKeyInputView: View {
                     }
                     .disabled(tempKey.isEmpty || !tempKey.hasPrefix("sk-ant-"))
                 }
+            }
+        }
+    }
+}
+
+// MARK: - Domain Info Row
+
+struct DomainInfoRow: View {
+    let icon: String
+    let color: Color
+    let title: String
+    let description: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(color)
+                .frame(width: 32)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
