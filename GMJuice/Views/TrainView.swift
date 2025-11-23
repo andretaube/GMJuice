@@ -84,9 +84,9 @@ struct TrainView: View {
             calloutPosition: .bottom
         ))
 
-        // Videos Log tip
+        // Video Log tip
         marks.append(CoachMark(
-            title: "Browse Your Videos",
+            title: "Browse Your Video Log",
             message: "View all your recorded training videos in one place. Review your form and technique across all stages.",
             highlightFrame: videosLogFrame,
             calloutPosition: .bottom
@@ -111,38 +111,40 @@ struct TrainView: View {
                 // Navigation pills
                 HStack(spacing: 12) {
                     NavigationLink(value: TrainNavigationPill.timerLog) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             Image(systemName: "list.bullet.rectangle")
-                                .font(.subheadline)
+                                .font(.system(size: 16, weight: .semibold))
                             Text("Timer Log")
                                 .font(.subheadline)
-                                .fontWeight(.medium)
+                                .fontWeight(.semibold)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color.blue.opacity(0.1))
-                        .foregroundStyle(.blue)
-                        .cornerRadius(20)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color.blue)
+                        .foregroundStyle(.white)
+                        .cornerRadius(12)
+                        .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
                     }
                     .trackFrame(named: "timerLog")
 
+                    Spacer()
+
                     NavigationLink(value: TrainNavigationPill.videos) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             Image(systemName: "video.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("Video Log")
                                 .font(.subheadline)
-                            Text("Videos")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
+                                .fontWeight(.semibold)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color.red.opacity(0.1))
-                        .foregroundStyle(.red)
-                        .cornerRadius(20)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color.red)
+                        .foregroundStyle(.white)
+                        .cornerRadius(12)
+                        .shadow(color: Color.red.opacity(0.3), radius: 4, x: 0, y: 2)
                     }
                     .trackFrame(named: "videosLog")
-
-                    Spacer()
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 12)
@@ -177,35 +179,48 @@ struct TrainView: View {
 
                         Spacer(minLength: 0)
 
-                        // Video button
-                        Button {
-                            navigationPath.append(NavigationDestination.video(stage: stage, division: selectedDivisionBinding.wrappedValue))
-                        } label: {
-                            Image(systemName: "video.fill")
-                                .font(.title3)
+                        HStack(spacing: 8) {
+                            // Timer button (now first)
+                            Button {
+                                navigationPath.append(NavigationDestination.timer(stage: stage, division: selectedDivisionBinding.wrappedValue))
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "timer")
+                                        .font(.title3)
+                                    Text("Timer")
+                                        .font(.caption2)
+                                        .fontWeight(.semibold)
+                                }
                                 .foregroundStyle(.white)
-                                .frame(width: 60)
-                                .frame(maxHeight: .infinity)
-                                .background(Color.red)
-                        }
-                        .buttonStyle(.plain)
-                        .trackFrame(named: index == 0 ? "videoButton" : "")
-
-                        // Timer button
-                        Button {
-                            navigationPath.append(NavigationDestination.timer(stage: stage, division: selectedDivisionBinding.wrappedValue))
-                        } label: {
-                            Image(systemName: "timer")
-                                .font(.title3)
-                                .foregroundStyle(.white)
-                                .frame(width: 60)
-                                .frame(maxHeight: .infinity)
+                                .frame(width: 100, height: 60)
                                 .background(Color.blue)
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                            .trackFrame(named: index == 0 ? "timerButton" : "")
+
+                            // Video button (now second)
+                            Button {
+                                navigationPath.append(NavigationDestination.video(stage: stage, division: selectedDivisionBinding.wrappedValue))
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "video.fill")
+                                        .font(.title3)
+                                    Text("Video")
+                                        .font(.caption2)
+                                        .fontWeight(.semibold)
+                                }
+                                .foregroundStyle(.white)
+                                .frame(width: 100, height: 60)
+                                .background(Color.red)
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                            .trackFrame(named: index == 0 ? "videoButton" : "")
                         }
-                        .buttonStyle(.plain)
-                        .trackFrame(named: index == 0 ? "timerButton" : "")
+                        .padding(.trailing, 16)
                     }
-                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                 }
                 }
                 .navigationTitle("Train")
@@ -327,11 +342,11 @@ struct TrainTutorialView: View {
                         description: "Access all your recorded runs organized by date and stage. Review times and track improvement."
                     )
 
-                    // Videos Log
+                    // Video Log
                     TutorialCard(
                         icon: "video.fill",
                         iconColor: .red,
-                        title: "Browse Your Videos",
+                        title: "Browse Your Video Log",
                         description: "View all your recorded training videos in one place. Review your form and technique across all stages."
                     )
                 }

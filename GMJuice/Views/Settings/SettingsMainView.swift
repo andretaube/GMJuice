@@ -53,6 +53,17 @@ struct SettingsMainView: View {
                     )
                 }
 
+                // Independent App Notice
+                VStack(spacing: 8) {
+                    Text("GMJuice is an independent training app")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Not affiliated with USPSA or Steel Challenge")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 8)
+
                 // Legal Links
                 VStack(spacing: 12) {
                     Divider()

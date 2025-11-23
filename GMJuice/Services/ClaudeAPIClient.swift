@@ -1,7 +1,7 @@
 import Foundation
 
 /// Shared client for making requests to Claude API
-/// Used by CoachingService and ClaudeNoteService
+/// Used by CoachingService
 class ClaudeAPIClient {
     static let shared = ClaudeAPIClient()
 

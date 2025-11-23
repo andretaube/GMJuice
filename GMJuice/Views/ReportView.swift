@@ -428,42 +428,46 @@ struct ReportView: View {
 
 #if DEBUG
 #Preview("Report with Sample Data") {
-    let stageId = "SC-101"
-    let divisionId = Division.RFPO.rawValue
+    let runs: [StringRun] = {
+        let stageId = "SC-101"
+        let divisionId = Division.RFPO.rawValue
 
-    // Create mock runs with varied hit/miss patterns (500 runs to demonstrate filtering)
-    var runs: [StringRun] = []
+        // Create mock runs with varied hit/miss patterns (500 runs to demonstrate filtering)
+        var runs: [StringRun] = []
 
-    let patterns: [[Bool]] = [
-        [true, true, true, true, true],   // All hits
-        [true, false, true, true, true],  // Miss on target 2
-        [true, true, true, false, true],  // Miss on target 4
-        [true, true, false, true, true],  // Miss on target 3
-        [true, true, true, true, false],  // Miss on stop plate
-        [true, false, true, false, true], // Misses on 2 and 4
-        [false, true, true, true, true],  // Miss on target 1
-        [true, true, true, true, true],   // All hits
-        [true, true, true, true, true],   // All hits (more common)
-        [true, true, true, true, true],   // All hits (more common)
-    ]
+        let patterns: [[Bool]] = [
+            [true, true, true, true, true],   // All hits
+            [true, false, true, true, true],  // Miss on target 2
+            [true, true, true, false, true],  // Miss on target 4
+            [true, true, false, true, true],  // Miss on target 3
+            [true, true, true, true, false],  // Miss on stop plate
+            [true, false, true, false, true], // Misses on 2 and 4
+            [false, true, true, true, true],  // Miss on target 1
+            [true, true, true, true, true],   // All hits
+            [true, true, true, true, true],   // All hits (more common)
+            [true, true, true, true, true],   // All hits (more common)
+        ]
 
-    // Generate 500 runs cycling through patterns
-    for i in 0..<500 {
-        let pattern = patterns[i % patterns.count]
-        let time = 2.0 + Double.random(in: 0.08...0.45)
-        let firstShot = 0.75 + Double.random(in: 0.05...0.20)
+        // Generate 500 runs cycling through patterns
+        for i in 0..<500 {
+            let pattern = patterns[i % patterns.count]
+            let time = 2.0 + Double.random(in: 0.08...0.45)
+            let firstShot = 0.75 + Double.random(in: 0.05...0.20)
 
-        runs.append(createMockRun(
-            stageId: stageId,
-            divisionId: divisionId,
-            time: time,
-            firstShot: firstShot,
-            hitPattern: pattern
-        ))
-    }
+            runs.append(createMockRun(
+                stageId: stageId,
+                divisionId: divisionId,
+                time: time,
+                firstShot: firstShot,
+                hitPattern: pattern
+            ))
+        }
 
-    return NavigationStack {
-        ReportView(strings: runs, stageId: stageId, divisionId: divisionId)
+        return runs
+    }()
+
+    NavigationStack {
+        ReportView(strings: runs, stageId: "SC-101", divisionId: Division.RFPO.rawValue)
     }
 }
 

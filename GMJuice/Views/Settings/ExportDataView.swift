@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct ExportDataView: View {
-    @Query(sort: [SortDescriptor(\StringRun.date, order: .reverse)])
+    @Query(sort: [SortDescriptor<StringRun>(\.date, order: .reverse)])
     private var allStrings: [StringRun]
 
     @State private var csvURL: URL?

@@ -214,23 +214,28 @@ struct EditStringView: View {
 }
 
 #Preview {
-    let schema = Schema(versionedSchema: Schema004.self)
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: schema, configurations: [config])
+    let container: ModelContainer = {
+        let schema = Schema(versionedSchema: Schema004.self)
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let container = try! ModelContainer(for: schema, configurations: [config])
+
+        let run = StringRun(stageId: "SC-101", divisionId: "RFPO")
+        run.time = 2.45
+        run.missedTargets = [3]  // Missed target 3
+        run.stringShots = [
+            StringShot(now: 0.45, split: 0.45, first: 0.45),
+            StringShot(now: 0.92, split: 0.47, first: 0.45),
+            StringShot(now: 1.38, split: 0.46, first: 0.45),
+            StringShot(now: 1.84, split: 0.46, first: 0.45),
+            StringShot(now: 2.45, split: 0.61, first: 0.45),
+        ]
+
+        container.mainContext.insert(run)
+        return container
+    }()
 
     let run = StringRun(stageId: "SC-101", divisionId: "RFPO")
-    run.time = 2.45
-    run.missedTargets = [3]  // Missed target 3
-    run.stringShots = [
-        StringShot(now: 0.45, split: 0.45, first: 0.45),
-        StringShot(now: 0.92, split: 0.47, first: 0.45),
-        StringShot(now: 1.38, split: 0.46, first: 0.45),
-        StringShot(now: 1.84, split: 0.46, first: 0.45),
-        StringShot(now: 2.45, split: 0.61, first: 0.45),
-    ]
 
-    container.mainContext.insert(run)
-
-    return EditStringView(run: run)
+    EditStringView(run: run)
         .modelContainer(container)
 }

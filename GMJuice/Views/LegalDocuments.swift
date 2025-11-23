@@ -16,7 +16,21 @@ struct LegalDocuments {
 
     GMJuice is designed solely as a training tool for competitive Steel Challenge shooting practice. This application is NOT a substitute for proper firearms training, safety instruction, or professional coaching.
 
-    2. USER RESPONSIBILITY
+    2. INDEPENDENCE AND NON-AFFILIATION
+
+    GMJuice is an INDEPENDENT training application and is NOT affiliated with, endorsed by, or connected to:
+
+    • The United States Practical Shooting Association (USPSA)
+    • Steel Challenge Shooting Association (SCSA)  
+    • Any official shooting organizations or sanctioning bodies
+
+    This application uses publicly available information about Steel Challenge stages and classifications for training purposes only. All stage names, classifications, and benchmark data are used in accordance with fair use principles for educational and training purposes.
+
+    The use of terms like "Steel Challenge," "USPSA," and related terminology is for descriptive purposes only to help users understand the context of their training. No endorsement, sponsorship, or official relationship is implied.
+
+    For official rules, classifications, and sanctioned competitions, please refer to the official USPSA and SCSA websites and organizations.
+
+    3. USER RESPONSIBILITY
 
     YOU are solely responsible for:
 
@@ -26,7 +40,7 @@ struct LegalDocuments {
     • Ensuring you have proper permits and licenses as required by law
     • Your own safety and the safety of others around you
 
-    3. FIREARMS SAFETY REQUIREMENTS
+    4. FIREARMS SAFETY REQUIREMENTS
 
     Before using this application with live firearms, you MUST:
 
@@ -40,7 +54,7 @@ struct LegalDocuments {
     • Use this application only in approved shooting ranges or safe training environments
     • Never handle firearms while impaired or distracted
 
-    4. NO LIABILITY
+    5. NO LIABILITY
 
     The developers and distributors of GMJuice assume NO LIABILITY for:
 
@@ -50,7 +64,7 @@ struct LegalDocuments {
     • Equipment malfunctions or timer inaccuracies
     • Any consequences of using this application
 
-    5. EQUIPMENT DISCLAIMER
+    6. EQUIPMENT DISCLAIMER
 
     While GMJuice attempts to provide accurate timing and shot detection, we make NO GUARANTEES regarding:
 
@@ -61,7 +75,7 @@ struct LegalDocuments {
 
     Always verify equipment is functioning properly before use.
 
-    6. GET PROFESSIONAL TRAINING
+    7. GET PROFESSIONAL TRAINING
 
     We STRONGLY RECOMMEND that all users:
 
@@ -70,11 +84,11 @@ struct LegalDocuments {
     • Participate in supervised competitive shooting events
     • Continuously practice safe handling and proper technique
 
-    7. ACCEPTANCE
+    8. ACCEPTANCE
 
     By using GMJuice, you acknowledge that you have read, understood, and agree to comply with these terms. You accept full responsibility for safe firearms handling and legal compliance.
 
-    8. MODIFICATIONS
+    9. MODIFICATIONS
 
     We reserve the right to modify these terms at any time. Continued use of the application constitutes acceptance of modified terms.
 

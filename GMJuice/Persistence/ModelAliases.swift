@@ -8,13 +8,10 @@
 // ModelAliases.swift
 // Points to the current schema version
 
-typealias ShooterProfile = Schema009.ShooterProfile
-typealias DivisionProfile = Schema009.DivisionProfile
-typealias StringRun = Schema009.StringRun
-typealias StringShot = Schema009.StringShot
+typealias ShooterProfile = Schema010.ShooterProfile
+typealias DivisionProfile = Schema010.DivisionProfile
+typealias StringRun = Schema010.StringRun
+typealias StringShot = Schema010.StringShot
 
 // Steel Challenge Match Data
-typealias MatchScore = Schema009.MatchScore
-
-// Session Notes V2 (Complete Overhaul)
-typealias SessionNote = Schema009.SessionNote
+typealias MatchScore = Schema010.MatchScore

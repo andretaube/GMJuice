@@ -295,37 +295,41 @@ struct StageProgressReportView: View {
 }
 
 #Preview {
-    let schema = Schema(versionedSchema: Schema004.self)
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: schema, configurations: [config])
-    let context = container.mainContext
+    let container: ModelContainer = {
+        let schema = Schema(versionedSchema: Schema004.self)
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let container = try! ModelContainer(for: schema, configurations: [config])
+        let context = container.mainContext
 
-    // Create sample data
-    let dates = [
-        Calendar.current.date(byAdding: .day, value: -60, to: Date())!,
-        Calendar.current.date(byAdding: .day, value: -45, to: Date())!,
-        Calendar.current.date(byAdding: .day, value: -30, to: Date())!,
-        Calendar.current.date(byAdding: .day, value: -15, to: Date())!,
-    ]
+        // Create sample data
+        let dates = [
+            Calendar.current.date(byAdding: .day, value: -60, to: Date())!,
+            Calendar.current.date(byAdding: .day, value: -45, to: Date())!,
+            Calendar.current.date(byAdding: .day, value: -30, to: Date())!,
+            Calendar.current.date(byAdding: .day, value: -15, to: Date())!,
+        ]
 
-    let times = [8.5, 8.2, 7.9, 7.6]
+        let times = [8.5, 8.2, 7.9, 7.6]
 
-    for (index, date) in dates.enumerated() {
-        let score = MatchScore(
-            matchName: "Match \(index + 1)",
-            scoreDate: date,
-            stageCode: "SC-101",
-            divisionCode: "RFPO",
-            time: Decimal(times[index]),
-            peakTime: Decimal(7.10),
-            usedForClassification: true
-        )
-        context.insert(score)
-    }
+        for (index, date) in dates.enumerated() {
+            let score = MatchScore(
+                matchName: "Match \(index + 1)",
+                scoreDate: date,
+                stageCode: "SC-101",
+                divisionCode: "RFPO",
+                time: Decimal(times[index]),
+                peakTime: Decimal(7.10),
+                usedForClassification: true
+            )
+            context.insert(score)
+        }
 
-    try? context.save()
+        try? context.save()
+        
+        return container
+    }()
 
-    return NavigationStack {
+    NavigationStack {
         StageProgressReportView(divisionCode: "RFPO")
     }
     .modelContainer(container)

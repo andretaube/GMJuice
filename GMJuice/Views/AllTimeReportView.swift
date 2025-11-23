@@ -823,7 +823,7 @@ struct StageReportDetailView: View {
         }
     }()
 
-    return NavigationStack {
+    NavigationStack {
         AllTimeReportView()
             .modelContainer(container)
     }
