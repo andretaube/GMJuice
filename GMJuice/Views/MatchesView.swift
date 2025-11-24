@@ -630,7 +630,7 @@ private struct PercentageTableTabView: View {
     // Calculate total peak time for a division (sum of all 8 stages)
     private func totalPeakTime(for division: Division) -> Decimal {
         allStageCodes.reduce(Decimal(0)) { sum, stageCode in
-            if let benchmark = PeakBenchmarks.get(division: division, stageCode: stageCode) {
+            if let benchmark = CurrentPeakBenchmarks.get(division: division, stageCode: stageCode) {
                 return sum + benchmark.peakTime
             }
             return sum
@@ -872,7 +872,7 @@ private struct StageTableView: View {
 
                         Divider()
 
-                        if let benchmark = PeakBenchmarks.get(division: division, stageCode: stageCode) {
+                        if let benchmark = CurrentPeakBenchmarks.get(division: division, stageCode: stageCode) {
                 let peakTime = benchmark.peakTime
 
                 ForEach(classifications, id: \.self) { classification in

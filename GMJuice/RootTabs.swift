@@ -13,6 +13,7 @@ struct RootTabs: View {
     @Environment(\.modelContext) private var context
     @Query private var allProfiles: [ShooterProfile]
     @StateObject private var scraper = SCWebScraper.shared
+    @StateObject private var remoteConfig = RemoteConfigService.shared
 
     var body: some View {
         TabView {
@@ -21,15 +22,19 @@ struct RootTabs: View {
                     Label("Train", systemImage: "target")
                 }
 
-            ProfileView()
-                .tabItem {
-                    Label("Profile", systemImage: "person.fill")
-                }
+            if remoteConfig.isProfileEnabled {
+                ProfileView()
+                    .tabItem {
+                        Label("Profile", systemImage: "person.fill")
+                    }
+            }
 
-            CoachingHomeView()
-                .tabItem {
-                    Label("Analysis", systemImage: "chart.bar.xaxis")
-                }
+            if remoteConfig.isAnalysisEnabled {
+                CoachingHomeView()
+                    .tabItem {
+                        Label("Analysis", systemImage: "chart.bar.xaxis")
+                    }
+            }
 
             SettingsMainView()
                 .tabItem {
@@ -66,6 +71,12 @@ struct RootTabs: View {
     }
 
     private func performAutoSync(for uspsaNumber: String) {
+        // Check if SCSA data is enabled via Remote Config
+        guard remoteConfig.isSCSADataEnabled else {
+            print("🚫 SCSA auto-sync disabled via Remote Config")
+            return
+        }
+        
         Task {
             do {
                 try await scraper.syncClassificationData(memberNumber: uspsaNumber, context: context)

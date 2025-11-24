@@ -102,7 +102,7 @@ struct StringRowView: View {
     
     @ViewBuilder
     private func percentClass(division: Division, stageCode: String, time: Decimal) -> some View {
-        let pct = PeakBenchmarks.percent(division: division, stageCode: stageCode, time: time)
+        let pct = CurrentPeakBenchmarks.percent(division: division, stageCode: stageCode, time: time)
         let percentDouble = NSDecimalNumber(decimal: pct).doubleValue
         let shooterClass = ShooterClass.shooterClass(percentage: pct)
 

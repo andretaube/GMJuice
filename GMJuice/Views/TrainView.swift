@@ -37,71 +37,13 @@ struct TrainView: View {
             return nil
         }
 
-        var marks: [CoachMark] = []
-
-        // First tip: Connect timer (if not connected)
-        let hasTimerSaved = UserDefaults.standard.string(forKey: "ble_saved_uuid") != nil
-        if !hasTimerSaved {
-            marks.append(CoachMark(
-                title: "Connect Your Timer",
-                message: "Go to Settings to connect your AMG timer via Bluetooth. Once connected, you can automatically track your shot times and splits.",
-                highlightFrame: divisionFrame, // Use same frame as division since settings isn't visible
-                calloutPosition: .bottom
-            ))
-        }
-
-        // Division picker tip
-        marks.append(CoachMark(
-            title: "Choose Your Division",
-            message: "Select which USPSA division you're training with. This determines the GM benchmark times used for performance tracking.",
-            highlightFrame: divisionFrame,
-            calloutPosition: .bottom
-        ))
-
-        // Timer button tip
-        marks.append(CoachMark(
-            title: "Start Training with Timer",
-            message: hasTimerSaved
-                ? "When your timer is connected, you'll see your shots, splits, and performance history automatically recorded for each training run."
-                : "After connecting your timer in Settings, tap here to start recording your training runs with automatic shot and split timing.",
-            highlightFrame: timerButtonFrame,
-            calloutPosition: .top
-        ))
-
-        // Video button tip
-        marks.append(CoachMark(
-            title: "Record Your Training",
-            message: "Record video of your runs with a professional overlay showing shot times, splits, classification score, and performance metrics. Perfect for reviewing technique and tracking progress.",
-            highlightFrame: videoButtonFrame,
-            calloutPosition: .top
-        ))
-
-        // Timer Log tip
-        marks.append(CoachMark(
-            title: "View Your Training History",
-            message: "Access all your recorded runs organized by date and stage. Review times and track improvement.",
-            highlightFrame: timerLogFrame,
-            calloutPosition: .bottom
-        ))
-
-        // Video Log tip
-        marks.append(CoachMark(
-            title: "Browse Your Video Log",
-            message: "View all your recorded training videos in one place. Review your form and technique across all stages.",
-            highlightFrame: videosLogFrame,
-            calloutPosition: .bottom
-        ))
-
-        // Final motivational tip (use division frame since no specific UI to highlight)
-        let motivationalMessage = MotivationalMessages.randomElement() ?? "Go train!"
-        marks.append(CoachMark(
-            title: "Now Go Train!",
-            message: motivationalMessage,
-            highlightFrame: divisionFrame,
-            calloutPosition: .bottom
-        ))
-
-        return marks
+        return TrainViewHelp.createCoachMarks(
+            divisionFrame: divisionFrame,
+            timerButtonFrame: timerButtonFrame,
+            videoButtonFrame: videoButtonFrame,
+            timerLogFrame: timerLogFrame,
+            videosLogFrame: videosLogFrame
+        )
     }
 
     var body: some View {
@@ -288,113 +230,6 @@ enum NavigationDestination: Hashable {
     case video(stage: Stage, division: Division)
 }
 
-// MARK: - Tutorial View
-
-struct TrainTutorialView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    // Division Selection
-                    TutorialCard(
-                        icon: "list.bullet",
-                        iconColor: .blue,
-                        title: "Choose Your Division",
-                        description: "Select which USPSA division you're training with. This determines the GM benchmark times used for performance tracking."
-                    )
-
-                    // BLE Connection
-                    let hasTimerSaved = UserDefaults.standard.string(forKey: "ble_saved_uuid") != nil
-                    if !hasTimerSaved {
-                        TutorialCard(
-                            icon: "antenna.radiowaves.left.and.right",
-                            iconColor: .orange,
-                            title: "Connect Your Timer",
-                            description: "Go to Settings to connect your AMG timer via Bluetooth. Once connected, you can automatically track your shot times and splits."
-                        )
-                    }
-
-                    // Timer Button
-                    TutorialCard(
-                        icon: "timer",
-                        iconColor: .blue,
-                        title: "Start Training with Timer",
-                        description: hasTimerSaved
-                            ? "When your timer is connected, you'll see your shots, splits, and performance history automatically recorded for each training run."
-                            : "After connecting your timer in Settings, tap here to start recording your training runs with automatic shot and split timing."
-                    )
-
-                    // Video Button
-                    TutorialCard(
-                        icon: "video.fill",
-                        iconColor: .red,
-                        title: "Record Your Training",
-                        description: "Record video of your runs to review technique and track progress over time."
-                    )
-
-                    // Timer Log
-                    TutorialCard(
-                        icon: "list.bullet.rectangle",
-                        iconColor: .blue,
-                        title: "View Your Training History",
-                        description: "Access all your recorded runs organized by date and stage. Review times and track improvement."
-                    )
-
-                    // Video Log
-                    TutorialCard(
-                        icon: "video.fill",
-                        iconColor: .red,
-                        title: "Browse Your Video Log",
-                        description: "View all your recorded training videos in one place. Review your form and technique across all stages."
-                    )
-                }
-                .padding()
-            }
-            .navigationTitle("How to Use Train")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-struct TutorialCard: View {
-    let icon: String
-    let iconColor: Color
-    let title: String
-    let description: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(iconColor)
-                .frame(width: 40, height: 40)
-                .background(iconColor.opacity(0.1))
-                .cornerRadius(8)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
-    }
-}
 
 #Preview {
     TrainView()

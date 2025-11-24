@@ -17,11 +17,13 @@ struct RecordingView<ViewModel: RecordingViewModelProtocol>: View {
     @State private var autoAnnounceTask: Task<Void, Never>?
     @State private var lastAnnouncedShotCount = 0
     @State private var previousConnectionStatus: BLEConnectionStatus = .Disconnected
+    
 
     @Query private var shooterProfiles: [ShooterProfile]
     private var shooter: ShooterProfile? {
         shooterProfiles.first
     }
+    
 
     @MainActor
     init(stage: Stage, division: Division, vm: ViewModel) {
@@ -31,36 +33,109 @@ struct RecordingView<ViewModel: RecordingViewModelProtocol>: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 16) {
-                RecordingLeftColumn(stage: stage, division: division, vm: vm, style: .default, shooter: shooter)
-                VStack(spacing: 8) {
-                    RecordingTimerDisplay(fontSize: 240, vm: vm, division: division, stage: stage, shooter: shooter, style: .default, announcer: announcer)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 8)
-
-                    // Hit/miss indicators right after time
-                    RecordingTargetIndicators(stage: stage, missedTargets: vm.stringRun.missedTargets, onToggleMiss: toggleTargetMiss, style: .default)
+        GeometryReader { geometry in
+            // Rotate the entire content 90 degrees to simulate landscape while in portrait
+            VStack(spacing: 0) {
+                // Custom top navigation bar
+                HStack {
+                    // Left: Done button
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(.blue)
+                    .frame(width: 80, alignment: .leading)
+                    
+                    Spacer()
+                    
+                    // Center: Stage and division info
+                    VStack(spacing: 2) {
+                        Text(stage.name)
+                            .font(.system(size: 16, weight: .semibold))
+                            .lineLimit(1)
+                        Text("\(stage.code) • \(division.rawValue)")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    // Right: Timer status
+                    RecordingTimerConnectionStatus(connectionStatus: vm.connectionStatus, style: .default)
+                        .imageScale(.large)
+                        .frame(width: 110, alignment: .trailing)
                 }
-                .frame(maxWidth: .infinity)
-                RecordingRightColumn(vm: vm, style: .default)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(.systemBackground))
+                
+                // Main content area
+                HStack(spacing: 0) {
+                    RecordingLeftColumn(stage: stage, division: division, vm: vm, style: .default, shooter: shooter)
+                    VStack(spacing: 8) {
+                        RecordingTimerDisplay(fontSize: 160, vm: vm, division: division, stage: stage, shooter: shooter, style: .default, announcer: announcer)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 8)
+
+                        // Hit/miss indicators right after time
+                        RecordingTargetIndicators(stage: stage, missedTargets: vm.stringRun.missedTargets, onToggleMiss: toggleTargetMiss, style: .default)
+                    }
+                    .frame(maxWidth: .infinity)
+                    // Custom right column without timer status
+                    VStack(alignment: .trailing, spacing: 2) {
+                        if let bestTime = vm.bestTime() {
+                            RecordingInfoTitle(icon: .init(systemName: "thermometer.high"), label: "Fastest", color: .green, style: .default)
+                            Text("Time: \(Format.formatTime(bestTime))")
+                                .font(.system(.body, weight: .bold))
+                                .monospacedDigit()
+                                .foregroundStyle(.primary)
+                        }
+                        if let bestFirstShot = vm.bestFirstShot() {
+                            Text("1st: \(Format.formatTime(bestFirstShot))")
+                                .font(.system(.body, weight: .bold))
+                                .monospacedDigit()
+                                .foregroundStyle(.primary)
+                        }
+
+                        Spacer().frame(height: 15)
+
+                        if vm.counter > 1 {
+                            if let worstTime = vm.worstTime() {
+                                RecordingInfoTitle(icon: .init(systemName: "thermometer.low"), label: "Slowest", color: .red, style: .default)
+                                Text("Time: \(Format.formatTime(worstTime))")
+                                    .font(.system(.body, weight: .bold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.primary)
+                            }
+                            if let worstFirstShot = vm.worstFirstShot() {
+                                Text("1st: \(Format.formatTime(worstFirstShot))")
+                                    .font(.system(.body, weight: .bold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.primary)
+                            }
+                        }
+                    }
+                    .frame(minWidth: 150, alignment: .trailing)
+                }
+                .frame(maxHeight: .infinity)
+                
+                // Shots and splits at the bottom
+                RecordingShotsAndSplits(vm: vm, style: .default)
+                    .frame(height: 120)
+                    .padding(.bottom, 8)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal)
-            .padding(.top, 8)
-
-            Spacer(minLength: 8)
-
-            RecordingShotsAndSplits(vm: vm, style: .default)
-                .padding(.horizontal)
-                .padding(.bottom)
+            .frame(width: geometry.size.height, height: geometry.size.width)
+            .rotationEffect(.degrees(90))
+            .position(
+                x: geometry.size.width / 2,
+                y: geometry.size.height / 2
+            )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea(edges: [])
-        .navigationTitle("\(stage.name) – \(stage.code) - \(division)")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.visible, for: .navigationBar)
+        .navigationBarHidden(true)
         .toolbar(.hidden, for: .tabBar)
+        .statusBarHidden(true)
         .onChange(of: recordingManager.stringCounter) { _, _ in
             // Reset announcement tracking when a new string starts
             lastAnnouncedShotCount = 0
@@ -87,7 +162,7 @@ struct RecordingView<ViewModel: RecordingViewModelProtocol>: View {
                     let adjustedTime = stringToAnnounce.adjustedTime
 
                     // Calculate classification for this time
-                    let pct = PeakBenchmarks.percent(division: division, stageCode: stage.code, time: adjustedTime)
+                    let pct = CurrentPeakBenchmarks.percent(division: division, stageCode: stage.code, time: adjustedTime)
                     let shooterClass = ShooterClass.shooterClass(percentage: pct)
 
                     print("📢 Auto-announcing time: \(adjustedTime) (\(shooterClass.rawValue))")
@@ -104,9 +179,6 @@ struct RecordingView<ViewModel: RecordingViewModelProtocol>: View {
             previousConnectionStatus = newStatus
         }
         .onAppear() {
-            // Lock to landscape orientation
-            AppDelegate.orientationLock = .landscape
-
             // Reset announcement tracking
             lastAnnouncedShotCount = 0
 
@@ -114,7 +186,7 @@ struct RecordingView<ViewModel: RecordingViewModelProtocol>: View {
             previousConnectionStatus = vm.connectionStatus
 
             // Start recording session
-            recordingManager.startSession(stageId: stage.code, divisionId: division.id, modelContext: modelContext)
+            recordingManager.startSession(stageId: stage.code, divisionId: division.rawValue, modelContext: modelContext)
 
             UIApplication.shared.isIdleTimerDisabled = true
 
@@ -127,9 +199,6 @@ struct RecordingView<ViewModel: RecordingViewModelProtocol>: View {
             }
         }
         .onDisappear() {
-            // Restore all orientations
-            AppDelegate.orientationLock = .all
-
             // Cancel pending announcement
             autoAnnounceTask?.cancel()
 
@@ -155,7 +224,7 @@ struct RecordingView<ViewModel: RecordingViewModelProtocol>: View {
             let adjustedTime = vm.adjustedTime(for: vm.stringRun)
 
             // Calculate classification for this time
-            let pct = PeakBenchmarks.percent(division: division, stageCode: stage.code, time: adjustedTime)
+            let pct = CurrentPeakBenchmarks.percent(division: division, stageCode: stage.code, time: adjustedTime)
             let shooterClass = ShooterClass.shooterClass(percentage: pct)
 
             Announcer.shared.speak(text: "\(Format.formatTime(adjustedTime)), \(shooterClass.spokenName)")
@@ -163,170 +232,3 @@ struct RecordingView<ViewModel: RecordingViewModelProtocol>: View {
     }
 
 }
-
-
-#if DEBUG
-import SwiftUI
-import SwiftData
-
-// MARK: - Mock View Model for Previews
-
-@MainActor
-class MockRecordingViewModel: ObservableObject, RecordingViewModelProtocol {
-    @Published var counter: Int
-    @Published var stringRun: StringRun
-    @Published var allRuns: [StringRun]
-    @Published var connectionStatus: BLEConnectionStatus
-
-    init(counter: Int, stringRun: StringRun, allRuns: [StringRun], connectionStatus: BLEConnectionStatus = .Connected) {
-        self.counter = counter
-        self.stringRun = stringRun
-        self.allRuns = allRuns
-        self.connectionStatus = connectionStatus
-    }
-
-    func adjustedTime(for stringRun: StringRun) -> Decimal {
-        return stringRun.adjustedTime
-    }
-
-    func times() -> [Decimal] {
-        return allRuns.sorted { $0.date < $1.date }.map(\.time).filter { $0 > 0 }
-    }
-
-    func bestTime() -> Decimal? {
-        return allRuns.filter { $0.time > 0 }.map { $0.adjustedTime }.min()
-    }
-
-    func bestFirstShot() -> Decimal? {
-        return allRuns.compactMap { $0.stringShots.first?.first }.filter { $0 > 0 }.min()
-    }
-
-    func worstTime() -> Decimal? {
-        return allRuns.filter { $0.time > 0 }.map { $0.adjustedTime }.max()
-    }
-
-    func worstFirstShot() -> Decimal? {
-        return allRuns.compactMap { $0.stringShots.first?.first }.filter { $0 > 0 }.max()
-    }
-
-    func shouldFlashRed(for run: StringRun) -> Bool {
-        return run.shouldFlashRed
-    }
-}
-
-// MARK: - Preview
-@MainActor
-struct RecordingView_Previews: PreviewProvider {
-
-
-    static var previews: some View {
-
-        let stage = AllStages[4]
-        let division = Division.RFPO
-        
-        let container = try! ModelContainer(
-            for: StringRun.self, StringShot.self, ShooterProfile.self, DivisionProfile.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        )
-        
-        let shooterProfile = ShooterProfile(uspsaNumber: "A12345")
-        shooterProfile.setClassification(.M, for: division)
-        container.mainContext.insert(shooterProfile)
-                
-        // Example runs with shots
-        let r1 = StringRun(stageId: stage.code, divisionId: division.rawValue)
-        r1.time = 2.09
-        r1.date = Date()
-        r1.stringShots = [
-            StringShot(now: 0.55, split: 0.55, first: 0.55),
-            StringShot(now: 0.95, split: 0.40, first: 0.55),
-            StringShot(now: 1.35, split: 0.40, first: 0.55),
-            StringShot(now: 1.69, split: 0.34, first: 0.55),
-            StringShot(now: 2.09, split: 0.40, first: 0.55),
-        ]
-
-        let r2 = StringRun(stageId: stage.code, divisionId: division.rawValue)
-        r2.time = 5.64
-        r2.date = Date()+1
-        r2.stringShots = [
-            StringShot(now: 0.78, split: 0.78, first: 0.78),
-            StringShot(now: 1.50, split: 0.72, first: 0.78),
-            StringShot(now: 2.20, split: 0.70, first: 0.78),
-            StringShot(now: 3.00, split: 0.80, first: 0.78),
-            StringShot(now: 5.64, split: 2.64, first: 0.78),  // Slow last shot
-        ]
-
-        let r3 = StringRun(stageId: stage.code, divisionId: division.rawValue)
-        r3.time = 1.71
-        r3.date = Date()+2
-        r3.stringShots = [
-            StringShot(now: 0.45, split: 0.45, first: 0.45),
-            StringShot(now: 0.78, split: 0.33, first: 0.45),
-            StringShot(now: 1.10, split: 0.32, first: 0.45),
-            StringShot(now: 1.40, split: 0.30, first: 0.45),
-            StringShot(now: 1.71, split: 0.31, first: 0.45),
-        ]
-
-        let r4 = StringRun(stageId: stage.code, divisionId: division.rawValue)
-        r4.time = 1.53
-        r4.date = Date()+3
-        r4.stringShots = [
-            StringShot(now: 0.42, split: 0.42, first: 0.42),
-            StringShot(now: 0.72, split: 0.30, first: 0.42),
-            StringShot(now: 1.00, split: 0.28, first: 0.42),
-            StringShot(now: 1.27, split: 0.27, first: 0.42),
-            StringShot(now: 1.53, split: 0.26, first: 0.42),
-        ]
-
-        let r5 = StringRun(stageId: stage.code, divisionId: division.rawValue)
-        r5.time = 2.15
-        r5.date = Date()+4
-//        r5.missedTargets = [3, 4]  // Missed targets 3 and 4
-        r5.stringShots = [
-            StringShot(now: 0.9, split: 0.9, first: 0.9),
-            StringShot(now: 1.32, split: 0.42, first: 0.9),
-            StringShot(now: 1.86, split: 0.54, first: 0.9),
-            StringShot(now: 2.01, split: 0.50, first: 0.9),
-            StringShot(now: 2.15, split: 1.00, first: 0.9),
-        ]
-
-        let allRuns = [r1, r2, r3, r4, r5]
-
-        // Use mock view model for preview
-        let vm = MockRecordingViewModel(
-            counter: allRuns.count,
-            stringRun: r5,
-            allRuns: allRuns,
-            connectionStatus: .Connected
-        )
-
-        // Mute the announcer in previews
-        Announcer.shared.isEnabled = false
-
-        return TabView {
-            NavigationStack {
-                RecordingView(stage: stage, division: division, vm: vm)
-            }
-            .tabItem {
-                Label("Train", systemImage: "target")
-            }
-            
-            Text("Log")
-                .tabItem {
-                    Label("Log", systemImage: "list.bullet.rectangle")
-                }
-            
-            Text("Profile")
-                .tabItem {
-                    Label("Profile", systemImage: "person")
-                }
-            
-            Text("Settings")
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape")
-                }
-        }
-        .modelContainer(container)
-    }
-}
-#endif

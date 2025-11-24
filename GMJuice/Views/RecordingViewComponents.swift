@@ -163,7 +163,7 @@ struct RecordingTimerDisplay<ViewModel: RecordingViewModelProtocol>: View {
         }
 
         let time = vm.adjustedTime(for: vm.stringRun)
-        let pct = PeakBenchmarks.percent(division: division, stageCode: stage.code, time: time)
+        let pct = CurrentPeakBenchmarks.percent(division: division, stageCode: stage.code, time: time)
         let threshold = classification.percentThreshold
         let nextClassThreshold = classification.nextClassThreshold
 
@@ -458,9 +458,9 @@ struct RecordingPercentClass: View {
 
     var body: some View {
         let pct = if let time = time {
-            PeakBenchmarks.percent(division: division, stageCode: stageCode, time: time)
+            CurrentPeakBenchmarks.percent(division: division, stageCode: stageCode, time: time)
         } else if let times = times {
-            PeakBenchmarks.percent(division: division, stageCode: stageCode, times: times)
+            CurrentPeakBenchmarks.percent(division: division, stageCode: stageCode, times: times)
         } else {
             Decimal(0)
         }
@@ -524,7 +524,7 @@ struct RecordingStringReward: View {
 // MARK: - Helper Functions
 
 /// Calculate the sum of best N times from the most recent M times
-/// This matches the classification logic in PeakBenchmarks.percent()
+/// This matches the classification logic in CurrentPeakBenchmarks.percent()
 /// For example: take most recent 5 runs, find best 4, sum them
 private func calculateBestNSum(times: [Decimal], n: Int) -> Decimal? {
     let validTimes = times.filter { $0 > 0 }

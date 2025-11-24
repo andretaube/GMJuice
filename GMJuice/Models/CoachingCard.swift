@@ -111,6 +111,9 @@ struct CoachingCards: Codable {
 
     // Analysis summary used to generate cards
     let analysisSummary: AnalysisSummary
+    
+    // Whether Claude AI was used to generate insights
+    let aiEnabled: Bool
 
     struct AnalysisSummary: Codable {
         let matchCount: Int
@@ -127,5 +130,37 @@ struct CoachingCards: Codable {
     /// Check if analysis has changed significantly
     func needsRegeneration(newHash: String) -> Bool {
         analysisSummary.performanceHash != newHash || !isValid
+    }
+    
+    // Custom decoding for backward compatibility
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        divisionCode = try container.decode(String.self, forKey: .divisionCode)
+        memberNumber = try container.decode(String.self, forKey: .memberNumber)
+        generatedDate = try container.decode(Date.self, forKey: .generatedDate)
+        expirationDate = try container.decode(Date.self, forKey: .expirationDate)
+        matchCard = try container.decode(MatchCard.self, forKey: .matchCard)
+        practiceCard = try container.decode(PracticeCard.self, forKey: .practiceCard)
+        analysisSummary = try container.decode(AnalysisSummary.self, forKey: .analysisSummary)
+        // Default to true for backward compatibility with existing cached cards
+        aiEnabled = (try? container.decode(Bool.self, forKey: .aiEnabled)) ?? true
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case divisionCode, memberNumber, generatedDate, expirationDate
+        case matchCard, practiceCard, analysisSummary, aiEnabled
+    }
+    
+    // Memberwise initializer for compatibility
+    init(divisionCode: String, memberNumber: String, generatedDate: Date, expirationDate: Date, 
+         matchCard: MatchCard, practiceCard: PracticeCard, analysisSummary: AnalysisSummary, aiEnabled: Bool) {
+        self.divisionCode = divisionCode
+        self.memberNumber = memberNumber
+        self.generatedDate = generatedDate
+        self.expirationDate = expirationDate
+        self.matchCard = matchCard
+        self.practiceCard = practiceCard
+        self.analysisSummary = analysisSummary
+        self.aiEnabled = aiEnabled
     }
 }

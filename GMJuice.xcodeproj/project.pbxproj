@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		65C5C9752ED3791000AD9C02 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 65C5C9742ED3791000AD9C02 /* FirebaseAnalytics */; };
+		65C5C9772ED3791000AD9C02 /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = 65C5C9762ED3791000AD9C02 /* FirebaseAnalyticsCore */; };
+		65C5C97E2ED37D5B00AD9C02 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 65C5C97D2ED37D5B00AD9C02 /* FirebaseAppCheck */; };
+		65C5C9802ED37D5B00AD9C02 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 65C5C97F2ED37D5B00AD9C02 /* FirebaseCore */; };
+		65C5C9822ED37D5B00AD9C02 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 65C5C9812ED37D5B00AD9C02 /* FirebaseCrashlytics */; };
+		65C5C9842ED37D5B00AD9C02 /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = 65C5C9832ED37D5B00AD9C02 /* FirebaseRemoteConfig */; };
 		65CE18762EB96E8900125A6C /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 65CE18752EB96E8900125A6C /* SwiftSoup */; };
 /* End PBXBuildFile section */
 
@@ -79,6 +85,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				65C5C97E2ED37D5B00AD9C02 /* FirebaseAppCheck in Frameworks */,
+				65C5C9802ED37D5B00AD9C02 /* FirebaseCore in Frameworks */,
+				65C5C9752ED3791000AD9C02 /* FirebaseAnalytics in Frameworks */,
+				65C5C9842ED37D5B00AD9C02 /* FirebaseRemoteConfig in Frameworks */,
+				65C5C9822ED37D5B00AD9C02 /* FirebaseCrashlytics in Frameworks */,
+				65C5C9772ED3791000AD9C02 /* FirebaseAnalyticsCore in Frameworks */,
 				65CE18762EB96E8900125A6C /* SwiftSoup in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -160,6 +172,12 @@
 			name = GMJuice;
 			packageProductDependencies = (
 				65CE18752EB96E8900125A6C /* SwiftSoup */,
+				65C5C9742ED3791000AD9C02 /* FirebaseAnalytics */,
+				65C5C9762ED3791000AD9C02 /* FirebaseAnalyticsCore */,
+				65C5C97D2ED37D5B00AD9C02 /* FirebaseAppCheck */,
+				65C5C97F2ED37D5B00AD9C02 /* FirebaseCore */,
+				65C5C9812ED37D5B00AD9C02 /* FirebaseCrashlytics */,
+				65C5C9832ED37D5B00AD9C02 /* FirebaseRemoteConfig */,
 			);
 			productName = GMJuice;
 			productReference = 65E4D8132E971EC5006D3B3D /* GMJuice.app */;
@@ -195,6 +213,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				65CE18722EB96DC100125A6C /* XCRemoteSwiftPackageReference "SwiftSoup" */,
+				65C5C9732ED3791000AD9C02 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 65E4D8142E971EC5006D3B3D /* Products */;
@@ -432,9 +451,10 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "GMJuice needs camera access to record your shooting practice sessions.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "GMJuice needs microphone access to record audio with your practice videos.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "GMJuice needs permission to save your practice videos to your photo library.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "GMJuice uses speech recognition to help you quickly create notes about your shooting sessions by speaking instead of typing.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -473,9 +493,10 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "GMJuice needs camera access to record your shooting practice sessions.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "GMJuice needs microphone access to record audio with your practice videos.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "GMJuice needs permission to save your practice videos to your photo library.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "GMJuice uses speech recognition to help you quickly create notes about your shooting sessions by speaking instead of typing.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -526,6 +547,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		65C5C9732ED3791000AD9C02 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.6.0;
+			};
+		};
 		65CE18722EB96DC100125A6C /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/scinfu/SwiftSoup.git";
@@ -537,6 +566,36 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		65C5C9742ED3791000AD9C02 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 65C5C9732ED3791000AD9C02 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		65C5C9762ED3791000AD9C02 /* FirebaseAnalyticsCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 65C5C9732ED3791000AD9C02 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalyticsCore;
+		};
+		65C5C97D2ED37D5B00AD9C02 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 65C5C9732ED3791000AD9C02 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
+		};
+		65C5C97F2ED37D5B00AD9C02 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 65C5C9732ED3791000AD9C02 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		65C5C9812ED37D5B00AD9C02 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 65C5C9732ED3791000AD9C02 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		65C5C9832ED37D5B00AD9C02 /* FirebaseRemoteConfig */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 65C5C9732ED3791000AD9C02 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseRemoteConfig;
+		};
 		65CE18752EB96E8900125A6C /* SwiftSoup */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 65CE18722EB96DC100125A6C /* XCRemoteSwiftPackageReference "SwiftSoup" */;

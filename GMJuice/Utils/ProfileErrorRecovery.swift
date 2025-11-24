@@ -67,6 +67,13 @@ struct ProfileErrorRecovery {
         // Then attempt to re-sync
         Task {
             do {
+                // Check if SCSA data is enabled via Remote Config
+                guard RemoteConfigService.shared.isSCSADataEnabled else {
+                    print("🚫 SCSA data recovery disabled via Remote Config")
+                    completion(false)
+                    return
+                }
+                
                 print("🔄 Re-syncing profile data for: \(uspsaNumber)")
                 try await scraper.syncClassificationData(memberNumber: uspsaNumber, context: context)
                 print("✅ Successfully recovered profile: \(uspsaNumber)")

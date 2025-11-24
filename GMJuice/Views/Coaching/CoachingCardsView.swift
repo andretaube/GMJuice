@@ -291,6 +291,20 @@ struct CoachingCardsView: View {
 
     private func cardsContentView(_ cards: CoachingCards) -> some View {
         VStack(spacing: 0) {
+            // AI Status Banner (if disabled)
+            if !cards.aiEnabled {
+                HStack {
+                    Image(systemName: "brain.head.profile")
+                        .foregroundStyle(.orange)
+                    Text("AI insights disabled - showing statistical analysis only")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color.orange.opacity(0.1))
+            }
+            
             // Tab picker
             Picker("Card Type", selection: $selectedTab) {
                 Text("Analysis").tag(0)

@@ -13,6 +13,7 @@ struct ProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var profiles: [ShooterProfile]
     @StateObject private var scraper = SCWebScraper.shared
+    @StateObject private var remoteConfig = RemoteConfigService.shared
 
     // Optional USPSA number - if provided, show that profile; otherwise show current user
     let uspsaNumber: String?
@@ -195,6 +196,13 @@ struct ProfileView: View {
     private func syncClassificationData(profile: ShooterProfile) async {
         guard !profile.uspsaNumber.isEmpty else {
             errorMessage = "Please enter your SCSA member number first"
+            showingError = true
+            return
+        }
+        
+        // Check if SCSA data is enabled via Remote Config
+        guard RemoteConfigService.shared.isSCSADataEnabled else {
+            errorMessage = "SCSA data import is currently disabled"
             showingError = true
             return
         }
@@ -393,7 +401,7 @@ private struct ProfileStatsView: View {
     private func calculateTotalPeakTime(for division: Division) -> Decimal {
         var total = Decimal(0)
         for stage in AllStages {
-            if let benchmark = PeakBenchmarks.get(division: division, stageCode: stage.code) {
+            if let benchmark = CurrentPeakBenchmarks.get(division: division, stageCode: stage.code) {
                 total += benchmark.peakTime
             }
         }
@@ -434,7 +442,7 @@ private struct ProfileStatsView: View {
             let totalPeakTime: Decimal
             if let divisionEnum = Division(rawValue: division) {
                 totalPeakTime = AllStages.reduce(Decimal(0)) { total, stage in
-                    if let benchmark = PeakBenchmarks.get(division: divisionEnum, stageCode: stage.code) {
+                    if let benchmark = CurrentPeakBenchmarks.get(division: divisionEnum, stageCode: stage.code) {
                         return total + benchmark.peakTime
                     }
                     return total
@@ -453,7 +461,7 @@ private struct ProfileStatsView: View {
             if !allDivisions.contains(where: { $0.division == divisionCode }) {
                 // Calculate peak time for all 8 standard Steel Challenge stages
                 let allEightStagesPeakTime = AllStages.reduce(Decimal(0)) { total, stage in
-                    if let benchmark = PeakBenchmarks.get(division: divProfile.division, stageCode: stage.code) {
+                    if let benchmark = CurrentPeakBenchmarks.get(division: divProfile.division, stageCode: stage.code) {
                         return total + benchmark.peakTime
                     }
                     return total
@@ -1002,6 +1010,7 @@ private struct USPSASettingsSheet: View {
     let onSync: () -> Void
     let onDeleteData: () -> Void
     @StateObject private var scraper = SCWebScraper.shared
+    @StateObject private var remoteConfig = RemoteConfigService.shared
     @State private var initialNumber: String = ""
 
     var body: some View {
@@ -1040,24 +1049,31 @@ private struct USPSASettingsSheet: View {
                     } header: {
                         Text("Sync Settings")
                     } footer: {
-                        Text("Your classification data will sync automatically when you open the app. SCSA updates scores on Wednesdays.")
+                        if remoteConfig.isSCSADataEnabled {
+                            Text("Your classification data will sync automatically when you open the app. SCSA updates scores on Wednesdays.")
+                        } else {
+                            Text("SCSA data refresh is currently not available, please check again later")
+                                .foregroundStyle(.orange)
+                        }
                     }
 
-                    Section {
-                        Button {
-                            onSync()
-                        } label: {
-                            HStack {
-                                Spacer()
-                                if scraper.isScraping {
-                                    ProgressView()
-                                        .padding(.trailing, 8)
+                    if remoteConfig.isSCSADataEnabled {
+                        Section {
+                            Button {
+                                onSync()
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    if scraper.isScraping {
+                                        ProgressView()
+                                            .padding(.trailing, 8)
+                                    }
+                                    Text("Sync Now")
+                                    Spacer()
                                 }
-                                Text("Sync Now")
-                                Spacer()
                             }
+                            .disabled(scraper.isScraping)
                         }
-                        .disabled(scraper.isScraping)
                     }
                 }
             }

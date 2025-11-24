@@ -12,6 +12,7 @@ struct USPSANumberSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @StateObject private var scraper = SCWebScraper.shared
+    @StateObject private var remoteConfig = RemoteConfigService.shared
 
     @Bindable var profile: ShooterProfile
     let isEditable: Bool
@@ -96,23 +97,30 @@ struct USPSANumberSheet: View {
 
                         Spacer()
 
-                        if isRefreshing {
-                            ProgressView()
-                        } else {
-                            Button(action: refreshProfile) {
-                                Label("Refresh", systemImage: "arrow.clockwise")
+                        if remoteConfig.isSCSADataEnabled {
+                            if isRefreshing {
+                                ProgressView()
+                            } else {
+                                Button(action: refreshProfile) {
+                                    Label("Refresh", systemImage: "arrow.clockwise")
+                                }
+                                .disabled(!canRefresh)
                             }
-                            .disabled(!canRefresh)
                         }
                     }
                 } header: {
                     Text("Sync Status")
                 } footer: {
-                    #if DEBUG
-                    Text("Profile data is automatically refreshed every 24 hours")
-                    #else
-                    Text("Profile data is automatically refreshed every 24 hours. Manual refresh is limited to once per hour.")
-                    #endif
+                    if remoteConfig.isSCSADataEnabled {
+                        #if DEBUG
+                        Text("Profile data is automatically refreshed every 24 hours")
+                        #else
+                        Text("Profile data is automatically refreshed every 24 hours. Manual refresh is limited to once per hour.")
+                        #endif
+                    } else {
+                        Text("SCSA data refresh is currently not available, please check again later")
+                            .foregroundStyle(.orange)
+                    }
                 }
 
                 // Division visibility toggles
@@ -225,6 +233,16 @@ struct USPSANumberSheet: View {
 
             Task {
                 do {
+                    // Check if SCSA data is enabled via Remote Config
+                    guard RemoteConfigService.shared.isSCSADataEnabled else {
+                        await MainActor.run {
+                            errorMessage = "SCSA data import is currently disabled"
+                            showingError = true
+                            isRefreshing = false
+                        }
+                        return
+                    }
+                    
                     print("🔄 Syncing profile data for new USPSA number: \(trimmedNumber)")
                     try await scraper.syncClassificationData(memberNumber: trimmedNumber, context: context)
 
@@ -260,6 +278,16 @@ struct USPSANumberSheet: View {
 
         Task {
             do {
+                // Check if SCSA data is enabled via Remote Config
+                guard RemoteConfigService.shared.isSCSADataEnabled else {
+                    await MainActor.run {
+                        errorMessage = "SCSA data refresh is currently disabled"
+                        showingError = true
+                        isRefreshing = false
+                    }
+                    return
+                }
+                
                 print("🔄 Refreshing profile for: \(profile.uspsaNumber)")
                 try await scraper.syncClassificationData(memberNumber: profile.uspsaNumber, context: context)
 

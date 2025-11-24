@@ -7,6 +7,11 @@
 
 import Foundation
 
+/// Global access to current PeakBenchmarks (Firebase remote data with local fallback)
+public var CurrentPeakBenchmarks: PeakTable {
+    return PeakBenchmarksService.shared.getCurrentBenchmarks()
+}
+
 // Seed table for Steel Challenge using the Division enum
 public var PeakBenchmarks: PeakTable = {
     var t = PeakTable()
@@ -15,7 +20,7 @@ public var PeakBenchmarks: PeakTable = {
     t.set(division: .RFPO, stageCode: "SC-101", peakTime: 8.75)
     t.set(division: .RFPO, stageCode: "SC-102", peakTime: 7.50)
     t.set(division: .RFPO, stageCode: "SC-103", peakTime: 7.00)
-    t.set(division: .RFPO, stageCode: "SC-104", peakTime: 11.50) // Outer Limits = 3
+    t.set(division: .RFPO, stageCode: "SC-104", peakTime: 11.50) // Outer Limits: 4 shot, 3 count
     t.set(division: .RFPO, stageCode: "SC-105", peakTime: 8.50)
     t.set(division: .RFPO, stageCode: "SC-106", peakTime: 9.50)
     t.set(division: .RFPO, stageCode: "SC-107", peakTime: 10.00)
@@ -145,26 +150,20 @@ public var PeakBenchmarks: PeakTable = {
 
 }()
 
-/// Benchmark for a division+stage: e.g. strings: 4, peakTime: 8.75 (seconds)
+/// Benchmark for a division+stage with GM-level performance data
+/// 
+/// Classification calculations:
+/// - Single string estimation: peakTime ÷ (strings-1) = target time per string for classification level
+/// - Multi-string classification: Sum best (strings-1) times from last (strings) attempts, compare to peakTime
 public struct PeakBenchmark: Codable, Hashable {
+    /// Total strings shot for this stage (5 for most stages, 4 for SC-104 Outer Limits)
     public var strings: Int
-    public var peakTime: Decimal   // total time for `strings` strings
+    /// GM-level peak time for best (strings-1) strings combined
+    public var peakTime: Decimal
 
     public init(strings: Int, peakTime: Decimal) {
         self.strings = strings
         self.peakTime = peakTime
-    }
-
-    /// Average time per string (lower is better).
-    public var stringPace: Decimal {
-        guard strings > 0 else { return 0 }
-        return peakTime / Decimal(strings)
-    }
-
-    /// Strings per second (higher is better).
-    public var stringsPerSecond: Decimal {
-        guard peakTime > 0 else { return 0 }
-        return Decimal(strings) / peakTime
     }
 }
 

@@ -104,7 +104,7 @@ struct ExportDataView: View {
             let division = stringRun.divisionId
 
             // Calculate percentage
-            let percent = PeakBenchmarks.percent(
+            let percent = CurrentPeakBenchmarks.percent(
                 division: Division(rawValue: division) ?? .RFPO,
                 stageCode: stage,
                 time: stringRun.adjustedTime

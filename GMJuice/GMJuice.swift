@@ -7,6 +7,8 @@
 import SwiftUI
 import SwiftData
 import TipKit
+import FirebaseCore
+
 
 @main
 struct GMJuice: App {
@@ -143,6 +145,8 @@ struct GMJuice: App {
         }
     }
 }
+
+
 
 #Preview {
     let schema = Schema(versionedSchema: Schema004.self)

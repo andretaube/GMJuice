@@ -190,6 +190,16 @@ struct FollowingView: View {
 
         Task {
             do {
+                // Check if SCSA data is enabled via Remote Config
+                guard RemoteConfigService.shared.isSCSADataEnabled else {
+                    await MainActor.run {
+                        errorMessage = "SCSA data import is currently disabled"
+                        showingError = true
+                        isLoading = false
+                    }
+                    return
+                }
+                
                 print("🔍 Fetching data for: \(trimmedNumber)")
                 // Fetch the shooter's data - this will create the ShooterProfile
                 try await scraper.syncClassificationData(memberNumber: trimmedNumber, context: context)
@@ -448,7 +458,7 @@ struct FollowedShooterProfileView: View {
             let totalPeakTime: Decimal
             if let divisionEnum = Division(rawValue: division) {
                 totalPeakTime = AllStages.reduce(Decimal(0)) { total, stage in
-                    if let benchmark = PeakBenchmarks.get(division: divisionEnum, stageCode: stage.code) {
+                    if let benchmark = CurrentPeakBenchmarks.get(division: divisionEnum, stageCode: stage.code) {
                         return total + benchmark.peakTime
                     }
                     return total
@@ -464,7 +474,7 @@ struct FollowedShooterProfileView: View {
             let divisionCode = divProfile.division.rawValue
             if !allDivisions.contains(where: { $0.division == divisionCode }) {
                 let allEightStagesPeakTime = AllStages.reduce(Decimal(0)) { total, stage in
-                    if let benchmark = PeakBenchmarks.get(division: divProfile.division, stageCode: stage.code) {
+                    if let benchmark = CurrentPeakBenchmarks.get(division: divProfile.division, stageCode: stage.code) {
                         return total + benchmark.peakTime
                     }
                     return total
@@ -613,6 +623,16 @@ struct FollowedShooterProfileView: View {
 
         Task {
             do {
+                // Check if SCSA data is enabled via Remote Config
+                guard RemoteConfigService.shared.isSCSADataEnabled else {
+                    await MainActor.run {
+                        errorMessage = "SCSA data refresh is currently disabled"
+                        showingError = true
+                        isRefreshing = false
+                    }
+                    return
+                }
+                
                 print("🔄 Refreshing profile for: \(profile.uspsaNumber)")
                 try await scraper.syncClassificationData(memberNumber: profile.uspsaNumber, context: context)
 

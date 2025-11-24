@@ -394,7 +394,7 @@ class VideoProcessor {
         let stringTimeDouble = NSDecimalNumber(decimal: stringTime).doubleValue
 
         // Calculate percent for this string
-        let percent = PeakBenchmarks.percent(division: division, stageCode: stage.code, time: stringTime)
+        let percent = CurrentPeakBenchmarks.percent(division: division, stageCode: stage.code, time: stringTime)
         let percentDouble = NSDecimalNumber(decimal: percent).doubleValue
         let shooterClass = ShooterClass.shooterClass(percentage: percent)
 

@@ -115,6 +115,15 @@ struct SCSAOnboardingView: View {
         isLoading = true
         errorMessage = nil
 
+        // Check if SCSA data is enabled via Remote Config
+        guard RemoteConfigService.shared.isSCSADataEnabled else {
+            await MainActor.run {
+                errorMessage = "SCSA data import is currently disabled"
+                isLoading = false
+            }
+            return
+        }
+
         do {
             // Sync classification data
             try await SCWebScraper.shared.syncClassificationData(

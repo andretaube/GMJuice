@@ -166,7 +166,8 @@ class CoachingCardCache {
                 currentClassification: analysis.currentClassification.rawValue,
                 currentPercentage: currentPct,
                 performanceHash: performanceHash
-            )
+            ),
+            aiEnabled: RemoteConfigService.shared.isClaudeAIEnabled
         )
 
         // Save to cache
@@ -356,27 +357,41 @@ class CoachingCardCache {
         print("  TOTAL: \(highPriority.count + mediumPriority.count + maintenance.count)")
         #endif
 
-        // Generate AI reasoning, theme, and strategy
-        print("🤖 Generating AI reasoning for practice recommendations...")
-        let aiContent = await generatePracticeContent(
-            highPriority: highPriority,
-            mediumPriority: mediumPriority,
-            maintenance: maintenance,
-            currentLevel: currentLevel,
-            decliningCount: stagesWithFactors.filter({ $0.isDeclining }).count,
-            highVarianceCount: stagesWithFactors.filter({ $0.isHighVariance }).count,
-            belowLevelCount: stagesWithFactors.filter({ $0.isBelowLevel }).count
-        )
+        // Generate AI reasoning, theme, and strategy if enabled
+        let aiContent: PracticeAIContent
+        if RemoteConfigService.shared.isClaudeAIEnabled {
+            print("🤖 Generating AI reasoning for practice recommendations...")
+            aiContent = await generatePracticeContent(
+                highPriority: highPriority,
+                mediumPriority: mediumPriority,
+                maintenance: maintenance,
+                currentLevel: currentLevel,
+                decliningCount: stagesWithFactors.filter({ $0.isDeclining }).count,
+                highVarianceCount: stagesWithFactors.filter({ $0.isHighVariance }).count,
+                belowLevelCount: stagesWithFactors.filter({ $0.isBelowLevel }).count
+            )
+        } else {
+            print("🚫 Claude AI disabled - using fallback practice content")
+            aiContent = PracticeAIContent(
+                weeklyTheme: "Data-driven practice focus",
+                practiceStrategy: "Allocate 60% practice to high priority stages, 30% to medium priority stages, and 10% to maintenance stages.",
+                generationExplanation: "Priorities calculated using performance data analysis. High priority stages show the best improvement opportunities.",
+                stageReasoning: [:]
+            )
+        }
 
-        // Build practice stages with AI reasoning
+        // Build practice stages with AI reasoning (or fallback reasoning)
         let highStages = highPriority.map { sf in
-            createPracticeStage(from: sf.stage, reason: aiContent.stageReasoning[sf.stage.stageCode] ?? "High priority for improvement")
+            let reason = aiContent.stageReasoning[sf.stage.stageCode] ?? generateFallbackPracticeReason(sf, priority: "high")
+            return createPracticeStage(from: sf.stage, reason: reason)
         }
         let mediumStages = mediumPriority.map { sf in
-            createPracticeStage(from: sf.stage, reason: aiContent.stageReasoning[sf.stage.stageCode] ?? "Moderate practice needed")
+            let reason = aiContent.stageReasoning[sf.stage.stageCode] ?? generateFallbackPracticeReason(sf, priority: "medium")
+            return createPracticeStage(from: sf.stage, reason: reason)
         }
         let maintenanceStages = maintenance.map { sf in
-            createPracticeStage(from: sf.stage, reason: aiContent.stageReasoning[sf.stage.stageCode] ?? "Maintain current performance")
+            let reason = aiContent.stageReasoning[sf.stage.stageCode] ?? generateFallbackPracticeReason(sf, priority: "maintenance")
+            return createPracticeStage(from: sf.stage, reason: reason)
         }
 
         return PracticeCard(
@@ -456,24 +471,38 @@ class CoachingCardCache {
         print("  TOTAL: \(bankerStages.count + executeStages.count + riskStages.count)")
         #endif
 
-        // Generate AI reasoning and strategy
-        print("🤖 Generating AI reasoning for match strategy...")
-        let aiContent = await generateMatchContent(
-            bankerStages: bankerStages,
-            executeStages: executeStages,
-            riskStages: riskStages,
-            currentLevel: analysis.currentClassification
-        )
+        // Generate AI reasoning and strategy if enabled
+        let aiContent: MatchAIContent
+        if RemoteConfigService.shared.isClaudeAIEnabled {
+            print("🤖 Generating AI reasoning for match strategy...")
+            aiContent = await generateMatchContent(
+                bankerStages: bankerStages,
+                executeStages: executeStages,
+                riskStages: riskStages,
+                currentLevel: analysis.currentClassification
+            )
+        } else {
+            print("🚫 Claude AI disabled - using fallback match content")
+            aiContent = MatchAIContent(
+                matchTheme: "Execute consistently and play to your strengths",
+                matchStrategy: "Bank points on your strongest stages, stay solid on middle stages, and avoid mistakes on weaker stages.",
+                generationExplanation: "Stages categorized by recent performance data. Analysis shows which stages to rely on vs. be cautious with.",
+                stageReasoning: [:]
+            )
+        }
 
-        // Build match stages with AI reasoning
+        // Build match stages with AI reasoning (or fallback reasoning)
         let bankers = bankerStages.map { rel in
-            createBankerStage(from: rel.stage, reason: aiContent.stageReasoning[rel.stage.stageCode] ?? "Strong and reliable")
+            let reason = aiContent.stageReasoning[rel.stage.stageCode] ?? generateFallbackMatchReason(rel, category: "banker")
+            return createBankerStage(from: rel.stage, reason: reason)
         }
         let executes = executeStages.map { rel in
-            createExecuteStage(from: rel.stage, note: aiContent.stageReasoning[rel.stage.stageCode] ?? "Execute normally")
+            let note = aiContent.stageReasoning[rel.stage.stageCode] ?? generateFallbackMatchReason(rel, category: "execute")
+            return createExecuteStage(from: rel.stage, note: note)
         }
         let risks = riskStages.map { rel in
-            createRiskStage(from: rel.stage, caution: aiContent.stageReasoning[rel.stage.stageCode] ?? "Stay focused")
+            let caution = aiContent.stageReasoning[rel.stage.stageCode] ?? generateFallbackMatchReason(rel, category: "risk")
+            return createRiskStage(from: rel.stage, caution: caution)
         }
 
         return MatchCard(
@@ -614,9 +643,10 @@ class CoachingCardCache {
         Return ONLY the JSON object.
         """
 
-        // Call AI (if available)
-        guard ClaudeAPIClient.shared.isConfigured else {
-            print("⚠️ No API key, using defaults for match content")
+        // Call AI (if available and enabled)
+        guard ClaudeAPIClient.shared.isConfigured && RemoteConfigService.shared.isClaudeAIEnabled else {
+            let reason = ClaudeAPIClient.shared.isConfigured ? "Claude AI disabled" : "No API key"
+            print("⚠️ \(reason), using defaults for match content")
             return MatchAIContent(
                 matchTheme: "Execute consistently and play to your strengths",
                 matchStrategy: "Focus on executing consistently across all stages. Bank points on your strongest stages, stay solid on middle stages, and avoid mistakes on weaker stages.",
@@ -770,6 +800,17 @@ class CoachingCardCache {
         print(String(repeating: "=", count: 80))
         #endif
 
+        // Check if Claude AI is enabled
+        guard RemoteConfigService.shared.isClaudeAIEnabled else {
+            print("⚠️ Claude AI disabled, using fallback practice content")
+            return PracticeAIContent(
+                weeklyTheme: "Focus on weak areas and maintain strengths",
+                practiceStrategy: "Allocate 60% practice to high priority stages. Work on consistency and building foundational skills.",
+                generationExplanation: "Priorities calculated using performance data analysis. High priority stages show the best improvement opportunities.",
+                stageReasoning: [:]
+            )
+        }
+
         do {
             let response = try await CoachingService.shared.callClaudeAPI(prompt: prompt)
 
@@ -853,6 +894,92 @@ class CoachingCardCache {
             print("💾 Saved coaching cards to cache")
         } catch {
             print("⚠️ Failed to save cards to cache: \(error)")
+        }
+    }
+    
+    // MARK: - Fallback Reasoning Methods
+    
+    /// Generate fallback reasoning for practice stages when AI is disabled
+    private func generateFallbackPracticeReason(_ stageWithFactors: Any, priority: String) -> String {
+        // Use reflection to extract data
+        let mirror = Mirror(reflecting: stageWithFactors)
+        guard let _ = mirror.children.first(where: { $0.label == "stage" })?.value as? StageAnalysis,
+              let bestPerf = mirror.children.first(where: { $0.label == "bestPerf" })?.value as? Double,
+              let trend = mirror.children.first(where: { $0.label == "trend" })?.value as? Double,
+              let consistency = mirror.children.first(where: { $0.label == "consistency" })?.value as? Double else {
+            return "Practice needed for improvement"
+        }
+        
+        switch priority {
+        case "high":
+            if bestPerf < 70 {
+                return "Lowest performance - significant improvement opportunity"
+            } else if trend < -2 {
+                return "Declining performance - needs immediate attention"
+            } else if consistency > 8 {
+                return "High variance - focus on consistency"
+            } else {
+                return "Below average performance - prioritize this stage"
+            }
+        case "medium":
+            if consistency > 6 {
+                return "Moderate variance - work on consistency"
+            } else if trend > 2 {
+                return "Improving trend - continue building momentum"
+            } else {
+                return "Solid foundation - moderate practice needed"
+            }
+        case "maintenance":
+            if bestPerf > 85 {
+                return "Strong performer - maintain with light practice"
+            } else {
+                return "Stable performance - maintain current level"
+            }
+        default:
+            return "Continue working on this stage"
+        }
+    }
+    
+    /// Generate fallback reasoning for match stages when AI is disabled
+    private func generateFallbackMatchReason(_ stageReliability: Any, category: String) -> String {
+        // Use reflection to extract data
+        let mirror = Mirror(reflecting: stageReliability)
+        guard let _ = mirror.children.first(where: { $0.label == "stage" })?.value as? StageAnalysis,
+              let recentAvgPerf = mirror.children.first(where: { $0.label == "recentAvgPerf" })?.value as? Double,
+              let trend = mirror.children.first(where: { $0.label == "trend" })?.value as? Double,
+              let consistency = mirror.children.first(where: { $0.label == "consistency" })?.value as? Double else {
+            return "Execute your normal plan"
+        }
+        
+        switch category {
+        case "banker":
+            if recentAvgPerf > 85 {
+                return "Excellent recent performance - rely on this stage"
+            } else if consistency < 5 {
+                return "Very consistent - bank on stability"
+            } else if trend > 3 {
+                return "Strong improving trend - momentum is building"
+            } else {
+                return "Solid recent performance - dependable stage"
+            }
+        case "execute":
+            if consistency < 6 {
+                return "Steady performer - execute normally"
+            } else {
+                return "Average performance - stick to your plan"
+            }
+        case "risk":
+            if recentAvgPerf < 70 {
+                return "Lowest recent performance - be conservative"
+            } else if consistency > 8 {
+                return "High variance - focus and avoid mistakes"
+            } else if trend < -3 {
+                return "Recent decline - rebuild confidence"
+            } else {
+                return "Weaker recent performance - stay cautious"
+            }
+        default:
+            return "Execute your plan"
         }
     }
 }

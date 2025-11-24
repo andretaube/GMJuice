@@ -51,27 +51,6 @@ final class PeakBenchmarkTests: XCTestCase {
         XCTAssertNil(benchmark, "Should return nil for invalid stage code")
     }
 
-    func testBenchmark_StringPace() throws {
-        // Given
-        let benchmark = PeakBenchmark(strings: 5, peakTime: 10.0)
-
-        // When
-        let pace = benchmark.stringPace
-
-        // Then
-        XCTAssertEqual(pace, 2.0, "String pace should be 10.0 / 5 = 2.0")
-    }
-
-    func testBenchmark_StringsPerSecond() throws {
-        // Given
-        let benchmark = PeakBenchmark(strings: 5, peakTime: 10.0)
-
-        // When
-        let rate = benchmark.stringsPerSecond
-
-        // Then
-        XCTAssertEqual(rate, 0.5, "Strings per second should be 5 / 10.0 = 0.5")
-    }
 
     // MARK: - Single String Percentage Tests
 

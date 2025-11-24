@@ -43,6 +43,12 @@ class ClaudeAPIClient {
     ///   - maxTokens: Maximum tokens for the response
     /// - Returns: The text response from Claude
     func makeRequest(prompt: String, model: String, maxTokens: Int = 1024) async throws -> String {
+        // Check if Claude AI is enabled via Remote Config
+        guard RemoteConfigService.shared.isClaudeAIEnabled else {
+            print("🚫 Claude AI is disabled via Remote Config")
+            throw ClaudeAPIError.serviceDisabled
+        }
+        
         guard let apiKey = apiKey, !apiKey.isEmpty else {
             throw ClaudeAPIError.noAPIKey
         }
@@ -98,6 +104,7 @@ enum ClaudeAPIError: LocalizedError {
     case invalidURL
     case invalidResponse
     case apiError(statusCode: Int, message: String)
+    case serviceDisabled
 
     var errorDescription: String? {
         switch self {
@@ -109,6 +116,8 @@ enum ClaudeAPIError: LocalizedError {
             return "Invalid response from Claude API"
         case .apiError(let code, let message):
             return "Claude API error (\(code)): \(message)"
+        case .serviceDisabled:
+            return "Claude AI service is currently disabled"
         }
     }
 }

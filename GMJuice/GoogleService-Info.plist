@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyDa0_zGQ2BEeDUCL2vzozTFYuymd3pUpFA</string>
+	<key>GCM_SENDER_ID</key>
+	<string>348672422908</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.andretaube.gmjuice</string>
+	<key>PROJECT_ID</key>
+	<string>gmjuice-d2333</string>
+	<key>STORAGE_BUCKET</key>
+	<string>gmjuice-d2333.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:348672422908:ios:0cdd28fad958a593c07879</string>
+</dict>
+</plist>

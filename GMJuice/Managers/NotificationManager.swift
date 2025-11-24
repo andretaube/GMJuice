@@ -287,7 +287,7 @@ final class NotificationManager: NSObject, ObservableObject {
 
     /// Generate daily training reminder message
     private func generateDailyMessage() -> String {
-        return MotivationalMessages.randomElement() ?? "Time to practice!"
+        return getRandomMotivationalMessage()
     }
 
     // MARK: - Generate Weekly Summary

@@ -86,7 +86,7 @@ class CoachingService {
         for stage in analysis.stageAnalyses {
             let avgTime = NSDecimalNumber(decimal: stage.averageTime).doubleValue
             let bestTime = NSDecimalNumber(decimal: stage.bestTime).doubleValue
-            let peakTime = NSDecimalNumber(decimal: stage.peakTime).doubleValue
+            let _ = NSDecimalNumber(decimal: stage.peakTime).doubleValue
             let performance = NSDecimalNumber(decimal: stage.performanceVsPeak).doubleValue
             let bestPerformance = NSDecimalNumber(decimal: stage.bestPerformanceVsPeak).doubleValue
             let consistency = NSDecimalNumber(decimal: stage.consistencyScore).doubleValue
@@ -558,7 +558,8 @@ class CoachingService {
                 currentClassification: analysis.currentClassification.rawValue,
                 currentPercentage: currentPct,
                 performanceHash: performanceHash
-            )
+            ),
+            aiEnabled: true
         )
     }
 

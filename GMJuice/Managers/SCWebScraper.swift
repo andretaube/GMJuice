@@ -231,6 +231,12 @@ class SCWebScraper: ObservableObject {
         guard !memberNumber.isEmpty else {
             throw NSError(domain: "SCWebScraper", code: 1, userInfo: [NSLocalizedDescriptionKey: "Member number is required"])
         }
+        
+        // Check if SCSA data is enabled via Remote Config
+        guard RemoteConfigService.shared.isSCSADataEnabled else {
+            print("🚫 SCSA data import is disabled via Remote Config")
+            return
+        }
 
         isScraping = true
         lastError = nil
@@ -260,11 +266,25 @@ class SCWebScraper: ObservableObject {
 
     /// Force refresh classification data
     func refreshClassificationData(memberNumber: String, context: ModelContext) async throws {
+        // Check if SCSA data is enabled via Remote Config
+        guard RemoteConfigService.shared.isSCSADataEnabled else {
+            print("🚫 SCSA data refresh is disabled via Remote Config")
+            return
+        }
+        
         try await syncClassificationData(memberNumber: memberNumber, context: context)
     }
 
     /// Fetch member information (name and basic data) without saving to database
     func fetchMemberInfo(memberNumber: String) async throws -> (name: String, uspsaNumber: String) {
+        // Check if SCSA data is enabled via Remote Config
+        guard RemoteConfigService.shared.isSCSADataEnabled else {
+            print("🚫 SCSA data fetch is disabled via Remote Config")
+            throw NSError(domain: "SCWebScraper", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "SCSA data access is currently disabled"
+            ])
+        }
+        
         let data = try await fetchClassificationData(memberNumber: memberNumber)
 
         guard let memberName = data.memberName, !memberName.isEmpty else {

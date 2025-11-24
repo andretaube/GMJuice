@@ -16,9 +16,15 @@ final class AppInitializer: ObservableObject {
     func start(modelContext: ModelContext) {
         // Kick off your startup work
         Task {
-            // Simulate work: config, auth, DB migrations, warm caches, etc.
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-
+            // Initialize Firebase Remote Config
+            await RemoteConfigService.shared.initialize()
+            
+            // Initialize Peak Benchmarks from Firebase
+            await PeakBenchmarksService.shared.initialize()
+            
+            // Initialize Motivational Messages from Firebase
+            await MotivationalMessagesService.shared.initialize()
+        
             // Request notification permissions
             await NotificationManager.shared.requestPermission()
             await NotificationManager.shared.checkAuthorizationStatus()
@@ -33,6 +39,12 @@ final class AppInitializer: ObservableObject {
     }
 
     private func autoSyncSCSA(modelContext: ModelContext) async {
+        // Check if SCSA data is enabled via Remote Config
+        guard RemoteConfigService.shared.isSCSADataEnabled else {
+            print("🚫 SCSA auto-sync disabled via Remote Config")
+            return
+        }
+        
         // Check if auto-sync is enabled
         let autoSyncEnabled = UserDefaults.standard.bool(forKey: "scsa_auto_sync_enabled")
         guard autoSyncEnabled else {
