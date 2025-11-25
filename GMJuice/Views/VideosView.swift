@@ -11,7 +11,6 @@ import AVKit
 struct VideosView: View {
     @StateObject private var viewModel = VideosViewModel()
     @ObservedObject private var processingManager = VideoProcessingManager.shared
-    @State private var selectedVideo: VideoItem?
     @State private var showDeleteAlert = false
     @State private var videoToDelete: VideoItem?
     private let analytics = AnalyticsService.shared
@@ -41,9 +40,6 @@ struct VideosView: View {
                         EditButton()
                     }
                 }
-            }
-            .sheet(item: $selectedVideo) { video in
-                VideoPlayerView(video: video)
             }
             .alert("Delete Video", isPresented: $showDeleteAlert) {
                 Button("Cancel", role: .cancel) {}
@@ -111,7 +107,7 @@ struct VideosView: View {
         List {
             ForEach(viewModel.videos) { video in
                 Button {
-                    selectedVideo = video
+                    presentVideoPlayer(for: video)
                 } label: {
                     VideoRowView(video: video)
                 }
@@ -132,6 +128,55 @@ struct VideosView: View {
                     showDeleteAlert = true
                 }
             }
+        }
+    }
+
+    private func presentVideoPlayer(for video: VideoItem) {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            return
+        }
+
+        // Find the topmost presented view controller
+        var topController = rootViewController
+        while let presented = topController.presentedViewController {
+            topController = presented
+        }
+
+        // Unlock orientation before presenting
+        AppDelegate.orientationLock = .all
+
+        // Create and configure AVPlayerViewController
+        let player = AVPlayer(url: video.url)
+        let playerVC = RotatableAVPlayerViewController()
+        playerVC.player = player
+        playerVC.modalPresentationStyle = .fullScreen
+        playerVC.onDismiss = {
+            AppDelegate.orientationLock = .portrait
+        }
+
+        // Present and play
+        topController.present(playerVC, animated: true) {
+            player.play()
+        }
+    }
+}
+
+class RotatableAVPlayerViewController: AVPlayerViewController {
+    var onDismiss: (() -> Void)?
+
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+        return .all
+    }
+
+    override var shouldAutorotate: Bool {
+        return true
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        if isBeingDismissed || isMovingFromParent {
+            onDismiss?()
         }
     }
 }
@@ -211,29 +256,6 @@ struct VideoRowView: View {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
         return String(format: "%d:%02d", minutes, seconds)
-    }
-}
-
-// MARK: - Video Player View
-
-struct VideoPlayerView: View {
-    let video: VideoItem
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            VideoPlayer(player: AVPlayer(url: video.url))
-                .ignoresSafeArea()
-                .navigationTitle(video.stageName)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Done") {
-                            dismiss()
-                        }
-                    }
-                }
-        }
     }
 }
 

@@ -64,9 +64,7 @@ struct VideoRecordingView: View {
                 division: division,
                 vm: vm,
                 shooter: shooter,
-                onToggleMiss: toggleTargetMiss,
-                onStartRecording: startRecording,
-                onStopRecording: stopRecording
+                onToggleMiss: toggleTargetMiss
             )
         }
         .navigationBarHidden(true)
@@ -114,22 +112,6 @@ struct VideoRecordingView: View {
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
     }
-
-    private func startRecording() {
-        guard let cameraVC = cameraViewController else { return }
-
-        // Capture current device orientation before starting recording
-        // This will be used later when processing the video
-        let deviceOrient = UIDevice.current.orientation
-        vm.setRecordingDeviceOrientation(deviceOrient)
-        print("📱 Recording device orientation: \(deviceOrient.rawValue)")
-
-        cameraVC.startRecording()
-    }
-
-    private func stopRecording() {
-        cameraViewController?.stopRecording()
-    }
 }
 
 // MARK: - Recording Overlay
@@ -140,8 +122,6 @@ struct RecordingOverlay: View {
     @ObservedObject var vm: VideoRecordingViewModel
     let shooter: ShooterProfile?
     let onToggleMiss: (Int) -> Void
-    let onStartRecording: () -> Void
-    let onStopRecording: () -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var deviceOrientation = UIDeviceOrientation.portrait
 
@@ -178,9 +158,6 @@ struct RecordingOverlay: View {
             // Custom navigation at top
             HStack {
                 Button("Done") {
-                    if vm.isRecording {
-                        onStopRecording()
-                    }
                     dismiss()
                 }
                 .font(.body)
@@ -202,10 +179,6 @@ struct RecordingOverlay: View {
             }
 
             Spacer()
-
-            // Recording button in center
-            recordingButton
-                .padding(.bottom, 40)
 
             // Shots and splits at bottom
             RecordingShotsAndSplits(vm: vm, style: .video)
@@ -219,9 +192,6 @@ struct RecordingOverlay: View {
             // Custom navigation at top (which will be visually top after rotation)
             HStack {
                 Button("Done") {
-                    if vm.isRecording {
-                        onStopRecording()
-                    }
                     dismiss()
                 }
                 .font(.body)
@@ -244,44 +214,12 @@ struct RecordingOverlay: View {
 
             Spacer()
 
-            // Recording button in center
-            recordingButton
-                .padding(.bottom, 40)
-
             // Shots and splits at bottom (which will be visually bottom after rotation)
             RecordingShotsAndSplits(vm: vm, style: .video)
                 .padding(.horizontal)
                 .padding(.bottom, 16)
         }
         .frame(width: geometry.size.height, height: geometry.size.width)
-    }
-
-    private var recordingButton: some View {
-        Button(action: {
-            if vm.isRecording {
-                onStopRecording()
-            } else {
-                onStartRecording()
-            }
-        }) {
-            ZStack {
-                // Outer ring
-                Circle()
-                    .stroke(Color.white, lineWidth: 4)
-                    .frame(width: 80, height: 80)
-
-                // Inner shape: circle when not recording, square when recording
-                if vm.isRecording {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.red)
-                        .frame(width: 32, height: 32)
-                } else {
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: 64, height: 64)
-                }
-            }
-        }
     }
 }
 
@@ -443,11 +381,17 @@ struct CameraView: UIViewControllerRepresentable {
         let controller = CameraViewController()
         controller.onVideoRecorded = onVideoRecorded
         onViewControllerCreated?(controller)
+
+        // Start recording automatically after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            controller.startRecording()
+        }
+
         return controller
     }
 
     func updateUIViewController(_ uiViewController: CameraViewController, context: Context) {
-        // Recording is controlled by user via start/stop button
+        // Recording starts automatically, stops on view disappear
     }
 
     static func dismantleUIViewController(_ uiViewController: CameraViewController, coordinator: ()) {
@@ -529,9 +473,7 @@ struct VideoRecordingView_Previews: PreviewProvider {
                 division: division,
                 vm: vm,
                 shooter: shooterProfile,
-                onToggleMiss: { _ in },
-                onStartRecording: { },
-                onStopRecording: { }
+                onToggleMiss: { _ in }
             )
         }
         .modelContainer(container)

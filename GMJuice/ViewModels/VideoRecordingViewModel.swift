@@ -76,7 +76,7 @@ public class VideoRecordingViewModel: ObservableObject, RecordingViewModelProtoc
             .assign(to: \.allRuns, on: self)
             .store(in: &cancellables)
 
-        // Track beep times
+        // Track beep times and capture orientation on first beep
         manager.$stringCounter
             .receive(on: RunLoop.main)
             .sink { [weak self] counter in
@@ -84,6 +84,13 @@ public class VideoRecordingViewModel: ObservableObject, RecordingViewModelProtoc
                 if counter > self.beepTimes.count {
                     let beepTime = Date()
                     self.beepTimes.append(beepTime)
+
+                    // Capture device orientation on first beep
+                    if counter == 1 {
+                        self.recordingDeviceOrientation = UIDevice.current.orientation
+                        print("📱 First beep - captured device orientation: \(self.recordingDeviceOrientation.rawValue)")
+                    }
+
                     print("🔔 Beep #\(counter) at \(beepTime)")
                 }
             }
@@ -107,11 +114,6 @@ public class VideoRecordingViewModel: ObservableObject, RecordingViewModelProtoc
     func setCameraViewController(_ viewController: CameraViewController) {
         self.cameraViewController = viewController
         print("📹 Camera view controller set")
-    }
-
-    func setRecordingDeviceOrientation(_ orientation: UIDeviceOrientation) {
-        self.recordingDeviceOrientation = orientation
-        print("📱 Recording device orientation set to: \(orientation.rawValue)")
     }
 
     // MARK: - Recording State

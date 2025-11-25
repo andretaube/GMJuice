@@ -62,7 +62,7 @@ struct TrainView: View {
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
                         }
-                        .padding(.horizontal, 20)
+                        .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                         .background(Color.blue)
                         .foregroundStyle(.white)
@@ -71,17 +71,15 @@ struct TrainView: View {
                     }
                     .trackFrame(named: "timerLog")
 
-                    Spacer()
-
                     NavigationLink(value: TrainNavigationPill.videos) {
                         HStack(spacing: 8) {
                             Image(systemName: "video.fill")
                                 .font(.system(size: 16, weight: .semibold))
-                            Text("videos")
+                            Text("Videos")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
                         }
-                        .padding(.horizontal, 20)
+                        .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                         .background(Color.red)
                         .foregroundStyle(.white)
