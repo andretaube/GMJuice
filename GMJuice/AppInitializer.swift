@@ -18,19 +18,22 @@ final class AppInitializer: ObservableObject {
         Task {
             // Initialize Firebase Remote Config
             await RemoteConfigService.shared.initialize()
-            
+
             // Initialize Peak Benchmarks from Firebase
             await PeakBenchmarksService.shared.initialize()
-            
+
             // Initialize Motivational Messages from Firebase
             await MotivationalMessagesService.shared.initialize()
-        
+
             // Request notification permissions
             await NotificationManager.shared.requestPermission()
             await NotificationManager.shared.checkAuthorizationStatus()
 
             // Auto-sync SCSA data if enabled
             await autoSyncSCSA(modelContext: modelContext)
+
+            // Update Crashlytics with user stats for debugging
+            updateCrashlyticsUserStats(modelContext: modelContext)
 
             withAnimation(.easeInOut(duration: 0.35)) {
                 self.isReady = true
@@ -68,6 +71,42 @@ final class AppInitializer: ObservableObject {
             }
         } catch {
             print("⚠️ Auto-sync failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func updateCrashlyticsUserStats(modelContext: ModelContext) {
+        do {
+            // Count log entries (StringRuns)
+            let runsDescriptor = FetchDescriptor<StringRun>()
+            let runs = try modelContext.fetch(runsDescriptor)
+            let logEntryCount = runs.count
+
+            // Count unique divisions used
+            let divisionsUsed = Set(runs.map { $0.divisionId }).count
+
+            // Count unique stages used
+            let stagesUsed = Set(runs.map { $0.stageId }).count
+
+            // Count videos
+            var videoCount = 0
+            if let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+                let videosDirectory = documentsPath.appendingPathComponent("Videos")
+                if let files = try? FileManager.default.contentsOfDirectory(at: videosDirectory, includingPropertiesForKeys: nil) {
+                    videoCount = files.filter { $0.pathExtension == "mov" || $0.pathExtension == "mp4" }.count
+                }
+            }
+
+            // Send to Crashlytics
+            AnalyticsService.shared.setUserStats(
+                logEntryCount: logEntryCount,
+                videoCount: videoCount,
+                divisionsUsed: divisionsUsed,
+                stagesUsed: stagesUsed
+            )
+
+            print("📊 Crashlytics stats updated: \(logEntryCount) logs, \(videoCount) videos, \(divisionsUsed) divisions, \(stagesUsed) stages")
+        } catch {
+            print("⚠️ Failed to update Crashlytics stats: \(error)")
         }
     }
 }

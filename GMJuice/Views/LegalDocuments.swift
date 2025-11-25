@@ -100,33 +100,51 @@ struct LegalDocuments {
     static let privacyPolicy = """
     PRIVACY POLICY
 
-    Last Updated: January 2025
+    Last Updated: November 2025
 
     Your privacy is important to us. This Privacy Policy explains how GMJuice handles your information.
 
     1. INFORMATION COLLECTION
 
-    Data Storage:
-    GMJuice stores all your training data locally on your device using Apple's SwiftData framework. This includes:
+    Local Data Storage:
+    GMJuice stores your training data locally on your device using Apple's SwiftData framework. This includes:
 
     • Shot times and string runs
     • Stage and division information
-    • Your shooter profile (USPSA number, classifications)
-    • Performance statistics and analytics
+    • Your shooter profile (classifications)
+    • Performance statistics
     • App settings and preferences
 
-    No Remote Collection:
-    We DO NOT collect, transmit, or store any of your data on external servers. All data remains on your device.
+    Your USPSA member number is stored locally on your device only and is NEVER transmitted to any external servers or analytics services.
 
-    2. THIRD-PARTY ACCESS
+    2. ANALYTICS FOR APP IMPROVEMENT
+
+    To help us improve GMJuice, we use Firebase Analytics and Crashlytics (provided by Google). These services collect:
+
+    • Anonymous usage data (which features are used, screen views)
+    • App performance metrics (crash reports, errors)
+    • Device information (device type, iOS version)
+    • General location (country/region only, not precise location)
+    • Aggregate statistics (number of log entries, videos, divisions used) to help diagnose issues
+
+    We DO NOT collect through analytics:
+    • Your USPSA number or any personal identification numbers
+    • Your actual shot times or training performance data
+    • Your name, email, or contact information
+    • Precise location data
+
+    This analytics data helps us understand how the app is used so we can fix bugs and improve features. You cannot opt out of crash reporting as it is essential for app stability.
+
+    3. THIRD-PARTY ACCESS
 
     We do not:
-    • Share your data with third parties
+    • Share your personal training data with third parties
     • Sell your information to anyone
-    • Use analytics or tracking services
     • Display advertisements
 
-    3. BLUETOOTH USAGE
+    Firebase Analytics data is processed by Google according to their privacy policy. This data is used solely for app improvement and is not shared with other parties.
+
+    4. BLUETOOTH USAGE
 
     GMJuice uses Bluetooth to connect to compatible shot timers (such as AMG devices). Bluetooth communication:
 
@@ -135,7 +153,7 @@ struct LegalDocuments {
     • Remains local to your device
     • Does not transmit data over the internet
 
-    4. LOCAL NOTIFICATIONS
+    5. LOCAL NOTIFICATIONS
 
     If you enable notifications, GMJuice may send local notifications to your device for:
 
@@ -144,34 +162,36 @@ struct LegalDocuments {
 
     These notifications are generated locally on your device and do not involve external servers.
 
-    5. DATA BACKUP
+    6. DATA BACKUP
 
     Your training data may be included in your device's iCloud backup if you have iCloud backup enabled in your device settings. This is controlled by Apple's iCloud service and subject to Apple's privacy policy.
 
     You can manage iCloud backup settings in your device's Settings app.
 
-    6. DATA DELETION
+    7. DATA DELETION
 
-    You have complete control over your data:
+    You have complete control over your local data:
 
     • You can delete individual training sessions within the app
     • You can delete your entire history in the app settings
     • Uninstalling the app removes all locally stored data
 
-    7. CHILDREN'S PRIVACY
+    Note: Analytics data that has already been sent to Firebase cannot be deleted by uninstalling the app, but this data is anonymous and not linked to you personally.
+
+    8. CHILDREN'S PRIVACY
 
     GMJuice is intended for use by adults. We do not knowingly collect information from children under 18. Given the nature of firearms training, this application should only be used by individuals legally permitted to handle firearms under applicable laws.
 
-    8. YOUR RIGHTS
+    9. YOUR RIGHTS
 
-    Since all data is stored locally on your device, you have complete control over:
+    For your local data, you have complete control over:
 
     • Accessing your data (view it anytime in the app)
     • Modifying your data (edit or delete records)
-    • Exporting your data (not currently implemented, but data remains accessible on your device)
+    • Exporting your data (CSV export available)
     • Deleting your data (delete individual sessions or uninstall the app)
 
-    9. SECURITY
+    10. SECURITY
 
     Your data security depends on:
 
@@ -184,18 +204,9 @@ struct LegalDocuments {
     • Enabling biometric authentication if available
     • Using a secure iCloud password
 
-    10. CHANGES TO THIS POLICY
+    11. CHANGES TO THIS POLICY
 
     We may update this Privacy Policy periodically. Changes will be reflected in the "Last Updated" date. Continued use of GMJuice after changes constitutes acceptance of the updated policy.
-
-    11. FUTURE DATA COLLECTION
-
-    Should we decide to collect any data in the future (such as optional cloud sync, leaderboards, or analytics), we will:
-
-    • Update this Privacy Policy with clear explanations
-    • Request your explicit consent
-    • Provide opt-in/opt-out controls
-    • Notify you of changes through the app
 
     12. CONTACT
 
@@ -210,11 +221,9 @@ struct LegalDocuments {
     • California Consumer Privacy Act (CCPA) principles
     • Other applicable privacy regulations
 
-    Since we do not collect your data, many regulatory requirements do not apply. However, we are committed to transparency and giving you control over your information.
-
     SUMMARY
 
-    In plain language: GMJuice stores your training data on your device only. We don't collect it, we don't see it, we don't share it. It's all yours, stored locally, and under your control.
+    In plain language: Your training data (shot times, scores, etc.) stays on your device - we never see it. We do use anonymous analytics (Firebase) to understand how the app is used so we can make it better. We never collect your USPSA number or any information that identifies you personally.
     """
 }
 

@@ -58,21 +58,26 @@ class AnalyticsService {
     }
     
     // MARK: - User Properties
-    
-    func setUserProperties(uspsaNumber: String?, classification: String?) {
-        if let uspsa = uspsaNumber {
-            Analytics.setUserProperty(uspsa, forName: "uspsa_number")
-            Crashlytics.crashlytics().setUserID(uspsa)
-        }
-        
+
+    func setUserProperties(classification: String?) {
+        // Note: We intentionally do NOT collect USPSA numbers for privacy
+
         if let classification = classification {
             Analytics.setUserProperty(classification, forName: "shooter_classification")
             Crashlytics.crashlytics().setCustomValue(classification, forKey: "classification")
         }
     }
-    
+
     func setDivisionProperty(_ division: String) {
         Analytics.setUserProperty(division, forName: "active_division")
+    }
+
+    func setUserStats(logEntryCount: Int, videoCount: Int, divisionsUsed: Int, stagesUsed: Int) {
+        let crashlytics = Crashlytics.crashlytics()
+        crashlytics.setCustomValue(logEntryCount, forKey: "log_entry_count")
+        crashlytics.setCustomValue(videoCount, forKey: "video_count")
+        crashlytics.setCustomValue(divisionsUsed, forKey: "divisions_used")
+        crashlytics.setCustomValue(stagesUsed, forKey: "stages_used")
     }
     
     // MARK: - Training & Recording Analytics
