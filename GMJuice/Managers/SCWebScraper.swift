@@ -172,6 +172,7 @@ class SCWebScraper: ObservableObject {
 
     private let baseURL = "https://scsa.org"
     private let parsingRules: SCSAParsingRules
+    private let analytics = AnalyticsService.shared
 
     private init() {
         self.lastSyncDate = UserDefaults.standard.object(forKey: "scsa_last_sync") as? Date
@@ -232,9 +233,21 @@ class SCWebScraper: ObservableObject {
             throw NSError(domain: "SCWebScraper", code: 1, userInfo: [NSLocalizedDescriptionKey: "Member number is required"])
         }
         
+        // Track analytics for data refresh start
+        analytics.trackFeatureUsed("scsa_data_refresh", parameters: [
+            "uspsa_number": memberNumber,
+            "refresh_type": "manual"
+        ])
+        
         // Check if SCSA data is enabled via Remote Config
         guard RemoteConfigService.shared.isSCSADataEnabled else {
             print("🚫 SCSA data import is disabled via Remote Config")
+            
+            // Track analytics for disabled refresh
+            analytics.trackFeatureUsed("scsa_data_refresh_blocked", parameters: [
+                "reason": "remote_config_disabled",
+                "uspsa_number": memberNumber
+            ])
             return
         }
 
@@ -256,44 +269,82 @@ class SCWebScraper: ObservableObject {
             lastSyncDate = Date()
             UserDefaults.standard.set(lastSyncDate, forKey: "scsa_last_sync")
 
+            // Track analytics for successful refresh
+            analytics.trackFeatureUsed("scsa_data_refresh_success", parameters: [
+                "uspsa_number": memberNumber,
+                "refresh_type": "manual"
+            ])
+
             print("✅ Successfully synced classification data for \(memberNumber)")
         } catch {
             lastError = error.localizedDescription
+            
+            // Track analytics for failed refresh
+            analytics.trackFeatureUsed("scsa_data_refresh_error", parameters: [
+                "uspsa_number": memberNumber,
+                "error_message": error.localizedDescription,
+                "refresh_type": "manual"
+            ])
+            analytics.trackError(error, context: "SCWebScraper.syncClassificationData")
+            
             print("❌ Sync failed: \(error)")
             throw error
         }
     }
 
-    /// Force refresh classification data
-    func refreshClassificationData(memberNumber: String, context: ModelContext) async throws {
-        // Check if SCSA data is enabled via Remote Config
-        guard RemoteConfigService.shared.isSCSADataEnabled else {
-            print("🚫 SCSA data refresh is disabled via Remote Config")
-            return
-        }
-        
-        try await syncClassificationData(memberNumber: memberNumber, context: context)
-    }
-
     /// Fetch member information (name and basic data) without saving to database
     func fetchMemberInfo(memberNumber: String) async throws -> (name: String, uspsaNumber: String) {
+        // Track analytics for member info fetch
+        analytics.trackFeatureUsed("scsa_member_info_fetch", parameters: [
+            "uspsa_number": memberNumber
+        ])
+        
         // Check if SCSA data is enabled via Remote Config
         guard RemoteConfigService.shared.isSCSADataEnabled else {
             print("🚫 SCSA data fetch is disabled via Remote Config")
+            
+            // Track analytics for disabled fetch
+            analytics.trackFeatureUsed("scsa_member_info_fetch_blocked", parameters: [
+                "reason": "remote_config_disabled",
+                "uspsa_number": memberNumber
+            ])
+            
             throw NSError(domain: "SCWebScraper", code: 2, userInfo: [
                 NSLocalizedDescriptionKey: "SCSA data access is currently disabled"
             ])
         }
         
-        let data = try await fetchClassificationData(memberNumber: memberNumber)
+        do {
+            let data = try await fetchClassificationData(memberNumber: memberNumber)
 
-        guard let memberName = data.memberName, !memberName.isEmpty else {
-            throw NSError(domain: "SCWebScraper", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "Could not find member name for this USPSA number"
+            guard let memberName = data.memberName, !memberName.isEmpty else {
+                // Track analytics for member not found
+                analytics.trackFeatureUsed("scsa_member_info_fetch_error", parameters: [
+                    "uspsa_number": memberNumber,
+                    "error_message": "Member name not found"
+                ])
+                
+                throw NSError(domain: "SCWebScraper", code: 3, userInfo: [
+                    NSLocalizedDescriptionKey: "Could not find member name for this USPSA number"
+                ])
+            }
+
+            // Track analytics for successful fetch
+            analytics.trackFeatureUsed("scsa_member_info_fetch_success", parameters: [
+                "uspsa_number": memberNumber,
+                "member_name": memberName
             ])
-        }
 
-        return (name: memberName, uspsaNumber: memberNumber)
+            return (name: memberName, uspsaNumber: memberNumber)
+        } catch {
+            // Track analytics for fetch error
+            analytics.trackFeatureUsed("scsa_member_info_fetch_error", parameters: [
+                "uspsa_number": memberNumber,
+                "error_message": error.localizedDescription
+            ])
+            analytics.trackError(error, context: "SCWebScraper.fetchMemberInfo")
+            throw error
+        }
     }
 
     // MARK: - Private Methods

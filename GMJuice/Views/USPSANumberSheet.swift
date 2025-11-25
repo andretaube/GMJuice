@@ -13,6 +13,8 @@ struct USPSANumberSheet: View {
     @Environment(\.modelContext) private var context
     @StateObject private var scraper = SCWebScraper.shared
     @StateObject private var remoteConfig = RemoteConfigService.shared
+    
+    private let analytics = AnalyticsService.shared
 
     @Bindable var profile: ShooterProfile
     let isEditable: Bool
@@ -272,6 +274,12 @@ struct USPSANumberSheet: View {
 
         isRefreshing = true
 
+        // Track analytics for profile refresh start
+        analytics.trackFeatureUsed("profile_data_refresh", parameters: [
+            "uspsa_number": profile.uspsaNumber,
+            "refresh_type": "manual"
+        ])
+
         // Record the manual refresh timestamp
         let lastRefreshKey = "last_manual_refresh_\(profile.uspsaNumber)"
         UserDefaults.standard.set(Date(), forKey: lastRefreshKey)
@@ -284,6 +292,12 @@ struct USPSANumberSheet: View {
                         errorMessage = "SCSA data refresh is currently disabled"
                         showingError = true
                         isRefreshing = false
+                        
+                        // Track analytics for disabled refresh
+                        analytics.trackFeatureUsed("profile_data_refresh_blocked", parameters: [
+                            "reason": "remote_config_disabled",
+                            "uspsa_number": profile.uspsaNumber
+                        ])
                     }
                     return
                 }
@@ -294,6 +308,12 @@ struct USPSANumberSheet: View {
                 await MainActor.run {
                     print("✅ Successfully refreshed profile: \(profile.uspsaNumber)")
                     isRefreshing = false
+                    
+                    // Track analytics for successful refresh
+                    analytics.trackFeatureUsed("profile_data_refresh_success", parameters: [
+                        "uspsa_number": profile.uspsaNumber,
+                        "refresh_type": "manual"
+                    ])
                 }
             } catch {
                 await MainActor.run {
@@ -301,6 +321,14 @@ struct USPSANumberSheet: View {
                     errorMessage = "Failed to refresh profile: \(error.localizedDescription)"
                     showingError = true
                     isRefreshing = false
+                    
+                    // Track analytics for failed refresh
+                    analytics.trackFeatureUsed("profile_data_refresh_error", parameters: [
+                        "uspsa_number": profile.uspsaNumber,
+                        "error_message": error.localizedDescription,
+                        "refresh_type": "manual"
+                    ])
+                    analytics.trackError(error, context: "USPSANumberSheet.refreshProfile")
                 }
             }
         }

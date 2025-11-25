@@ -9,6 +9,7 @@ import SwiftUI
 import Photos
 import SwiftData
 import AVFoundation
+import Combine
 
 struct VideoRecordingView: View {
 
@@ -42,13 +43,15 @@ struct VideoRecordingView: View {
                     vm.finishRecording(outputURL: videoURL)
                 },
                 onViewControllerCreated: { viewController in
-                    cameraViewController = viewController
-                    vm.setCameraViewController(viewController)
+                    DispatchQueue.main.async {
+                        cameraViewController = viewController
+                        vm.setCameraViewController(viewController)
 
-                    // Hook up recording started callback
-                    viewController.onRecordingStarted = {
-                        Task { @MainActor in
-                            vm.startedRecording()
+                        // Hook up recording started callback
+                        viewController.onRecordingStarted = {
+                            Task { @MainActor in
+                                vm.startedRecording()
+                            }
                         }
                     }
                 }
@@ -61,15 +64,19 @@ struct VideoRecordingView: View {
                 division: division,
                 vm: vm,
                 shooter: shooter,
-                onToggleMiss: toggleTargetMiss
+                onToggleMiss: toggleTargetMiss,
+                onStartRecording: startRecording,
+                onStopRecording: stopRecording
             )
         }
-        .navigationTitle("\(stage.code) – \(stage.name)")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(true)
         .toolbar(.hidden, for: .tabBar)
         .onAppear {
-            // Lock to landscape orientation
-            AppDelegate.orientationLock = .landscape
+            // Keep device locked to portrait, but we'll handle visual orientation
+            AppDelegate.orientationLock = .portrait
+
+            // Enable device orientation notifications so we can detect rotation
+            UIDevice.current.beginGeneratingDeviceOrientationNotifications()
 
             requestCameraPermission()
 
@@ -80,6 +87,9 @@ struct VideoRecordingView: View {
         .onDisappear {
             // Restore all orientations
             AppDelegate.orientationLock = .all
+
+            // Stop generating orientation notifications
+            UIDevice.current.endGeneratingDeviceOrientationNotifications()
 
             print("📹 VideoRecordingView onDisappear called")
             print("📹 cameraViewController is nil: \(cameraViewController == nil)")
@@ -104,6 +114,22 @@ struct VideoRecordingView: View {
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
     }
+
+    private func startRecording() {
+        guard let cameraVC = cameraViewController else { return }
+
+        // Capture current device orientation before starting recording
+        // This will be used later when processing the video
+        let deviceOrient = UIDevice.current.orientation
+        vm.setRecordingDeviceOrientation(deviceOrient)
+        print("📱 Recording device orientation: \(deviceOrient.rawValue)")
+
+        cameraVC.startRecording()
+    }
+
+    private func stopRecording() {
+        cameraViewController?.stopRecording()
+    }
 }
 
 // MARK: - Recording Overlay
@@ -114,49 +140,147 @@ struct RecordingOverlay: View {
     @ObservedObject var vm: VideoRecordingViewModel
     let shooter: ShooterProfile?
     let onToggleMiss: (Int) -> Void
+    let onStartRecording: () -> Void
+    let onStopRecording: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var deviceOrientation = UIDeviceOrientation.portrait
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Top row: left and right columns
-            HStack(alignment: .top, spacing: 16) {
-                RecordingLeftColumn(stage: stage, division: division, vm: vm, style: .video, shooter: shooter)
-                
-                // Center: Timer and target indicators
-                VStack(spacing: 8) {
-                    RecordingTimerDisplay(fontSize: 240, vm: vm, division: division, stage: stage, shooter: shooter, style: .video)
-                        .frame(maxWidth: .infinity)
-
-                    RecordingTargetIndicators(stage: stage, missedTargets: vm.stringRun.missedTargets, onToggleMiss: onToggleMiss, style: .video)
-                }
-                .padding(.horizontal)
-
-                
-                
-                RecordingRightColumn(vm: vm, style: .video) {
-                    // Recording indicator
-                    if vm.isRecording {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(Color.red)
-                                .frame(width: 12, height: 12)
-                            Text("REC")
-                                .font(.system(.body, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                        .shadow(color: .black, radius: 2)
-                    }
-                }
+        GeometryReader { geometry in
+            let isLandscape = deviceOrientation.isLandscape
+            
+            if isLandscape {
+                // Landscape orientation: rotate the entire interface
+                landscapeLayout(geometry: geometry)
+                    .rotationEffect(.degrees(deviceOrientation == .landscapeLeft ? 90 : -90))
+                    .frame(width: geometry.size.height, height: geometry.size.width)
+                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            } else {
+                // Portrait orientation: normal layout
+                portraitLayout(geometry: geometry)
             }
-            .padding(.horizontal)
-            .padding(.top, 8)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            deviceOrientation = UIDevice.current.orientation
+        }
+        .onAppear {
+            // Enable orientation notifications
+            UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+            deviceOrientation = UIDevice.current.orientation
+        }
+        .onDisappear {
+            UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        }
+    }
+    
+    private func portraitLayout(geometry: GeometryProxy) -> some View {
+        VStack {
+            // Custom navigation at top
+            HStack {
+                Button("Done") {
+                    if vm.isRecording {
+                        onStopRecording()
+                    }
+                    dismiss()
+                }
+                .font(.body)
+                .foregroundColor(.white)
+                .padding()
+
+                Spacer()
+
+                Text("\(stage.code) – \(stage.name)")
+                    .font(.headline)
+                    .foregroundColor(.white)
+
+                Spacer()
+
+                // Invisible spacer to center the title
+                Button("") { }
+                    .opacity(0)
+                    .padding()
+            }
 
             Spacer()
 
+            // Recording button in center
+            recordingButton
+                .padding(.bottom, 40)
 
-            // Bottom: Shots and splits
+            // Shots and splits at bottom
             RecordingShotsAndSplits(vm: vm, style: .video)
                 .padding(.horizontal)
-                .padding(.bottom)
+                .padding(.bottom, geometry.safeAreaInsets.bottom + 16)
+        }
+    }
+    
+    private func landscapeLayout(geometry: GeometryProxy) -> some View {
+        VStack {
+            // Custom navigation at top (which will be visually top after rotation)
+            HStack {
+                Button("Done") {
+                    if vm.isRecording {
+                        onStopRecording()
+                    }
+                    dismiss()
+                }
+                .font(.body)
+                .foregroundColor(.white)
+                .padding()
+
+                Spacer()
+
+                Text("\(stage.code) – \(stage.name)")
+                    .font(.headline)
+                    .foregroundColor(.white)
+
+                Spacer()
+
+                // Invisible spacer to center the title
+                Button("") { }
+                    .opacity(0)
+                    .padding()
+            }
+
+            Spacer()
+
+            // Recording button in center
+            recordingButton
+                .padding(.bottom, 40)
+
+            // Shots and splits at bottom (which will be visually bottom after rotation)
+            RecordingShotsAndSplits(vm: vm, style: .video)
+                .padding(.horizontal)
+                .padding(.bottom, 16)
+        }
+        .frame(width: geometry.size.height, height: geometry.size.width)
+    }
+
+    private var recordingButton: some View {
+        Button(action: {
+            if vm.isRecording {
+                onStopRecording()
+            } else {
+                onStartRecording()
+            }
+        }) {
+            ZStack {
+                // Outer ring
+                Circle()
+                    .stroke(Color.white, lineWidth: 4)
+                    .frame(width: 80, height: 80)
+
+                // Inner shape: circle when not recording, square when recording
+                if vm.isRecording {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.red)
+                        .frame(width: 32, height: 32)
+                } else {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 64, height: 64)
+                }
+            }
         }
     }
 }
@@ -190,24 +314,24 @@ class CameraViewController: UIViewController, AVCaptureFileOutputRecordingDelega
         // Get the device's current orientation
         let orientation = windowScene.interfaceOrientation
 
-        // Map interface orientation to video rotation angle
-        let rotationAngle: CGFloat
+        // Map interface orientation to preview rotation angle (for display)
+        let previewRotationAngle: CGFloat
         switch orientation {
         case .landscapeLeft:
-            rotationAngle = 180
+            previewRotationAngle = 0
         case .landscapeRight:
-            rotationAngle = 0
+            previewRotationAngle = 180
         case .portrait:
-            rotationAngle = 90
+            previewRotationAngle = 90
         case .portraitUpsideDown:
-            rotationAngle = 270
+            previewRotationAngle = 270
         default:
-            rotationAngle = 90
+            previewRotationAngle = 90
         }
 
-        // Update preview layer orientation
-        if let connection = previewLayer?.connection, connection.isVideoRotationAngleSupported(rotationAngle) {
-            connection.videoRotationAngle = rotationAngle
+        // Update preview layer orientation for proper display
+        if let connection = previewLayer?.connection, connection.isVideoRotationAngleSupported(previewRotationAngle) {
+            connection.videoRotationAngle = previewRotationAngle
         }
     }
 
@@ -261,13 +385,7 @@ class CameraViewController: UIViewController, AVCaptureFileOutputRecordingDelega
         let outputFilePath = (NSTemporaryDirectory() as NSString).appendingPathComponent((outputFileName as NSString).appendingPathExtension("mov")!)
         let outputURL = URL(fileURLWithPath: outputFilePath)
 
-        // Set video recording orientation to match preview
-        if let connection = movieOutput.connection(with: .video),
-           let previewConnection = previewLayer.connection,
-           connection.isVideoRotationAngleSupported(previewConnection.videoRotationAngle) {
-            connection.videoRotationAngle = previewConnection.videoRotationAngle
-        }
-
+        // Record in camera's native orientation - we'll apply rotation during processing
         print("📹 Starting recording to: \(outputURL.path)")
         movieOutput.startRecording(to: outputURL, recordingDelegate: self)
 
@@ -325,17 +443,11 @@ struct CameraView: UIViewControllerRepresentable {
         let controller = CameraViewController()
         controller.onVideoRecorded = onVideoRecorded
         onViewControllerCreated?(controller)
-
-        // Start recording automatically after a short delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            controller.startRecording()
-        }
-
         return controller
     }
 
     func updateUIViewController(_ uiViewController: CameraViewController, context: Context) {
-        // Recording is managed automatically - starts on appear, stops on disappear
+        // Recording is controlled by user via start/stop button
     }
 
     static func dismantleUIViewController(_ uiViewController: CameraViewController, coordinator: ()) {
@@ -417,7 +529,9 @@ struct VideoRecordingView_Previews: PreviewProvider {
                 division: division,
                 vm: vm,
                 shooter: shooterProfile,
-                onToggleMiss: { _ in }
+                onToggleMiss: { _ in },
+                onStartRecording: { },
+                onStopRecording: { }
             )
         }
         .modelContainer(container)

@@ -20,6 +20,9 @@ struct GMJuice: App {
     @StateObject private var bleManager = BLEManager.shared
     @StateObject private var announcer = Announcer.shared
     @StateObject private var notificationManager = NotificationManager.shared
+    
+    private let analytics = AnalyticsService.shared
+    @State private var sessionStartTime = Date()
 
     @AppStorage("announcer_enabled") private var announcerEnabled = true
     @AppStorage("appearanceMode") private var appearanceMode: String = "dark"
@@ -108,6 +111,11 @@ struct GMJuice: App {
                         .environmentObject(notificationManager)
                         .onAppear {
                             bleManager.start()
+                            
+                            // Track session start
+                            sessionStartTime = Date()
+                            analytics.trackSessionStart()
+                            
                             // Check if user needs to accept terms
                             if !hasAcceptedTerms {
                                 showingTermsAcceptance = true
@@ -137,7 +145,15 @@ struct GMJuice: App {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 bleManager.start()
+                
+                // Track session start if coming from background
+                sessionStartTime = Date()
+                analytics.trackSessionStart()
             } else if phase == .background {
+                // Track session end
+                let sessionDuration = Date().timeIntervalSince(sessionStartTime)
+                 analytics.trackSessionEnd(duration: sessionDuration)
+                
                 // Update notifications with fresh data when app goes to background
                 notificationManager.updateScheduledNotification(modelContext: sharedModelContainer.mainContext)
                 notificationManager.updateDailyNotifications()

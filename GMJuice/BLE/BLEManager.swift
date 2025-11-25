@@ -27,6 +27,10 @@ final class BLEManager: NSObject, ObservableObject {
     @Published var deviceRSSI: [UUID: Int] = [:]  // Track signal strength for each device
     @Published var connectionStatus: BLEConnectionStatus = BLEConnectionStatus.Disconnected
     
+    private let analytics = AnalyticsService.shared
+    private var scanStartTime: Date?
+    private var connectionStartTime: Date?
+    
     // MARK: - Persistence keys
     private let savedUUIDKey = "ble_saved_uuid"
     private let savedNameKey = "ble_saved_name"
@@ -83,6 +87,9 @@ final class BLEManager: NSObject, ObservableObject {
         }
         
         discoveredDevices.removeAll()
+        scanStartTime = Date()
+        analytics.trackBLEScanStart()
+        
         central.scanForPeripherals(
             withServices: nil
             
@@ -93,6 +100,15 @@ final class BLEManager: NSObject, ObservableObject {
     
     public func stopScanning() {
         central.stopScan()
+        
+        if let startTime = scanStartTime {
+            let scanDuration = Date().timeIntervalSince(startTime)
+            analytics.trackBLEDeviceFound(
+                deviceCount: discoveredDevices.count,
+                scanDuration: scanDuration
+            )
+        }
+        
         discoveredDevices.removeAll()
     }
     
@@ -109,6 +125,7 @@ final class BLEManager: NSObject, ObservableObject {
         current = p
         current?.delegate = self
         connectionStatus = .Connecting
+        connectionStartTime = Date()
         onConnecting?(p)
         central.connect(p, options: [
             CBConnectPeripheralOptionNotifyOnConnectionKey: true,
@@ -260,6 +277,14 @@ extension BLEManager: CBCentralManagerDelegate {
     nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         MainActor.assumeIsolated {
             connectionStatus = .Connected
+            
+            // Track successful BLE connection
+            let connectionTime = connectionStartTime?.timeIntervalSinceNow ?? 0
+            analytics.trackBLEConnection(
+                deviceName: peripheral.name,
+                connectionTime: abs(connectionTime)
+            )
+            
             onConnected?(peripheral)
             // Typically discover services next:
             peripheral.discoverServices(nil)
@@ -280,6 +305,16 @@ extension BLEManager: CBCentralManagerDelegate {
                                      error: Error?) {
         MainActor.assumeIsolated {
             connectionStatus = .Disconnected
+            
+            // Track BLE disconnection
+            let sessionDuration = connectionStartTime?.timeIntervalSinceNow ?? 0
+            let reason = error?.localizedDescription ?? "user_initiated"
+            analytics.trackBLEDisconnection(
+                deviceName: peripheral.name,
+                sessionDuration: abs(sessionDuration),
+                reason: reason
+            )
+            
             onDisconnected?(peripheral, error)
             // If this was your current device, clear it or auto-retry as desired
             if current?.identifier == peripheral.identifier {

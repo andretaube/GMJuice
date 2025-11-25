@@ -42,6 +42,7 @@ final class RecordingManager: ObservableObject {
     // MARK: - Private Properties
 
     private let ble = BLEManager.shared
+    private let analytics = AnalyticsService.shared
     private var cancellables = Set<AnyCancellable>()
     private var modelContext: ModelContext?
 
@@ -132,9 +133,23 @@ final class RecordingManager: ObservableObject {
                 context.insert(string)
                 try context.save()
                 print("💾 String saved to database: \(string.time)s")
+                
+                // Track analytics for completed string
+                let (penaltyTime, _) = string.calculatePenalty()
+                analytics.trackStringRun(
+                    stage: string.stageId,
+                    division: string.divisionId,
+                    stringNumber: stringCounter,
+                    time: Double(truncating: string.time as NSNumber),
+                    shots: string.stringShots.count,
+                    penalties: Int(truncating: penaltyTime as NSNumber),
+                    classification: nil // TODO: Get from shooter profile
+                )
+                
                 onStringCompleted?(string)
             } catch {
                 print("❌ Failed to save string: \(error)")
+                analytics.trackError(error, context: "RecordingManager.finishString")
             }
         }
 

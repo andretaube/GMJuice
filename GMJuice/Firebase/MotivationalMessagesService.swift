@@ -9,14 +9,9 @@ import Foundation
 import FirebaseCore
 import FirebaseRemoteConfig
 
-/// Global access to current motivational messages (Firebase remote data with local fallback)
-public var CurrentMotivationalMessages: MotivationalMessagesService {
-    return MotivationalMessagesService.shared
-}
-
 @MainActor
 public final class MotivationalMessagesService: ObservableObject {
-    static let shared = MotivationalMessagesService()
+    nonisolated static let shared = MotivationalMessagesService()
     
     private let remoteConfig = RemoteConfig.remoteConfig()
     private let configKey = "MotivationalMessages"
@@ -33,8 +28,10 @@ public final class MotivationalMessagesService: ObservableObject {
         "Keep practicing and stay focused!"
     ]
     
-    private init() {
-        configureRemoteConfig()
+    nonisolated private init() {
+        Task { @MainActor in
+            configureRemoteConfig()
+        }
     }
     
     private func configureRemoteConfig() {
@@ -279,3 +276,9 @@ extension MotivationalMessagesService {
     }
 }
 #endif
+
+/// Global access to current motivational messages (Firebase remote data with local fallback)
+@MainActor
+public var CurrentMotivationalMessages: MotivationalMessagesService {
+    return MotivationalMessagesService.shared
+}

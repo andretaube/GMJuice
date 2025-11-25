@@ -35,9 +35,13 @@ public class VideoRecordingViewModel: ObservableObject, RecordingViewModelProtoc
     private var beepTimes: [Date] = []
     private var lastShotTime: Date?
 
+    // Device orientation when recording started
+    private var recordingDeviceOrientation: UIDeviceOrientation = .portrait
+
     // Managers
     private let manager = RecordingManager.shared
     private let ble = BLEManager.shared
+    private let analytics = AnalyticsService.shared
     private var cancellables = Set<AnyCancellable>()
 
     init(stageId: String, divisionId: String) {
@@ -105,11 +109,24 @@ public class VideoRecordingViewModel: ObservableObject, RecordingViewModelProtoc
         print("📹 Camera view controller set")
     }
 
+    func setRecordingDeviceOrientation(_ orientation: UIDeviceOrientation) {
+        self.recordingDeviceOrientation = orientation
+        print("📱 Recording device orientation set to: \(orientation.rawValue)")
+    }
+
     // MARK: - Recording State
 
     func startedRecording() {
         self.isRecording = true
         self.recordingStartTime = Date()
+
+        // Track video recording start
+        analytics.trackVideoRecordingStart(
+            stage: stageId,
+            division: divisionId,
+            orientation: "user_initiated"
+        )
+
         print("✅ Recording started")
     }
 
@@ -131,6 +148,16 @@ public class VideoRecordingViewModel: ObservableObject, RecordingViewModelProtoc
             guard allRuns.count > 0 else {
                 print("⚠️ No strings recorded - discarding video")
                 try? FileManager.default.removeItem(at: outputURL)
+                
+                // Track recording completion with no strings
+                analytics.trackVideoRecordingComplete(
+                    stage: stageId,
+                    division: divisionId,
+                    duration: recordingStartTime?.timeIntervalSinceNow ?? 0,
+                    stringCount: 0,
+                    fileSize: nil
+                )
+                
                 manager.endSession()
                 return
             }
@@ -200,7 +227,7 @@ public class VideoRecordingViewModel: ObservableObject, RecordingViewModelProtoc
                 return
             }
 
-            print("🎬 Calling trimAndOverlay...")
+            print("🎬 Calling trimAndOverlay with device orientation: \(recordingDeviceOrientation.rawValue)")
             let processedURL = try await processor.trimAndOverlay(
                 sourceURL: sourceURL,
                 startTime: startTime,
@@ -209,7 +236,7 @@ public class VideoRecordingViewModel: ObservableObject, RecordingViewModelProtoc
                 stage: stage,
                 division: division,
                 beepOffsets: beepOffsets,
-                cameraPosition: .back
+                deviceOrientation: recordingDeviceOrientation
             )
 
             print("✅ Video trimmed and overlayed: \(processedURL.path)")
@@ -227,10 +254,23 @@ public class VideoRecordingViewModel: ObservableObject, RecordingViewModelProtoc
             try? FileManager.default.removeItem(at: processedURL)
 
             VideoProcessingManager.shared.finishProcessing()
+            
+            // Track successful video completion
+            let fileSize = (try? FileManager.default.attributesOfItem(atPath: savedURL.path)[.size] as? Int64)
+            let duration = recordingStartTime?.timeIntervalSinceNow ?? 0
+            analytics.trackVideoRecordingComplete(
+                stage: stageId,
+                division: divisionId,
+                duration: abs(duration),
+                stringCount: allRuns.count,
+                fileSize: fileSize
+            )
+            
             print("✅ Video saved: \(savedURL.path)")
 
         } catch {
             print("⚠️ Video processing error: \(error)")
+            analytics.trackError(error, context: "VideoRecordingViewModel.processVideo")
             VideoProcessingManager.shared.finishProcessing()
         }
     }
@@ -251,7 +291,8 @@ public class VideoRecordingViewModel: ObservableObject, RecordingViewModelProtoc
 
         let destinationURL = videosDirectory.appendingPathComponent(fileName)
         try FileManager.default.copyItem(at: url, to: destinationURL)
-
+        
+        analytics.trackVideoSaved(location: "documents", success: true)
         return destinationURL
     }
 
@@ -271,9 +312,12 @@ public class VideoRecordingViewModel: ObservableObject, RecordingViewModelProtoc
                 PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
             }
             print("✅ Video saved to photo library")
+            analytics.trackVideoSaved(location: "photos", success: true)
         } catch {
             print("⚠️ Failed to save video to photo library: \(error)")
             print("⚠️ Error details: \(error.localizedDescription)")
+            analytics.trackVideoSaved(location: "photos", success: false)
+            analytics.trackError(error, context: "VideoRecordingViewModel.saveToPhotoLibrary")
         }
     }
 

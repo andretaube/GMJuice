@@ -5,6 +5,7 @@ struct SettingsMainView: View {
     @State private var showingTerms = false
     @State private var showingPrivacy = false
     @State private var navigationPath = NavigationPath()
+    private let analytics = AnalyticsService.shared
 
     var columns: [GridItem] {
         // Use 3 columns in landscape (compact vertical size class), 2 in portrait
@@ -100,6 +101,9 @@ struct SettingsMainView: View {
                 .padding()
             }
             .navigationTitle("Settings")
+            .onAppear {
+                analytics.trackScreen("SettingsMainView")
+            }
             .sheet(isPresented: $showingTerms) {
                 LegalDocumentView(
                     title: "Terms of Use",

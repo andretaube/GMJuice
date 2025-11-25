@@ -412,9 +412,6 @@ private struct ProfileStatsView: View {
         // ONLY show scores where usedForClassification = true (one score per stage per division)
         let usedScores = allScores.filter { $0.usedForClassification }
 
-        // DEBUG: Print classification scores summary
-        print("📊 ProfileView - Classification Scores for \(profile.uspsaNumber): \(usedScores.count) total")
-
         let byDivision = Dictionary(grouping: usedScores) { $0.divisionCode }
 
         // Start with all divisions that have a classification in the profile

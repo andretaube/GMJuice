@@ -14,6 +14,7 @@ struct VideosView: View {
     @State private var selectedVideo: VideoItem?
     @State private var showDeleteAlert = false
     @State private var videoToDelete: VideoItem?
+    private let analytics = AnalyticsService.shared
 
     var body: some View {
         Group {
@@ -31,6 +32,9 @@ struct VideosView: View {
                 }
             }
             .navigationTitle("Videos")
+            .onAppear {
+                analytics.trackScreen("VideosView")
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if !viewModel.videos.isEmpty {
@@ -338,11 +342,22 @@ class VideosViewModel: ObservableObject {
 
     func deleteVideo(_ video: VideoItem) {
         do {
+            let fileSize = (try? FileManager.default.attributesOfItem(atPath: video.url.path)[.size] as? Int64)
+            
             try FileManager.default.removeItem(at: video.url)
             videos.removeAll { $0.id == video.id }
+            
+            // Track video deletion
+            AnalyticsService.shared.trackVideoDeleted(
+                stage: video.stageCode,
+                division: video.division,
+                fileSize: fileSize
+            )
+            
             print("✅ Video deleted: \(video.fileName)")
         } catch {
             print("⚠️ Failed to delete video: \(error)")
+            AnalyticsService.shared.trackError(error, context: "VideosViewModel.deleteVideo")
         }
     }
 }

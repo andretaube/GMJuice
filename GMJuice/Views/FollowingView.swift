@@ -621,6 +621,7 @@ struct FollowedShooterProfileView: View {
     private func refreshProfile() {
         isRefreshing = true
 
+
         Task {
             do {
                 // Check if SCSA data is enabled via Remote Config
@@ -629,6 +630,7 @@ struct FollowedShooterProfileView: View {
                         errorMessage = "SCSA data refresh is currently disabled"
                         showingError = true
                         isRefreshing = false
+                        
                     }
                     return
                 }
@@ -639,6 +641,7 @@ struct FollowedShooterProfileView: View {
                 await MainActor.run {
                     print("✅ Successfully refreshed profile: \(profile.uspsaNumber)")
                     isRefreshing = false
+                    
                 }
             } catch {
                 await MainActor.run {
@@ -646,6 +649,7 @@ struct FollowedShooterProfileView: View {
                     errorMessage = "Failed to refresh profile: \(error.localizedDescription)"
                     showingError = true
                     isRefreshing = false
+                    
                 }
             }
         }

@@ -308,6 +308,32 @@ let percentage = CurrentPeakBenchmarks.percent(division: division, stageCode: st
 - **All other views**: Portrait-only
 - **Implementation**: `AppDelegate.orientationLock` + `UIDevice.setValue` + `requestGeometryUpdate`
 
+### Video Recording System
+Video recording is implemented in `VideoRecordingView.swift` and `VideoRecordingViewModel.swift` with processing in `VideoProcessor.swift`.
+
+**Recording Flow:**
+1. User enters `VideoRecordingView` (UI locked to portrait, but detects device rotation)
+2. User presses the red record button to start recording
+3. Device orientation is captured at record start and stored in `VideoRecordingViewModel`
+4. Camera records in its native landscape orientation (1920x1080)
+5. User presses stop button when finished
+6. `VideoProcessor.trimAndOverlay()` processes the video with correct orientation transform
+
+**Orientation Transform Logic:**
+The camera always records in landscape. During processing, `VideoProcessor.calculateTransformForOrientation()` applies a corrective transform based on how the device was held:
+
+| Device Orientation | Transform | Render Size | Description |
+|-------------------|-----------|-------------|-------------|
+| `.portrait` | 90° clockwise | 1080x1920 | Video rotated right to match upright phone |
+| `.portraitUpsideDown` | 90° counter-clockwise | 1080x1920 | Video rotated left |
+| `.landscapeLeft` | Identity (none) | 1920x1080 | Home button on right, no rotation needed |
+| `.landscapeRight` | 180° | 1920x1080 | Home button on left, flip upside down |
+
+**Key Implementation Details:**
+- `UIDevice.current.beginGeneratingDeviceOrientationNotifications()` is called on view appear to enable orientation detection even when UI is locked
+- Transform matrices use `CGAffineTransform(a:b:c:d:tx:ty:)` with translation to keep video in frame after rotation
+- Overlay layers (shot times, stage info) are rendered at the correct `renderSize` after transform is applied
+
 ### Testing Guidelines
 - Add tests for new features and business logic
 - Use in-memory containers for SwiftData testing  
@@ -317,5 +343,5 @@ let percentage = CurrentPeakBenchmarks.percent(division: division, stageCode: st
 
 ---
 
-**Last Updated**: November 23, 2025
+**Last Updated**: November 24, 2025
 **Compatible with**: iOS 18+, Xcode 16+, Firebase 12.6+

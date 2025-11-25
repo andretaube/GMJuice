@@ -18,6 +18,8 @@ struct TrainView: View {
     @State private var showingCoachMarks = false
     @State private var trackedFrames: [String: CGRect] = [:]
     @EnvironmentObject private var bleManager: BLEManager
+    
+    private let analytics = AnalyticsService.shared
 
     // Binding that bridges @AppStorage <-> enum
     private var selectedDivisionBinding: Binding<Division> {
@@ -56,7 +58,7 @@ struct TrainView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "list.bullet.rectangle")
                                 .font(.system(size: 16, weight: .semibold))
-                            Text("Timer Log")
+                            Text("Training Log")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
                         }
@@ -75,7 +77,7 @@ struct TrainView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "video.fill")
                                 .font(.system(size: 16, weight: .semibold))
-                            Text("Video Log")
+                            Text("videos")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
                         }
@@ -124,6 +126,7 @@ struct TrainView: View {
                         HStack(spacing: 8) {
                             // Timer button (now first)
                             Button {
+                                analytics.trackStageSelection(stage: stage.code, division: selectedDivisionBinding.wrappedValue.rawValue, mode: "timer")
                                 navigationPath.append(NavigationDestination.timer(stage: stage, division: selectedDivisionBinding.wrappedValue))
                             } label: {
                                 VStack(spacing: 4) {
@@ -143,6 +146,7 @@ struct TrainView: View {
 
                             // Video button (now second)
                             Button {
+                                analytics.trackStageSelection(stage: stage.code, division: selectedDivisionBinding.wrappedValue.rawValue, mode: "video")
                                 navigationPath.append(NavigationDestination.video(stage: stage, division: selectedDivisionBinding.wrappedValue))
                             } label: {
                                 VStack(spacing: 4) {
@@ -169,6 +173,8 @@ struct TrainView: View {
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
+                            analytics.trackFeatureUsed("help_tutorial")
+                            
                             // Show coach marks if frames are available, otherwise fallback to tutorial sheet
                             if createCoachMarks() != nil {
                                 showingCoachMarks = true
@@ -180,6 +186,10 @@ struct TrainView: View {
                                 .foregroundStyle(.blue)
                         }
                     }
+                }
+                .onAppear {
+                    analytics.trackScreen("TrainView")
+                    analytics.setDivisionProperty(selectedDivisionBinding.wrappedValue.rawValue)
                 }
             }
             .sheet(isPresented: $showingTutorial) {

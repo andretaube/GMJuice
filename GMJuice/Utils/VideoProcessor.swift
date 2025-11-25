@@ -22,6 +22,7 @@ class VideoProcessor {
     ///   - stage: Stage information
     ///   - division: Division information
     ///   - beepOffsets: Array of beep times relative to recording start (one per string)
+    ///   - deviceOrientation: The device orientation when recording started
     /// - Returns: URL of the processed video file
     func trimAndOverlay(
         sourceURL: URL,
@@ -31,7 +32,7 @@ class VideoProcessor {
         stage: Stage,
         division: Division,
         beepOffsets: [TimeInterval],
-        cameraPosition: AVCaptureDevice.Position
+        deviceOrientation: UIDeviceOrientation
     ) async throws -> URL {
 
         let asset = AVURLAsset(url: sourceURL)
@@ -83,25 +84,26 @@ class VideoProcessor {
 
         // Get video properties
         let videoSize = try await videoTrack.load(.naturalSize)
-        let preferredTransform = try await videoTrack.load(.preferredTransform)
 
-        // Apply original transform from video track
-        compositionVideoTrack.preferredTransform = preferredTransform
+        print("📹 VideoProcessor: naturalSize = \(videoSize)")
+        print("📹 VideoProcessor: deviceOrientation = \(deviceOrientation.rawValue)")
 
-        // Determine actual render size accounting for transform
-        let renderSize: CGSize
-        if preferredTransform.a == 0 && preferredTransform.d == 0 {
-            // Video is rotated 90 or 270 degrees
-            renderSize = CGSize(width: videoSize.height, height: videoSize.width)
-        } else {
-            renderSize = videoSize
-        }
+        // Calculate the correct transform based on device orientation when recording started
+        // The camera records in landscape orientation natively.
+        // We need to rotate the video to match how the user was holding the phone.
+        let (renderSize, videoTransform) = calculateTransformForOrientation(
+            videoSize: videoSize,
+            deviceOrientation: deviceOrientation
+        )
+
+        print("📹 VideoProcessor: renderSize = \(renderSize)")
 
         // Create video composition with overlay
         let videoComposition = try await createVideoComposition(
             composition: composition,
             videoTrack: compositionVideoTrack,
             renderSize: renderSize,
+            videoTransform: videoTransform,
             stringRuns: stringRuns,
             stage: stage,
             division: division,
@@ -145,6 +147,7 @@ class VideoProcessor {
         composition: AVMutableComposition,
         videoTrack: AVMutableCompositionTrack,
         renderSize: CGSize,
+        videoTransform: CGAffineTransform,
         stringRuns: [StringRun],
         stage: Stage,
         division: Division,
@@ -163,8 +166,12 @@ class VideoProcessor {
             duration: composition.duration
         )
 
-        // Create layer instruction for video track
+        // Create layer instruction for video track with transform applied
         let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
+
+        // Apply the video's preferred transform to properly orient the video
+        layerInstruction.setTransform(videoTransform, at: .zero)
+
         instruction.layerInstructions = [layerInstruction]
 
         videoComposition.instructions = [instruction]
@@ -510,6 +517,60 @@ class VideoProcessor {
         }
 
         return textLayer
+    }
+
+    /// Calculate the transform needed to correctly orient the video based on device orientation
+    /// - Parameters:
+    ///   - videoSize: The natural size of the video (typically 1920x1080 in landscape)
+    ///   - deviceOrientation: How the device was held when recording started
+    /// - Returns: Tuple of (renderSize, transform) to apply to the video
+    private func calculateTransformForOrientation(
+        videoSize: CGSize,
+        deviceOrientation: UIDeviceOrientation
+    ) -> (CGSize, CGAffineTransform) {
+
+        let width = videoSize.width   // 1920
+        let height = videoSize.height // 1080
+
+        // Camera records in landscape (1920x1080). We need to rotate to match device orientation.
+        switch deviceOrientation {
+        case .portrait:
+            // Device was upright - rotate video 90° clockwise
+            // Render size becomes portrait (1080x1920)
+            let renderSize = CGSize(width: height, height: width)
+            // Rotate 90° clockwise and translate to keep in frame
+            let transform = CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: height, ty: 0)
+            print("📹 Transform: portrait - rotating 90° clockwise, renderSize=\(renderSize)")
+            return (renderSize, transform)
+
+        case .portraitUpsideDown:
+            // Device was upside down - rotate video 90° counter-clockwise
+            let renderSize = CGSize(width: height, height: width)
+            let transform = CGAffineTransform(a: 0, b: -1, c: 1, d: 0, tx: 0, ty: width)
+            print("📹 Transform: portraitUpsideDown - rotating 90° counter-clockwise")
+            return (renderSize, transform)
+
+        case .landscapeLeft:
+            // Device was rotated left (home button on right) - no rotation needed
+            let renderSize = videoSize
+            let transform = CGAffineTransform.identity
+            print("📹 Transform: landscapeLeft - no rotation")
+            return (renderSize, transform)
+
+        case .landscapeRight:
+            // Device was rotated right (home button on left) - rotate video 180°
+            let renderSize = videoSize
+            let transform = CGAffineTransform(a: -1, b: 0, c: 0, d: -1, tx: width, ty: height)
+            print("📹 Transform: landscapeRight - rotating 180°")
+            return (renderSize, transform)
+
+        default:
+            // Default to portrait
+            let renderSize = CGSize(width: height, height: width)
+            let transform = CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: height, ty: 0)
+            print("📹 Transform: default (portrait) - rotating 90° clockwise")
+            return (renderSize, transform)
+        }
     }
 }
 
