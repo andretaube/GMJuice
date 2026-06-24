@@ -84,24 +84,14 @@ final class AppInitializer: ObservableObject {
             // Count unique stages used
             let stagesUsed = Set(runs.map { $0.stageId }).count
 
-            // Count videos
-            var videoCount = 0
-            if let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-                let videosDirectory = documentsPath.appendingPathComponent("Videos")
-                if let files = try? FileManager.default.contentsOfDirectory(at: videosDirectory, includingPropertiesForKeys: nil) {
-                    videoCount = files.filter { $0.pathExtension == "mov" || $0.pathExtension == "mp4" }.count
-                }
-            }
-
             // Send to Crashlytics
             AnalyticsService.shared.setUserStats(
                 logEntryCount: logEntryCount,
-                videoCount: videoCount,
                 divisionsUsed: divisionsUsed,
                 stagesUsed: stagesUsed
             )
 
-            print("📊 Crashlytics stats updated: \(logEntryCount) logs, \(videoCount) videos, \(divisionsUsed) divisions, \(stagesUsed) stages")
+            print("📊 Crashlytics stats updated: \(logEntryCount) logs, \(divisionsUsed) divisions, \(stagesUsed) stages")
         } catch {
             print("⚠️ Failed to update Crashlytics stats: \(error)")
         }

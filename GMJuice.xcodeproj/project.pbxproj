@@ -450,9 +450,6 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "AMG Commander";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "AMG Commander";
-				INFOPLIST_KEY_NSCameraUsageDescription = "GMJuice needs camera access to record your shooting practice sessions.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "GMJuice needs microphone access to record audio with your practice videos.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "GMJuice needs permission to save your practice videos to your photo library.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "GMJuice uses speech recognition to help you quickly create notes about your shooting sessions by speaking instead of typing.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -493,9 +490,6 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "AMG Commander";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "AMG Commander";
-				INFOPLIST_KEY_NSCameraUsageDescription = "GMJuice needs camera access to record your shooting practice sessions.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "GMJuice needs microphone access to record audio with your practice videos.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "GMJuice needs permission to save your practice videos to your photo library.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "GMJuice uses speech recognition to help you quickly create notes about your shooting sessions by speaking instead of typing.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

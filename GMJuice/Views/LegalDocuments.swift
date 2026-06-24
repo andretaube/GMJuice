@@ -125,7 +125,7 @@ struct LegalDocuments {
     • App performance metrics (crash reports, errors)
     • Device information (device type, iOS version)
     • General location (country/region only, not precise location)
-    • Aggregate statistics (number of log entries, videos, divisions used) to help diagnose issues
+    • Aggregate statistics (number of log entries, divisions used) to help diagnose issues
 
     We DO NOT collect through analytics:
     • Your USPSA number or any personal identification numbers

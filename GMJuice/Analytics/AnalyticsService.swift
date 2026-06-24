@@ -72,10 +72,9 @@ class AnalyticsService {
         Analytics.setUserProperty(division, forName: "active_division")
     }
 
-    func setUserStats(logEntryCount: Int, videoCount: Int, divisionsUsed: Int, stagesUsed: Int) {
+    func setUserStats(logEntryCount: Int, divisionsUsed: Int, stagesUsed: Int) {
         let crashlytics = Crashlytics.crashlytics()
         crashlytics.setCustomValue(logEntryCount, forKey: "log_entry_count")
-        crashlytics.setCustomValue(videoCount, forKey: "video_count")
         crashlytics.setCustomValue(divisionsUsed, forKey: "divisions_used")
         crashlytics.setCustomValue(stagesUsed, forKey: "stages_used")
     }
@@ -127,81 +126,6 @@ class AnalyticsService {
             "session_duration_strings": totalStrings,
             "improvement_ratio": worstTime > 0 ? bestTime / worstTime : 0
         ])
-    }
-    
-    // MARK: - Video Analytics
-    
-    func trackVideoRecordingStart(stage: String, division: String, orientation: String) {
-        Analytics.logEvent("video_recording_started", parameters: [
-            "stage_code": stage,
-            "division": division,
-            "orientation": orientation,
-            "timestamp": Date().timeIntervalSince1970
-        ])
-    }
-    
-    func trackVideoRecordingComplete(stage: String, division: String, duration: TimeInterval, stringCount: Int, fileSize: Int64?) {
-        var parameters: [String: Any] = [
-            "stage_code": stage,
-            "division": division,
-            "recording_duration": duration,
-            "string_count": stringCount,
-            "timestamp": Date().timeIntervalSince1970
-        ]
-        
-        if let size = fileSize {
-            parameters["file_size_bytes"] = size
-            parameters["file_size_mb"] = Double(size) / (1024 * 1024)
-        }
-        
-        Analytics.logEvent("video_recording_completed", parameters: parameters)
-    }
-    
-    func trackVideoProcessingStart() {
-        Analytics.logEvent("video_processing_started", parameters: [
-            "timestamp": Date().timeIntervalSince1970
-        ])
-    }
-    
-    func trackVideoProcessingComplete(success: Bool, duration: TimeInterval, outputFileSize: Int64?) {
-        var parameters: [String: Any] = [
-            "success": success,
-            "processing_duration": duration,
-            "timestamp": Date().timeIntervalSince1970
-        ]
-        
-        if let size = outputFileSize {
-            parameters["output_file_size_bytes"] = size
-            parameters["output_file_size_mb"] = Double(size) / (1024 * 1024)
-        }
-        
-        Analytics.logEvent("video_processing_completed", parameters: parameters)
-    }
-    
-    func trackVideoSaved(location: String, success: Bool) {
-        Analytics.logEvent("video_saved", parameters: [
-            "location": location, // "photos" or "documents"
-            "success": success,
-            "timestamp": Date().timeIntervalSince1970
-        ])
-    }
-    
-    func trackVideoDeleted(stage: String?, division: String?, fileSize: Int64?) {
-        var parameters: [String: Any] = [
-            "timestamp": Date().timeIntervalSince1970
-        ]
-        
-        if let stage = stage {
-            parameters["stage_code"] = stage
-        }
-        if let division = division {
-            parameters["division"] = division
-        }
-        if let size = fileSize {
-            parameters["file_size_mb"] = Double(size) / (1024 * 1024)
-        }
-        
-        Analytics.logEvent("video_deleted", parameters: parameters)
     }
     
     // MARK: - BLE & Device Analytics
