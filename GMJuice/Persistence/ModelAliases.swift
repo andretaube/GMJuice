@@ -12,6 +12,7 @@ typealias ShooterProfile = Schema010.ShooterProfile
 typealias DivisionProfile = Schema010.DivisionProfile
 typealias StringRun = Schema010.StringRun
 typealias StringShot = Schema010.StringShot
+typealias StageRun = Schema010.StageRun
 
 // Steel Challenge Match Data
 typealias MatchScore = Schema010.MatchScore

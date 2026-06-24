@@ -76,7 +76,7 @@ struct SettingsMainView: View {
                         } label: {
                             Text("Terms of Use")
                                 .font(.footnote)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(Color.gmAmber)
                         }
 
                         Text("•")
@@ -88,7 +88,7 @@ struct SettingsMainView: View {
                         } label: {
                             Text("Privacy Policy")
                                 .font(.footnote)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(Color.gmAmber)
                         }
                     }
 
@@ -100,6 +100,7 @@ struct SettingsMainView: View {
                 }
                 .padding()
             }
+            .background(Color.gmBg.ignoresSafeArea())
             .navigationTitle("Settings")
             .onAppear {
                 analytics.trackScreen("SettingsMainView")
@@ -145,11 +146,11 @@ struct SettingsCard<Destination: View>: View {
             .frame(height: 80)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(color.opacity(0.1))
+                    .fill(Color.gmPanel)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(color.opacity(0.3), lineWidth: 1)
+                    .stroke(Color.gmLine, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

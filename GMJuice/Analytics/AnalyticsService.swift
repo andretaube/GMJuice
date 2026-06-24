@@ -323,26 +323,6 @@ class AnalyticsService {
         ])
     }
     
-    // MARK: - AI Analytics
-    
-    func trackClaudeAPIUsage(feature: String, success: Bool, responseTime: TimeInterval?, tokenCount: Int?) {
-        var parameters: [String: Any] = [
-            "feature": feature,
-            "success": success,
-            "timestamp": Date().timeIntervalSince1970
-        ]
-        
-        if let responseTime = responseTime {
-            parameters["response_time"] = responseTime
-        }
-        
-        if let tokens = tokenCount {
-            parameters["token_count"] = tokens
-        }
-        
-        Analytics.logEvent("claude_api_used", parameters: parameters)
-    }
-    
     // MARK: - Helper Methods
     
     private func stageDisplayName(for code: String) -> String {

@@ -6,7 +6,6 @@
 
 import SwiftUI
 import SwiftData
-import TipKit
 import FirebaseCore
 
 
@@ -40,12 +39,6 @@ struct GMJuice: App {
 
     init() {
         Announcer.shared.isEnabled = announcerEnabled
-
-        // Configure TipKit
-        try? Tips.configure([
-            .displayFrequency(.immediate),
-            .datastoreLocation(.applicationDefault)
-        ])
     }
 
     var sharedModelContainer: ModelContainer = {
@@ -139,6 +132,7 @@ struct GMJuice: App {
                 bootstrap.start(modelContext: sharedModelContainer.mainContext)
             }
             .preferredColorScheme(colorScheme)
+            .tint(.orange)
 
         }
         .modelContainer(sharedModelContainer)

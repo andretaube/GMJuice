@@ -258,132 +258,31 @@ struct ProfileView: View {
         let p = ensureProfile()
         @Bindable var profile = p
 
-        ZStack {
-            NavigationStack {
-                VStack(spacing: 0) {
-                    // Tab picker - hide "Following" tab when viewing someone else's profile
-                    if isCurrentUser {
-                        Picker("View", selection: $selectedTab) {
-                            Text("Profile").tag(0)
-                            Text("Match Scores").tag(1)
-                                .trackFrame(named: "matchScoresTab")
-                            Text("Following").tag(2)
-                                .trackFrame(named: "followingTab")
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                        .trackFrame(named: "tabPicker")
-                    } else {
-                        Picker("View", selection: $selectedTab) {
-                            Text("Profile").tag(0)
-                            Text("Match Scores").tag(1)
-                                .trackFrame(named: "matchScoresTab")
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                        .trackFrame(named: "tabPicker")
-                    }
-
-                    if selectedTab == 0 {
-                        ProfileStatsView(
-                            allScores: myScores,
-                            profile: profile,
-                            isCurrentUser: isCurrentUser,
-                            currentUserProfile: currentUserProfile,
-                            onShowSettings: {
-                                showingUSPSASettings = true
-                            },
-                            onCompare: {
-                                showingCompare = true
-                            }
-                        )
-                    } else if selectedTab == 1 {
-                        MyScoresTabView(allScores: myScores, trackedFrames: $trackedFrames)
-                    } else {
-                        FollowingView()
-                    }
-                }
-                .onAppear {
-                    // Initialize previous number on appear
-                    if previousUSPSANumber.isEmpty && !profile.uspsaNumber.isEmpty {
-                        previousUSPSANumber = profile.uspsaNumber
-                    }
-                }
-                .navigationTitle(isCurrentUser ? "Profile" : (myProfile?.name.isEmpty == false ? myProfile!.name : "USPSA# \(uspsaNumber ?? "")"))
-                .navigationBarTitleDisplayMode(isCurrentUser ? .automatic : .inline)
-                .toolbar {
-                    if isCurrentUser && hasUSPSANumber && createCoachMarks() != nil {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button {
-                                showingCoachMarks = true
-                            } label: {
-                                Image(systemName: "info.circle")
-                            }
-                        }
-                    }
-                }
-                .onPreferenceChange(FramePreferenceKey.self) { frames in
-                    trackedFrames = frames
-                }
-                .sheet(isPresented: $showingUSPSASettings) {
-                    if let profile = myProfile {
-                        USPSANumberSheet(
-                            profile: profile,
-                            isEditable: isCurrentUser,
-                            onUnfollow: isCurrentUser ? nil : {
-                                showingDeleteConfirmation = true
-                            }
-                        )
-                    }
-                }
-                .sheet(isPresented: $showingCompare) {
-                    if let currentUser = currentUserProfile, let theirProfile = myProfile {
-                        CompareProfilesView(
-                            myProfile: currentUser,
-                            theirProfile: theirProfile
-                        )
-                    }
-                }
-                .alert("Sync Error", isPresented: $showingError) {
-                    Button("OK", role: .cancel) {}
-                } message: {
-                    Text(errorMessage)
-                }
-                .alert("Unfollow Shooter", isPresented: $showingDeleteConfirmation) {
-                    Button("Cancel", role: .cancel) { }
-                    Button("Unfollow", role: .destructive) {
-                        deleteProfile()
-                    }
-                } message: {
-                    if let profile = myProfile {
-                        Text("Are you sure you want to unfollow \(profile.name.isEmpty ? "USPSA# \(profile.uspsaNumber)" : profile.name)? This will delete their profile and all saved data.")
-                    }
+        NavigationStack {
+            ProfileStatsView(
+                allScores: myScores,
+                profile: profile,
+                isCurrentUser: true,
+                currentUserProfile: nil,
+                onShowSettings: { showingUSPSASettings = true },
+                onCompare: {}
+            )
+            .onAppear {
+                if previousUSPSANumber.isEmpty && !profile.uspsaNumber.isEmpty {
+                    previousUSPSANumber = profile.uspsaNumber
                 }
             }
-
-            // Coach marks overlay at the top level
-            if showingCoachMarks, let marks = createCoachMarks() {
-                CoachMarkOverlay(isPresented: $showingCoachMarks, marks: marks)
+            .navigationTitle("Profile")
+            .sheet(isPresented: $showingUSPSASettings) {
+                if let profile = myProfile {
+                    USPSANumberSheet(profile: profile, isEditable: true, onUnfollow: nil)
+                }
             }
-        }
-    }
-
-    private func deleteProfile() {
-        guard let profile = myProfile else { return }
-
-        // Delete the profile (cascade delete will handle match scores and divisions)
-        context.delete(profile)
-
-        do {
-            try context.save()
-            print("✅ Successfully deleted followed profile: \(profile.uspsaNumber)")
-            dismiss()
-        } catch {
-            print("❌ Error deleting profile: \(error)")
-            errorMessage = "Failed to delete profile: \(error.localizedDescription)"
-            showingError = true
+            .alert("Sync Error", isPresented: $showingError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage)
+            }
         }
     }
 }
@@ -490,7 +389,7 @@ private struct ProfileStatsView: View {
 
                     Image(systemName: "person.circle")
                         .font(.system(size: 80))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color.gmAmber)
 
                     VStack(spacing: 12) {
                         Text("Add Your USPSA Number")
@@ -515,7 +414,7 @@ private struct ProfileStatsView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.blue)
+                        .background(Color.gmAmber)
                         .cornerRadius(12)
                     }
                     .padding(.horizontal, 32)
@@ -532,7 +431,7 @@ private struct ProfileStatsView: View {
 
                     Image(systemName: "arrow.clockwise.circle")
                         .font(.system(size: 80))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color.gmAmber)
 
                     VStack(spacing: 12) {
                         Text("No Classification Data")
@@ -557,7 +456,7 @@ private struct ProfileStatsView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.blue)
+                        .background(Color.gmAmber)
                         .cornerRadius(12)
                     }
                     .padding(.horizontal, 32)
@@ -576,7 +475,7 @@ private struct ProfileStatsView: View {
                         HStack {
                             Image(systemName: "person.text.rectangle")
                                 .font(.title2)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(Color.gmAmber)
 
                             VStack(alignment: .leading, spacing: 4) {
                                 if !profile.name.isEmpty {
@@ -652,6 +551,19 @@ private struct DivisionProfileSection: View {
 
     @State private var isExpanded = false
 
+    /// The stage with the lowest classification percentage — the one to practice next.
+    private var weakestStage: (code: String, name: String, pct: Double)? {
+        var result: (code: String, name: String, pct: Double)?
+        for stage in divisionGroup.stages {
+            guard let score = stage.scores.first, score.time > 0 else { continue }
+            let pct = NSDecimalNumber(decimal: score.peakTime / score.time * 100).doubleValue
+            if result == nil || pct < result!.pct {
+                result = (code: stage.stageCode, name: stage.stageName, pct: pct)
+            }
+        }
+        return result
+    }
+
     var body: some View {
         Section {
             // Division header with stats
@@ -682,7 +594,7 @@ private struct DivisionProfileSection: View {
                             Text(divisionGroup.classification)
                                 .font(.title)
                                 .fontWeight(.bold)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(Color.gmAmber)
 
                             Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                                 .font(.caption)
@@ -700,7 +612,7 @@ private struct DivisionProfileSection: View {
                             Text("\(NSDecimalNumber(decimal: divisionGroup.percentage).doubleValue, specifier: "%.2f")%")
                                 .font(.title3)
                                 .fontWeight(.semibold)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(Color.gmAmber)
                         }
 
                         VStack(alignment: .leading, spacing: 4) {
@@ -770,21 +682,35 @@ private struct DivisionProfileSection: View {
             .buttonStyle(.plain)
             .trackFrame(named: isFirst ? "firstDivision" : "")
 
-            // Expanded stage list
+            // Expanded detail
             if isExpanded {
+                // B — "Why this class?" explainer
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Why \(divisionGroup.classification)?", systemImage: "info.circle")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.gmAmber)
+                    Text("Your classification is the GM peak time ÷ your time, averaged across the 8 classifier stages. You're shooting \(NSDecimalNumber(decimal: divisionGroup.percentage).doubleValue, specifier: "%.0f")% of GM pace.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+
+                // C — Focus next: weakest stage
+                if let weak = weakestStage {
+                    Label {
+                        Text("Focus next: ").foregroundStyle(.secondary)
+                        + Text("\(weak.code) \(weak.name)").fontWeight(.semibold)
+                        + Text(" — \(weak.pct, specifier: "%.0f")%").foregroundStyle(.secondary)
+                    } icon: {
+                        Image(systemName: "scope").foregroundStyle(.orange)
+                    }
+                    .font(.caption)
+                    .padding(.bottom, 4)
+                }
+
                 ForEach(divisionGroup.stages, id: \.stageCode) { stage in
                     ForEach(stage.scores, id: \.id) { score in
-                        NavigationLink {
-                            // Navigate to stage detail analysis view
-                            StageDetailAnalysisViewWrapper(
-                                divisionCode: divisionGroup.division,
-                                stageCode: score.stageCode,
-                                allScores: allScores,
-                                profileUSPSANumber: profileUSPSANumber
-                            )
-                        } label: {
-                            StageScoreRow(score: score)
-                        }
+                        StageScoreRow(score: score)
                     }
                 }
             }
@@ -869,129 +795,11 @@ private struct StageScoreRow: View {
 
                     Text("\(percentageValue, specifier: "%.1f")%")
                         .font(.caption)
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color.gmAmber)
                 }
             }
         }
         .padding(.vertical, 6)
-    }
-}
-
-// MARK: - Stage Detail Analysis Wrapper
-
-private struct StageDetailAnalysisViewWrapper: View {
-    let divisionCode: String
-    let stageCode: String
-    let allScores: [MatchScore]
-    let profileUSPSANumber: String
-
-    // Create a fake StageAnalysis from the score data
-    private var stageAnalysis: StageAnalysis? {
-        let divisionScores = allScores.filter {
-            $0.divisionCode == divisionCode &&
-            $0.stageCode == stageCode
-        }
-
-        // Debug: Stage analysis wrapper
-        // print("🎯 StageDetailAnalysisViewWrapper - Stage: \(stageCode), Division: \(divisionCode), Scores: \(divisionScores.count)")
-
-        guard !divisionScores.isEmpty else { return nil }
-
-        // Filter out invalid times (≤ 0) before calculating stats
-        let validScores = divisionScores.filter { $0.time > 0 }
-        guard !validScores.isEmpty else {
-            print("⚠️ All scores for \(stageCode) have invalid times (≤0)")
-            return nil
-        }
-
-        // Use same logic as SCPerformanceAnalyzer: last 90 days OR minimum 10 matches
-        let lookbackDate = Calendar.current.date(byAdding: .day, value: -AnalysisConstants.recentDaysWindow, to: Date()) ?? Date()
-        let recentScores = validScores.filter { $0.scoreDate >= lookbackDate }
-        let scoresToUse = AnalysisConstants.getRecentScores(recentScores: recentScores, allScores: validScores)
-
-        let times = scoresToUse.map { $0.time }
-        let allTimes = validScores.map { $0.time }
-        let bestTime = allTimes.min() ?? 0  // Best time from ALL history
-        let averageTime = times.reduce(Decimal(0), +) / Decimal(times.count)  // Average from recent scores
-        let peakTime = validScores.first?.peakTime ?? 0
-
-        let bestPercentage = peakTime > 0 ? (peakTime / bestTime) * 100 : 0
-        let avgPercentage = peakTime > 0 ? (peakTime / averageTime) * 100 : 0
-
-        // Calculate consistency using Mean Absolute Deviation (MAD)
-        // This measures how much your scores vary (lower = more consistent)
-        let consistencyScore: Decimal
-        if peakTime > 0 && avgPercentage > 0 {
-            // Calculate each score's performance %
-            let scorePerformances = scoresToUse.map { score -> Double in
-                NSDecimalNumber(decimal: (peakTime / score.time) * 100).doubleValue
-            }
-
-            // Calculate MAD: average of absolute deviations from mean
-            let avgPerformance = NSDecimalNumber(decimal: avgPercentage).doubleValue
-            let absoluteDeviations = scorePerformances.map { abs($0 - avgPerformance) }
-            let mad = absoluteDeviations.reduce(0.0, +) / Double(absoluteDeviations.count)
-            consistencyScore = Decimal(mad)
-        } else {
-            consistencyScore = 0
-        }
-
-        // Calculate trend (simple: compare first half vs second half)
-        let halfCount = scoresToUse.count / 2
-        let sortedScores = scoresToUse.sorted { $0.scoreDate < $1.scoreDate }
-        let firstHalf = Array(sortedScores.prefix(halfCount))
-        let secondHalf = Array(sortedScores.suffix(halfCount))
-
-        let firstAvg = firstHalf.isEmpty ? 0 : NSDecimalNumber(decimal: firstHalf.map { $0.time }.reduce(Decimal(0), +) / Decimal(firstHalf.count)).doubleValue
-        let secondAvg = secondHalf.isEmpty ? 0 : NSDecimalNumber(decimal: secondHalf.map { $0.time }.reduce(Decimal(0), +) / Decimal(secondHalf.count)).doubleValue
-        let trend = firstAvg > 0 ? ((firstAvg - secondAvg) / firstAvg) * 100.0 : 0
-
-        // Calculate improvement potential
-        let bestClassification = ShooterClass.shooterClass(percentage: bestPercentage)
-        let nextClassification = bestClassification.nextClass
-        let nextThreshold = bestClassification.nextClassThreshold
-
-        let timeToNextLevel: Decimal
-        if peakTime > 0 && nextThreshold > 0 {
-            timeToNextLevel = peakTime / (nextThreshold / 100)
-        } else {
-            timeToNextLevel = 0
-        }
-
-        let gainToNextLevel = bestTime - timeToNextLevel
-
-        return StageAnalysis(
-            stageCode: stageCode,
-            stageName: stageName(for: stageCode),
-            matchCount: validScores.count,
-            averageTime: averageTime,
-            bestTime: bestTime,
-            standardDeviation: 0,  // Not used in display
-            peakTime: peakTime,
-            consistencyScore: consistencyScore,
-            performanceVsPeak: avgPercentage,
-            recentTrend: Decimal(trend),
-            bestClassification: bestClassification,
-            averageClassification: ShooterClass.shooterClass(percentage: avgPercentage),
-            bestPerformanceVsPeak: bestPercentage,
-            nextClassification: nextClassification,
-            timeToNextLevel: timeToNextLevel,
-            gainToNextLevel: gainToNextLevel,
-            mostRecentDate: validScores.map { $0.scoreDate }.max(),
-            oldestDate: validScores.map { $0.scoreDate }.min()
-        )
-    }
-
-    var body: some View {
-        if let analysis = stageAnalysis {
-            StageDetailAnalysisView(stageAnalysis: analysis, divisionCode: divisionCode, profileUSPSANumber: profileUSPSANumber)
-        } else {
-            ContentUnavailableView {
-                Label("No Data", systemImage: "chart.line.uptrend.xyaxis")
-            } description: {
-                Text("No match scores found for this stage")
-            }
-        }
     }
 }
 
@@ -1133,7 +941,7 @@ private struct ProfileBenefitRow: View {
         HStack(alignment: .top, spacing: 16) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.gmAmber)
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -1148,613 +956,3 @@ private struct ProfileBenefitRow: View {
     }
 }
 
-// MARK: - Match Scores Tab (reused from MatchesView)
-
-private struct MyScoresTabView: View {
-    let allScores: [MatchScore]
-    @Binding var trackedFrames: [String: CGRect]
-    @Query private var profiles: [ShooterProfile]
-    @State private var selectedDivision: String? = nil
-
-    private var divisions: [String] {
-        let uniqueDivisions = Set(allScores.map { $0.divisionCode })
-        return uniqueDivisions.sorted()
-    }
-
-    private var filteredScores: [MatchScore] {
-        if let selected = selectedDivision {
-            return allScores.filter { $0.divisionCode == selected }
-        }
-        return allScores
-    }
-
-    // Group scores by date, then by match name
-    private var groupedScores: [(date: Date, matchName: String, divisions: [String], scores: [MatchScore])] {
-        // Group by date first
-        let calendar = Calendar.current
-        let byDate = Dictionary(grouping: filteredScores) { score in
-            calendar.startOfDay(for: score.scoreDate)
-        }
-
-        // Convert to array and sort by date (newest first)
-        return byDate.map { date, scores in
-            // All scores on the same date should have the same match name
-            let matchName = scores.first?.matchName ?? ""
-            // Get unique divisions for this match
-            let divisions = Array(Set(scores.map { $0.divisionCode })).sorted()
-            // Sort scores by stage code
-            let sortedScores = scores.sorted { $0.stageCode < $1.stageCode }
-            return (date: date, matchName: matchName, divisions: divisions, scores: sortedScores)
-        }
-        .sorted { $0.date > $1.date }  // Newest first
-    }
-
-    private func getShooterClassification(for divisionCode: String) -> ShooterClass {
-        guard let profile = profiles.first,
-              let divProfile = profile.divisions.first(where: { $0.division.rawValue == divisionCode }) else {
-            return .U
-        }
-        return divProfile.classification
-    }
-
-    var body: some View {
-        if allScores.isEmpty {
-            ContentUnavailableView {
-                Label("No Match Scores", systemImage: "list.bullet")
-            } description: {
-                Text("Sync your SCSA profile to download your match history")
-            }
-        } else {
-            VStack(spacing: 0) {
-                // Division filter pills
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        // "All" pill
-                        Button {
-                            selectedDivision = nil
-                        } label: {
-                            Text("All")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(selectedDivision == nil ? Color.blue : Color.gray.opacity(0.2))
-                                .foregroundStyle(selectedDivision == nil ? .white : .primary)
-                                .clipShape(Capsule())
-                        }
-
-                        // Division pills
-                        ForEach(divisions, id: \.self) { division in
-                            Button {
-                                selectedDivision = division
-                            } label: {
-                                Text(division)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(selectedDivision == division ? Color.blue : Color.gray.opacity(0.2))
-                                    .foregroundStyle(selectedDivision == division ? .white : .primary)
-                                    .clipShape(Capsule())
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 12)
-                }
-                .background(Color(.systemBackground))
-                .trackFrame(named: "divisionFilter")
-                .onPreferenceChange(FramePreferenceKey.self) { frames in
-                    trackedFrames.merge(frames) { _, new in new }
-                }
-
-                Divider()
-
-                // Scores list grouped by date
-                List {
-                    ForEach(groupedScores, id: \.date) { group in
-                        Section {
-                            ForEach(group.scores, id: \.id) { score in
-                                let percentage = score.peakTime > 0 ? (score.peakTime / score.time) * 100 : 0
-                                let percentageValue = NSDecimalNumber(decimal: percentage).doubleValue
-                                let scoreClass = ShooterClass.shooterClass(percentage: percentage)
-                                let shooterClass = getShooterClassification(for: score.divisionCode)
-
-                                // Determine color based on performance vs shooter's classification
-                                let textColor: Color = {
-                                    if percentage >= 100 {
-                                        return .green  // Over 100% (beat the GM benchmark)
-                                    } else if scoreClass > shooterClass {
-                                        return .green  // Above their class
-                                    } else if scoreClass == shooterClass {
-                                        return .blue   // At their class level
-                                    } else {
-                                        return .red    // Below their class
-                                    }
-                                }()
-
-                                HStack(alignment: .top, spacing: 12) {
-                                    // Left side - Stage info
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        HStack(spacing: 6) {
-                                            Text(score.stageCode)
-                                                .font(.headline)
-                                                .fontWeight(.semibold)
-
-                                            if score.usedForClassification {
-                                                Image(systemName: "trophy.fill")
-                                                    .font(.caption)
-                                                    .foregroundStyle(.yellow)
-                                            }
-                                        }
-
-                                        Text(stageName(for: score.stageCode))
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                    }
-
-                                    Spacer()
-
-                                    // Right side - Performance metrics
-                                    VStack(alignment: .trailing, spacing: 3) {
-                                        Text("\(NSDecimalNumber(decimal: score.time).doubleValue, specifier: "%.2f")")
-                                            .font(.title3)
-                                            .fontWeight(.bold)
-                                            .monospacedDigit()
-
-                                        Text("\(scoreClass.rawValue) \(percentageValue, specifier: "%.1f")%")
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
-                                            .foregroundStyle(textColor)
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                            }
-                        } header: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(group.matchName)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .textCase(nil)
-
-                                Text(group.date, format: .dateTime.month(.abbreviated).day().year())
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .textCase(nil)
-
-                                // Show division(s) only when "All" filter is selected
-                                if selectedDivision == nil {
-                                    Text(group.divisions.joined(separator: ", "))
-                                        .font(.caption2)
-                                        .foregroundStyle(.blue)
-                                        .textCase(nil)
-                                }
-                            }
-                            .padding(.vertical, 4)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Compare Profiles View
-
-struct CompareProfilesView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Bindable var myProfile: ShooterProfile
-    @Bindable var theirProfile: ShooterProfile
-
-    // Get divisions that both shooters compete in AND have visible
-    private var commonDivisions: [Division] {
-        let myVisibleDivisions = Set(myProfile.divisions.filter { $0.isVisible }.map { $0.division })
-        let theirVisibleDivisions = Set(theirProfile.divisions.filter { $0.isVisible }.map { $0.division })
-        return Array(myVisibleDivisions.intersection(theirVisibleDivisions)).sorted { $0.rawValue < $1.rawValue }
-    }
-
-    var body: some View {
-        NavigationStack {
-            if commonDivisions.isEmpty {
-                ContentUnavailableView(
-                    "No Common Divisions",
-                    systemImage: "arrow.triangle.branch",
-                    description: Text("You and \(theirProfile.name.isEmpty ? "USPSA# \(theirProfile.uspsaNumber)" : theirProfile.name) don't compete in any common divisions")
-                )
-            } else {
-                ScrollView {
-                    VStack(spacing: 20) {
-                        ForEach(commonDivisions, id: \.self) { division in
-                            VStack(alignment: .leading, spacing: 16) {
-                                // Division header
-                                VStack(alignment: .leading, spacing: 16) {
-                                    HStack {
-                                        Image(systemName: "target")
-                                            .font(.title)
-                                            .foregroundStyle(.blue)
-
-                                        Text(division.rawValue)
-                                            .font(.title)
-                                            .fontWeight(.bold)
-                                            .foregroundStyle(.primary)
-
-                                        Spacer()
-                                    }
-
-                                    // Division overall stats
-                                    CompareDivisionHeader(
-                                        division: division,
-                                        myProfile: myProfile,
-                                        theirProfile: theirProfile
-                                    )
-                                }
-                                .padding(20)
-
-                                // Individual stage comparisons
-                                VStack(spacing: 8) {
-                                    ForEach(AllStages) { stage in
-                                        CompareStageRow(
-                                            stage: stage,
-                                            division: division,
-                                            myProfile: myProfile,
-                                            theirProfile: theirProfile
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding()
-                }
-            }
-        }
-        .navigationTitle("Compare")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Done") {
-                    dismiss()
-                }
-            }
-        }
-    }
-}
-
-private struct CompareDivisionHeader: View {
-    let division: Division
-    @Bindable var myProfile: ShooterProfile
-    @Bindable var theirProfile: ShooterProfile
-
-    private var myDivision: DivisionProfile? {
-        myProfile.divisions.first { $0.division == division }
-    }
-
-    private var theirDivision: DivisionProfile? {
-        theirProfile.divisions.first { $0.division == division }
-    }
-
-    private var myTotalTime: Decimal {
-        myProfile.matchScores
-            .filter { $0.usedForClassification && $0.divisionCode == division.rawValue }
-            .reduce(Decimal(0)) { $0 + $1.time }
-    }
-
-    private var theirTotalTime: Decimal {
-        theirProfile.matchScores
-            .filter { $0.usedForClassification && $0.divisionCode == division.rawValue }
-            .reduce(Decimal(0)) { $0 + $1.time }
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // My stats (left side)
-            VStack(spacing: 8) {
-                Text("You")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(myDivision?.classification.rawValue ?? "U")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(formatDecimal(myTotalTime) + "s")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.primary)
-                            .monospacedDigit()
-
-                        Text(formatDecimal(myDivision?.currentPercentage ?? 0) + "%")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, minHeight: 120)
-            .padding(16)
-            .background(
-                (myDivision?.currentPercentage ?? 0) > (theirDivision?.currentPercentage ?? 0) && (myDivision?.currentPercentage ?? 0) > 0 ?
-                    Color.green.opacity(0.1) :
-                    (myDivision?.currentPercentage ?? 0) < (theirDivision?.currentPercentage ?? 0) && (myDivision?.currentPercentage ?? 0) > 0 ?
-                        Color.red.opacity(0.1) :
-                        Color(.systemBackground)
-            )
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        (myDivision?.currentPercentage ?? 0) > (theirDivision?.currentPercentage ?? 0) && (myDivision?.currentPercentage ?? 0) > 0 ? Color.green :
-                            (myDivision?.currentPercentage ?? 0) < (theirDivision?.currentPercentage ?? 0) && (myDivision?.currentPercentage ?? 0) > 0 ? Color.red : Color(.systemGray5),
-                        lineWidth: 2
-                    )
-            )
-
-            // Their stats (right side)
-            VStack(spacing: 8) {
-                Text(theirProfile.name.isEmpty ? "Them" : theirProfile.name)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .lineLimit(1)
-
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(theirDivision?.classification.rawValue ?? "U")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(formatDecimal(theirTotalTime) + "s")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.primary)
-                            .monospacedDigit()
-
-                        Text(formatDecimal(theirDivision?.currentPercentage ?? 0) + "%")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, minHeight: 120)
-            .padding(16)
-            .background(
-                (theirDivision?.currentPercentage ?? 0) > (myDivision?.currentPercentage ?? 0) && (theirDivision?.currentPercentage ?? 0) > 0 ?
-                    Color.green.opacity(0.1) :
-                    (theirDivision?.currentPercentage ?? 0) < (myDivision?.currentPercentage ?? 0) && (theirDivision?.currentPercentage ?? 0) > 0 ?
-                        Color.red.opacity(0.1) :
-                        Color(.systemBackground)
-            )
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        (theirDivision?.currentPercentage ?? 0) > (myDivision?.currentPercentage ?? 0) && (theirDivision?.currentPercentage ?? 0) > 0 ? Color.green :
-                            (theirDivision?.currentPercentage ?? 0) < (myDivision?.currentPercentage ?? 0) && (theirDivision?.currentPercentage ?? 0) > 0 ? Color.red : Color(.systemGray5),
-                        lineWidth: 2
-                    )
-            )
-        }
-    }
-
-    private func formatDecimal(_ value: Decimal) -> String {
-        String(format: "%.2f", NSDecimalNumber(decimal: value).doubleValue)
-    }
-
-    private func timeColor(mine: Decimal, theirs: Decimal) -> Color {
-        if mine == 0 || theirs == 0 { return .primary }
-        return mine < theirs ? .green : (mine > theirs ? .red : .primary)
-    }
-
-    private func percentageColor(mine: Decimal?, theirs: Decimal?) -> Color {
-        guard let mine = mine, let theirs = theirs else { return .primary }
-        if mine == 0 || theirs == 0 { return .primary }
-        return mine > theirs ? .green : (mine < theirs ? .red : .primary)
-    }
-}
-
-private struct CompareStageRow: View {
-    let stage: Stage
-    let division: Division
-    @Bindable var myProfile: ShooterProfile
-    @Bindable var theirProfile: ShooterProfile
-
-    private var myScore: MatchScore? {
-        myProfile.matchScores
-            .filter { $0.usedForClassification && $0.divisionCode == division.rawValue && $0.stageCode == stage.code }
-            .first
-    }
-
-    private var theirScore: MatchScore? {
-        theirProfile.matchScores
-            .filter { $0.usedForClassification && $0.divisionCode == division.rawValue && $0.stageCode == stage.code }
-            .first
-    }
-
-    private var myPercentage: Decimal {
-        guard let score = myScore, score.peakTime > 0 else { return 0 }
-        return (score.peakTime / score.time) * 100
-    }
-
-    private var theirPercentage: Decimal {
-        guard let score = theirScore, score.peakTime > 0 else { return 0 }
-        return (score.peakTime / score.time) * 100
-    }
-
-    private var myClass: ShooterClass {
-        ShooterClass.shooterClass(percentage: myPercentage)
-    }
-
-    private var theirClass: ShooterClass {
-        ShooterClass.shooterClass(percentage: theirPercentage)
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Stage name header
-            HStack(spacing: 8) {
-                Text(stage.code)
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.blue.gradient)
-                    .cornerRadius(6)
-
-                Text(stage.name)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
-
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color(.systemGray6).opacity(0.5))
-
-            // Scores comparison
-            HStack(spacing: 0) {
-                // My score
-                if let score = myScore {
-                    HStack(spacing: 12) {
-                        Text(myClass.rawValue)
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundStyle(percentageColor(mine: myPercentage, theirs: theirPercentage))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.5)
-                            .frame(width: 50)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(formatDecimal(score.time) + "s")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.white)
-                                .monospacedDigit()
-
-                            Text("\(formatDecimal(myPercentage))%")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.white)
-                                .monospacedDigit()
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    Text("No Score")
-                        .font(.subheadline)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                // Divider
-                Rectangle()
-                    .fill(Color(.systemGray4))
-                    .frame(width: 1)
-                    .padding(.vertical, 8)
-
-                // Their score
-                if let score = theirScore {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text(formatDecimal(score.time) + "s")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.white)
-                                .monospacedDigit()
-
-                            Text("\(formatDecimal(theirPercentage))%")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.white)
-                                .monospacedDigit()
-                        }
-
-                        Text(theirClass.rawValue)
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundStyle(percentageColor(mine: theirPercentage, theirs: myPercentage))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.5)
-                            .frame(width: 50)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                } else {
-                    Text("No Score")
-                        .font(.subheadline)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 16)
-
-            // Visual performance bar - full width proportional
-            if myScore != nil || theirScore != nil {
-                GeometryReader { geometry in
-                    let myPct = NSDecimalNumber(decimal: myPercentage).doubleValue
-                    let theirPct = NSDecimalNumber(decimal: theirPercentage).doubleValue
-                    let total = myPct + theirPct
-
-                    // Calculate proportional widths (stretches full width)
-                    let myWidth = total > 0 ? (myPct / total) * geometry.size.width : geometry.size.width / 2
-
-                    HStack(spacing: 0) {
-                        // My portion (left side)
-                        if myScore != nil {
-                            Rectangle()
-                                .fill(
-                                    myPercentage > theirPercentage ?
-                                        Color.green :
-                                        Color.red
-                                )
-                                .frame(width: myWidth)
-                        }
-
-                        // Their portion (right side)
-                        if theirScore != nil {
-                            Rectangle()
-                                .fill(
-                                    theirPercentage > myPercentage ?
-                                        Color.green :
-                                        Color.red
-                                )
-                        }
-                    }
-                }
-                .frame(height: 8)
-            }
-        }
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(.systemGray4), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-
-    private func formatDecimal(_ value: Decimal) -> String {
-        String(format: "%.2f", NSDecimalNumber(decimal: value).doubleValue)
-    }
-
-    private func timeColor(mine: Decimal?, theirs: Decimal?) -> Color {
-        guard let mine = mine, let theirs = theirs else { return .primary }
-        return mine < theirs ? .green : (mine > theirs ? .red : .primary)
-    }
-
-    private func percentageColor(mine: Decimal, theirs: Decimal) -> Color {
-        if mine == 0 || theirs == 0 { return .primary }
-        return mine > theirs ? .green : (mine < theirs ? .red : .primary)
-    }
-}

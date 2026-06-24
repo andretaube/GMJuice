@@ -22,19 +22,10 @@ struct RootTabs: View {
                     Label("Train", systemImage: "target")
                 }
 
-            if remoteConfig.isProfileEnabled {
-                ProfileView()
-                    .tabItem {
-                        Label("Profile", systemImage: "person.fill")
-                    }
-            }
-
-            if remoteConfig.isAnalysisEnabled {
-                CoachingHomeView()
-                    .tabItem {
-                        Label("Analysis", systemImage: "chart.bar.xaxis")
-                    }
-            }
+            ProfileView()
+                .tabItem {
+                    Label("Profile", systemImage: "person.fill")
+                }
 
             SettingsMainView()
                 .tabItem {

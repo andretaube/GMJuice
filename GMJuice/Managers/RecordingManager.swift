@@ -2,11 +2,11 @@
 //  RecordingManager.swift
 //  GMJuice
 //
-//  Manages the recording session lifecycle:
-//  - Subscribes to BLE timer events
-//  - Manages recording state (current string, shot tracking)
-//  - Persists completed strings to database
-//  - Provides callbacks for UI/voice components
+//  Manages the set-based recording session:
+//  - Subscribes to BLE timer beep/shot events
+//  - Groups strings into sets (5 strings, or 4 for Outer Limits)
+//  - On set completion, scores the best (N-1) strings, persists a StageRun,
+//    and pushes it onto the session history; the next beep starts a fresh set
 //
 
 import Foundation
@@ -19,237 +19,190 @@ final class RecordingManager: ObservableObject {
 
     // MARK: - Published State
 
+    /// The string currently being shot (nil before the first beep / between sets is impossible — always restarts).
     @Published var currentString: StringRun?
+    /// Finalized strings in the current set (not yet including the in-progress string).
+    @Published var currentSet: [StringRun] = []
+    /// Completed, scored stages this session (most recent last).
+    @Published var completedStages: [StageRun] = []
     @Published var isRecording = false
     @Published var shotCount = 0
-    @Published var allStrings: [StringRun] = []
-    @Published var stringCounter = 0
+    /// Number of strings per set: 5 for most stages, 4 for Outer Limits (SC-104).
+    @Published var setSize = 5
+    /// 1-based index of the string currently being shot, within the current set.
+    @Published var stringIndex = 0
+    /// True once the current set has all its strings shot (the stage total is now meaningful).
+    @Published var setIsComplete = false
 
-    // MARK: - Callbacks for External Components
+    // MARK: - Callbacks
 
-    /// Called when a new string is started
     var onStringStarted: ((StringRun) -> Void)?
-
-    /// Called when a shot is recorded
-    var onShotRecorded: ((StringShot, Int) -> Void)?  // shot, total count
-
-    /// Called when string is completed and saved to database
+    var onShotRecorded: ((StringShot, Int) -> Void)?
     var onStringCompleted: ((StringRun) -> Void)?
+    var onStageCompleted: ((StageRun) -> Void)?
 
-    /// Called when string is cancelled
-    var onStringCancelled: (() -> Void)?
-
-    // MARK: - Private Properties
+    // MARK: - Private
 
     private let ble = BLEManager.shared
     private let analytics = AnalyticsService.shared
-    private var cancellables = Set<AnyCancellable>()
     private var modelContext: ModelContext?
-
-    // Current session context
     private var currentStageId: String?
     private var currentDivisionId: String?
+
+    /// Number of scored strings (best N-1 of N).
+    private var countedStrings: Int { max(setSize - 1, 1) }
 
     private init() {
         setupBLECallbacks()
     }
 
-    // MARK: - Session Management
+    // MARK: - Session
 
-    /// Start a new recording session for a stage/division
     func startSession(stageId: String, divisionId: String, modelContext: ModelContext) {
         self.currentStageId = stageId
         self.currentDivisionId = divisionId
         self.modelContext = modelContext
-        self.allStrings = []
-        self.stringCounter = 0
-        print("📝 Recording session started: \(stageId) - \(divisionId)")
+        self.setSize = getStage(for: stageId)?.strings ?? 5
+        self.currentSet = []
+        self.currentString = nil
+        self.completedStages = []
+        self.shotCount = 0
+        self.stringIndex = 0
+        self.isRecording = false
+        self.setIsComplete = false
+        print("📝 Set-based session started: \(stageId) - \(divisionId) (set size \(setSize))")
     }
 
-    /// End the current recording session
     func endSession() {
-        if isRecording {
-            finishString()
+        // Finalize an in-progress string into the set, then persist if the set is complete.
+        if let s = currentString, !s.stringShots.isEmpty {
+            currentSet.append(s)
+        }
+        currentString = nil
+        if currentSet.count >= setSize {
+            finalizeStage()
         }
 
-        // Clear all state to prevent stale references
-        currentString = nil
+        currentSet = []
+        completedStages = []
         currentStageId = nil
         currentDivisionId = nil
         modelContext = nil
-        allStrings = []
-        stringCounter = 0
         isRecording = false
         shotCount = 0
+        stringIndex = 0
+        setIsComplete = false
 
-        // Clear callbacks to prevent stale references
         onStringStarted = nil
         onShotRecorded = nil
         onStringCompleted = nil
-        onStringCancelled = nil
-
-        print("🏁 Recording session ended - all state and callbacks cleared")
+        onStageCompleted = nil
+        print("🏁 Recording session ended")
     }
 
-    // MARK: - String Management
+    // MARK: - Set / String lifecycle
 
-    /// Start a new string
-    func startString() {
-        guard let stageId = currentStageId,
-              let divisionId = currentDivisionId else {
+    /// On each beep: finalize the previous string, roll over a completed set, and start a new string.
+    private func handleBeep() {
+        // 1. finalize the in-progress string into the current set
+        if let s = currentString, !s.stringShots.isEmpty {
+            currentSet.append(s)
+            onStringCompleted?(s)
+        }
+        currentString = nil
+
+        // 2. if the set is complete, score + persist it, then reset for a new set
+        if currentSet.count >= setSize {
+            finalizeStage()
+            currentSet = []
+            setIsComplete = false
+        }
+
+        // 3. start a fresh string
+        startString()
+    }
+
+    private func startString() {
+        guard let stageId = currentStageId, let divisionId = currentDivisionId else {
             print("⚠️ Cannot start string: no active session")
             return
         }
-
-        let newString = StringRun(stageId: stageId, divisionId: divisionId)
-        currentString = newString
-        allStrings.append(newString)
-        stringCounter += 1
+        let s = StringRun(stageId: stageId, divisionId: divisionId)
+        currentString = s
         isRecording = true
         shotCount = 0
-
-        print("📝 String #\(stringCounter) started")
-        onStringStarted?(newString)
+        stringIndex = currentSet.count + 1
+        print("📝 String #\(stringIndex)/\(setSize) started")
+        onStringStarted?(s)
     }
 
-    /// Finish the current string and persist to database
-    func finishString() {
-        guard let string = currentString else {
-            print("⚠️ No current string to finish")
+    private func finalizeStage() {
+        guard let stageId = currentStageId, let divisionId = currentDivisionId else { return }
+        let times = currentSet.map { $0.adjustedTime }.filter { $0 > 0 }
+        guard times.count >= countedStrings else {
+            print("⚠️ Set incomplete (\(times.count) valid strings) — not scored")
             return
         }
+        // Best (countedStrings) = drop the slowest beyond the counted number.
+        let bestN = times.sorted().prefix(countedStrings).reduce(Decimal(0), +)
 
-        isRecording = false
+        let stage = StageRun(stageId: stageId, divisionId: divisionId, date: Date(), bestNTime: bestN, stringCount: setSize)
+        stage.strings = currentSet
+        completedStages.append(stage)
 
-        // Save to database if we have 5+ shots and context is available
-        if shotCount >= 5 {
-            guard let context = modelContext else {
-                print("⚠️ No model context available - string not saved to database")
-                print("🏁 String finished (not persisted)")
-                return
-            }
-
+        if let ctx = modelContext {
+            ctx.insert(stage)
             do {
-                context.insert(string)
-                try context.save()
-                print("💾 String saved to database: \(string.time)s")
-                
-                // Track analytics for completed string
-                let (penaltyTime, _) = string.calculatePenalty()
-                analytics.trackStringRun(
-                    stage: string.stageId,
-                    division: string.divisionId,
-                    stringNumber: stringCounter,
-                    time: Double(truncating: string.time as NSNumber),
-                    shots: string.stringShots.count,
-                    penalties: Int(truncating: penaltyTime as NSNumber),
-                    classification: nil // TODO: Get from shooter profile
-                )
-                
-                onStringCompleted?(string)
+                try ctx.save()
+                print("💾 Stage scored & saved: \(bestN)s (best \(countedStrings) of \(setSize))")
             } catch {
-                print("❌ Failed to save string: \(error)")
-                analytics.trackError(error, context: "RecordingManager.finishString")
+                print("❌ Failed to save stage: \(error)")
+                analytics.trackError(error, context: "RecordingManager.finalizeStage")
             }
         }
-
-        print("🏁 String finished")
+        onStageCompleted?(stage)
     }
 
-    /// Cancel the current string (don't save to database)
-    func cancelString() {
-        guard let string = currentString else {
-            print("⚠️ No current string to cancel")
-            return
-        }
-
-        // Remove from allStrings
-        if let index = allStrings.firstIndex(where: { $0 === string }) {
-            allStrings.remove(at: index)
-            stringCounter -= 1
-        }
-
-        currentString = nil
-        isRecording = false
-        shotCount = 0
-
-        print("🚫 String cancelled")
-        onStringCancelled?()
-    }
-
-    /// Record a shot in the current string
     func recordShot(now: Decimal, split: Decimal, first: Decimal) {
-        guard isRecording, let string = currentString else {
+        guard isRecording, let s = currentString else {
             print("⚠️ Shot ignored: not recording")
             return
         }
-
         let shot = StringShot(now: now, split: split, first: first)
-        string.stringShots.append(shot)
-        string.time = now
-        shotCount = string.stringShots.count
+        s.stringShots.append(shot)
+        s.time = now
+        shotCount = s.stringShots.count
 
-        print("💥 Shot #\(shotCount) recorded: \(now)s")
+        // Once a full string's worth of shots is in, the (finalized + current) count
+        // tells us whether the set's total is now meaningful.
+        let liveStringCount = currentSet.count + 1
+        setIsComplete = (liveStringCount >= setSize) && (shotCount >= 5)
+
         onShotRecorded?(shot, shotCount)
     }
 
-    /// Toggle a target as miss/hit
     func toggleTargetMiss(_ target: Int) {
-        guard let string = currentString else {
-            print("⚠️ No current string to toggle miss")
-            return
-        }
-
-        // Validate target number (1-5)
-        guard target >= 1 && target <= 5 else {
-            print("⚠️ Invalid target number: \(target)")
-            return
-        }
-
-        if let index = string.missedTargets.firstIndex(of: target) {
-            string.missedTargets.remove(at: index)
-            print("✓ Target \(target) marked as HIT")
+        guard let s = currentString else { return }
+        guard target >= 1 && target <= 5 else { return }
+        if let idx = s.missedTargets.firstIndex(of: target) {
+            s.missedTargets.remove(at: idx)
         } else {
-            string.missedTargets.append(target)
-            print("✓ Target \(target) marked as MISS")
+            s.missedTargets.append(target)
         }
-
-        // Save if already persisted
-        if let context = modelContext {
-            // Check if string is already inserted in context
-            do {
-                try context.save()
-            } catch {
-                print("⚠️ Failed to save miss toggle: \(error)")
-            }
-        }
+        objectWillChange.send()
     }
 
-    // MARK: - BLE Integration
+    // MARK: - BLE
 
     private func setupBLECallbacks() {
         ble.onBeep = { [weak self] in
-            guard let self = self else { return }
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                print("🎵 BLE: Beep detected")
-
-                // If already recording, finish current string first
-                if self.isRecording {
-                    self.finishString()
-                }
-
-                // Start new string
-                self.startString()
+                self?.handleBeep()
             }
         }
-
         ble.onShot = { [weak self] now, split, first in
-            guard let self = self else { return }
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                print("🎯 BLE: Shot detected")
-                self.recordShot(now: now, split: split, first: first)
+                self?.recordShot(now: now, split: split, first: first)
             }
         }
     }

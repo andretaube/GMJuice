@@ -3,24 +3,16 @@ import SwiftData
 
 struct LogView: View {
     // Fetch everything newest-first
-    @Query(sort: [SortDescriptor(\StringRun.date, order: .reverse)])
-    private var allStrings: [StringRun]
+    @Query(sort: [SortDescriptor(\StageRun.date, order: .reverse)])
+    private var allStages: [StageRun]
 
     var body: some View {
         List {
-                if allStrings.isEmpty {
+                if allStages.isEmpty {
                     Section {
                         Text("No sessions yet").foregroundStyle(.secondary)
                     }
                 } else {
-                    Section {
-                        NavigationLink {
-                            AllTimeReportView()
-                        } label: {
-                            Label("Analysis", systemImage: "chart.bar.doc.horizontal")
-                        }
-                    }
-
                     ForEach(daySections, id: \.dayStart) { day in
                         Section(day.title) {
                             ForEach(day.divisions, id: \.divisionId) { div in
@@ -67,6 +59,8 @@ struct LogView: View {
                 }
         }
         .listStyle(.insetGrouped)
+        .listRowBackground(Color.gmPanel)
+        .gmScreenBackground()
         .navigationTitle("Timer Log")
     }
 
@@ -75,9 +69,9 @@ struct LogView: View {
     private var daySections: [DaySection] {
         let cal = Calendar.current
 
-        // Group all strings by start-of-day
-        let byDay: [Date: [StringRun]] = Dictionary(
-            grouping: allStrings,
+        // Group completed stages by start-of-day
+        let byDay: [Date: [StageRun]] = Dictionary(
+            grouping: allStages,
             by: { cal.startOfDay(for: $0.date) }
         )
 
@@ -86,13 +80,11 @@ struct LogView: View {
         return sortedDays.map { dayStart in
             let itemsForDay = (byDay[dayStart] ?? []).sorted { $0.date > $1.date }
 
-            // Group by stored primitive divisionId
-            let byDivisionId: [String: [StringRun]] = Dictionary(
+            let byDivisionId: [String: [StageRun]] = Dictionary(
                 grouping: itemsForDay,
                 by: { $0.divisionId }
             )
 
-            // Order divisions by your enum order when possible; include unknowns at the end
             let knownOrder = Division.allCases.map(\.rawValue)
             let orderedDivisionIds: [String] = byDivisionId.keys.sorted { a, b in
                 let ia = knownOrder.firstIndex(of: a) ?? .max
@@ -101,25 +93,23 @@ struct LogView: View {
             }
 
             let divisionSummaries: [DivisionSection] = orderedDivisionIds.map { divisionId in
-                let runsInDivision = byDivisionId[divisionId] ?? []
+                let setsInDivision = byDivisionId[divisionId] ?? []
 
-                // Group by stageId within this division
-                let byStage: [String: [StringRun]] = Dictionary(
-                    grouping: runsInDivision,
+                let byStage: [String: [StageRun]] = Dictionary(
+                    grouping: setsInDivision,
                     by: { $0.stageId }
                 )
                 let sortedStageIds = byStage.keys.sorted()
 
                 let stageSummaries: [StageSummary] = sortedStageIds.map { sid in
-                    let runs = byStage[sid] ?? []
-                    let best = runs.map(\.adjustedTime).min() ?? 0
-                    let count = runs.count
+                    let sets = byStage[sid] ?? []
+                    let best = sets.map(\.bestNTime).min() ?? 0
                     return StageSummary(
                         stageId: sid,
                         divisionId: divisionId,
                         name: stageName(for: sid),
                         best: best,
-                        count: count
+                        count: sets.count
                     )
                 }
 

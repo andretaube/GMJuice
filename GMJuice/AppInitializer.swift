@@ -22,9 +22,6 @@ final class AppInitializer: ObservableObject {
             // Initialize Peak Benchmarks from Firebase
             await PeakBenchmarksService.shared.initialize()
 
-            // Initialize Motivational Messages from Firebase
-            await MotivationalMessagesService.shared.initialize()
-
             // Request notification permissions
             await NotificationManager.shared.requestPermission()
             await NotificationManager.shared.checkAuthorizationStatus()

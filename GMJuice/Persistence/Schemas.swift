@@ -9,6 +9,7 @@ enum Schema010: VersionedSchema {
         [
             StringShot.self,
             StringRun.self,
+            StageRun.self,
             DivisionProfile.self,
             ShooterProfile.self,
             MatchScore.self
@@ -66,6 +67,31 @@ enum Schema010: VersionedSchema {
             self.date = date
             self.time = time
             self.missedTargetsData = nil
+        }
+    }
+
+    /// A completed stage attempt: a set of N strings (5 normally, 4 for Outer Limits),
+    /// scored as the sum of the best (N-1) strings (the worst is dropped).
+    @Model
+    final class StageRun {
+        var id: UUID = UUID()
+        var stageId: String
+        var divisionId: String
+        var date: Date
+        /// Stage score: sum of the best (stringCount - 1) strings.
+        var bestNTime: Decimal
+        /// Number of strings shot in this set (5 for most stages, 4 for Outer Limits).
+        var stringCount: Int
+
+        @Relationship(deleteRule: .cascade)
+        var strings: [StringRun] = []
+
+        init(stageId: String, divisionId: String, date: Date = Date(), bestNTime: Decimal = 0, stringCount: Int = 5) {
+            self.stageId = stageId
+            self.divisionId = divisionId
+            self.date = date
+            self.bestNTime = bestNTime
+            self.stringCount = stringCount
         }
     }
 

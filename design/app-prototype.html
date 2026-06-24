@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GMJuice — Full Interactive Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070a0c;--screen:#0d1115;--panel:#141a1f;--panel-2:#10161a;--raised:#1a2127;
+  --line:#222c33;--line-soft:#1a2228;--ink:#e7ecef;--ink-2:#9aa6ad;--ink-3:#5d6970;
+  --amber:#f4a23a;--amber-dim:#a8732a;--green:#43c06a;--red:#e5544b;--steel:#5e9bb0;
+  --radius:14px;--font-label:"Saira",sans-serif;--font-mono:"JetBrains Mono",monospace;--font-body:"IBM Plex Sans",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antialiased;min-height:100%}
+body{display:flex;flex-direction:column;align-items:center;min-height:100vh;background-image:radial-gradient(1100px 560px at 50% -10%,rgba(244,162,58,.05),transparent 60%)}
+
+.topbar{position:sticky;top:0;z-index:100;width:100%;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 16px 12px;background:linear-gradient(180deg,#070a0c 72%,rgba(7,10,12,0));backdrop-filter:blur(4px)}
+.brandline{display:flex;align-items:baseline;gap:13px}
+.brandmark{font-family:var(--font-label);font-weight:700;font-size:17px;letter-spacing:.16em;text-transform:uppercase}
+.brandmark .dot{color:var(--amber)}
+.brandsub{font-family:var(--font-mono);font-size:10px;color:var(--ink-3)}
+.picker{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;max-width:1000px;align-items:flex-start}
+.pgroup{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+.pgroup .gl{font-family:var(--font-label);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);padding-left:2px}
+.pgroup .chips{display:flex;gap:5px;flex-wrap:wrap;max-width:330px}
+.chip{font-family:var(--font-label);font-size:10.5px;font-weight:500;letter-spacing:.05em;padding:5px 10px;border-radius:16px;border:1px solid var(--line);color:var(--ink-2);background:var(--panel-2);cursor:pointer;white-space:nowrap}
+.chip:hover{border-color:var(--amber-dim);color:var(--ink)}
+.chip.on{background:var(--amber);color:#160f02;border-color:var(--amber);font-weight:600}
+
+.stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:8px 16px 48px}
+.screencap{font-family:var(--font-label);text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:var(--ink-3);text-align:center}
+.screencap b{color:var(--amber);font-weight:600}
+
+.device{width:362px;height:752px;border-radius:50px;background:linear-gradient(160deg,#23292e,#0b0e11);padding:12px;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 40px 90px -34px rgba(0,0,0,.95),0 0 0 1px #000;position:relative;flex:none}
+.device.land{width:752px;height:368px;border-radius:42px}
+.island{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:112px;height:30px;background:#000;border-radius:17px;z-index:60}
+.land .island{top:50%;left:12px;transform:translateY(-50%);width:30px;height:104px}
+.phoneface{position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:var(--screen)}
+.land .phoneface{border-radius:30px}
+.screen{position:absolute;inset:0;display:none;flex-direction:column}
+.screen.active{display:flex}
+
+.statusbar{display:flex;justify-content:space-between;align-items:center;padding:14px 28px 4px;font-family:var(--font-mono);font-size:12px;color:var(--ink);flex:none;z-index:30}
+.statusbar .t{font-weight:700}
+.statusbar .icons{display:flex;gap:6px;align-items:center}
+.nav{display:flex;align-items:center;gap:12px;padding:9px 20px 14px;flex:none}
+.nav .back{display:flex;align-items:center;gap:5px;color:var(--amber);font-family:var(--font-label);font-size:13px;letter-spacing:.04em;font-weight:500;cursor:pointer}
+.nav h1{font-family:var(--font-label);font-size:16px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.nav .spacer{flex:1}
+.nav .act{color:var(--ink-2);display:flex;gap:14px;align-items:center}
+.nav .act .amber{color:var(--amber);cursor:pointer}
+.bigtitle{font-family:var(--font-label);font-size:26px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 22px}
+.bigtitle small{display:block;font-family:var(--font-mono);font-size:11px;color:var(--ink-3);text-transform:none;font-weight:400;margin-top:5px}
+.body{flex:1;overflow:hidden;padding:6px 18px 14px;display:flex;flex-direction:column;gap:13px}
+.body.scroll{overflow:auto}.body::-webkit-scrollbar{width:0}
+
+.label{font-family:var(--font-label);font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 15px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset}
+.panel.tight{padding:0;overflow:hidden}
+.pillrow{display:flex;gap:7px;flex-wrap:wrap}
+.pill{font-family:var(--font-label);font-size:12px;font-weight:500;letter-spacing:.05em;padding:6px 13px;border-radius:20px;border:1px solid var(--line);color:var(--ink-2);background:var(--panel-2);white-space:nowrap;cursor:pointer}
+.pill.on{background:var(--amber);color:#1a1205;border-color:var(--amber);font-weight:600}
+.pillrow.nowrap{flex-wrap:nowrap}
+.hscroll{overflow-x:auto;width:100%;margin:0 -2px;padding:2px}
+.hscroll::-webkit-scrollbar{height:0}
+.goarrow{width:30px;height:30px;border-radius:8px;background:rgba(244,162,58,.12);border:1px solid #4a3a1d;display:flex;align-items:center;justify-content:center;flex:none}
+.cls{font-family:var(--font-label);font-weight:700;font-size:12px;letter-spacing:.06em;padding:3px 8px;border-radius:6px;border:1px solid var(--line);color:var(--ink-2);min-width:30px;text-align:center;display:inline-block}
+.cls.gm{background:var(--amber);color:#1a1205;border-color:var(--amber)}.cls.m{color:var(--amber);border-color:var(--amber-dim)}.cls.a{color:var(--steel);border-color:#36505a}.cls.b{color:var(--green);border-color:#2c5b3c}
+.list{display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.row:last-child{border-bottom:none}
+.row .lead{width:34px;height:34px;border-radius:9px;background:var(--raised);display:flex;align-items:center;justify-content:center;color:var(--ink-2);flex:none}
+.row .grow{flex:1;min-width:0}
+.row .ttl{font-size:14px;font-weight:500;color:var(--ink)}
+.row .sub{font-size:11.5px;color:var(--ink-3);margin-top:2px;font-family:var(--font-mono)}
+.row .rt{font-family:var(--font-mono);text-align:right}
+.row .rt .big{font-size:15px;font-weight:600}.row .rt .sm{font-size:10.5px;color:var(--ink-3)}
+.chev{flex:none}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.stat{background:var(--panel);padding:11px 9px;text-align:center}
+.stat .v{font-family:var(--font-mono);font-size:17px;font-weight:700}
+.stat .k{font-family:var(--font-label);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-top:3px}
+.prog{height:6px;background:var(--raised);border-radius:4px;overflow:hidden;margin-top:9px}
+.prog>i{display:block;height:100%;background:linear-gradient(90deg,var(--amber-dim),var(--amber));border-radius:4px}
+.tabbar{flex:none;display:flex;justify-content:space-around;align-items:center;padding:11px 12px 26px;border-top:1px solid var(--line);background:var(--panel-2)}
+.tab{display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--ink-3);font-family:var(--font-label);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.tab.on{color:var(--amber)}
+.spark{display:flex;align-items:flex-end;gap:5px;height:54px;padding-top:6px}
+.spark i{flex:1;background:var(--raised);border-radius:3px 3px 0 0}.spark i.up{background:linear-gradient(180deg,var(--amber),var(--amber-dim))}
+.sect{display:flex;align-items:center;gap:10px;margin:5px 2px 1px}
+.sect .label{flex:none}.sect .ln{height:1px;background:var(--line);flex:1}
+.toggle{width:38px;height:23px;border-radius:13px;background:var(--raised);position:relative;flex:none}
+.toggle.on{background:var(--amber)}
+.toggle span{position:absolute;top:2px;width:19px;height:19px;border-radius:50%;background:#fff;left:2px;transition:.15s}
+.toggle.on span{left:17px}
+.startbtn{border:none;cursor:pointer;background:var(--amber);color:#160f02;font-family:var(--font-label);font-weight:700;letter-spacing:.16em;text-transform:uppercase;font-size:16px;padding:17px;border-radius:13px;box-shadow:0 0 30px -6px rgba(244,162,58,.55);width:100%}
+.ghostbtn{border:1px solid var(--line);cursor:pointer;background:var(--panel);color:var(--ink-2);font-family:var(--font-label);font-weight:500;letter-spacing:.1em;text-transform:uppercase;font-size:13px;padding:14px;border-radius:12px;width:100%}
+.callout{background:linear-gradient(180deg,rgba(244,162,58,.08),rgba(244,162,58,.02));border:1px solid #4a3a1d;border-radius:var(--radius);padding:13px 14px}
+.callout .label{color:var(--amber)}.callout p{font-size:12.5px;line-height:1.6;color:var(--ink-2);margin-top:8px}.callout b{color:var(--ink);font-family:var(--font-mono)}
+.note{font-size:11px;color:var(--ink-3);line-height:1.5}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:30px}
+.empty .ic{width:60px;height:60px;border-radius:16px;background:var(--panel);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.empty h3{font-family:var(--font-label);text-transform:uppercase;letter-spacing:.08em;font-size:16px}
+.empty p{color:var(--ink-3);font-size:13px;line-height:1.6;max-width:230px}
+/* segmented */
+.seg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:3px}
+.seg b{flex:1;text-align:center;font-family:var(--font-label);font-weight:500;font-size:13px;letter-spacing:.04em;padding:9px;border-radius:8px;color:var(--ink-2);cursor:pointer}
+.seg b.on{background:var(--amber);color:#160f02}
+/* day toggles */
+.days{display:flex;gap:7px;justify-content:space-between}
+.day{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--font-label);font-weight:600;font-size:12px;color:var(--ink-3);cursor:pointer}
+.day.on{background:var(--amber);color:#160f02;border-color:var(--amber)}
+/* signal bars */
+.sig{display:flex;align-items:flex-end;gap:2px;height:14px}
+.sig i{width:3px;background:var(--ink-3);border-radius:1px}.sig i.a{background:var(--green)}
+/* recording */
+.rec{flex:1;display:flex;flex-direction:column;padding:6px 0 0;min-height:0}
+.rec-main{flex:1;display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:14px;padding:0 18px;min-height:0}
+.rec-col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.splits{flex:none;border-top:1px solid var(--line);padding:7px 18px 10px;display:flex;flex-direction:column;gap:5px;background:var(--panel-2)}
+.splits .shots{display:flex}
+.splitcell{flex:1;text-align:center;border-right:1px solid var(--line-soft);padding:1px 0}
+.splitcell:last-child{border-right:none}
+.splitcell .ix{font-family:var(--font-label);font-size:8px;letter-spacing:.12em;color:var(--ink-3);text-transform:uppercase}
+.splitcell .now{font-family:var(--font-mono);font-weight:700;font-size:17px;color:var(--ink)}
+.splitcell .sp{font-family:var(--font-mono);font-size:12px;color:var(--ink-3)}
+.rec-head{display:flex;justify-content:space-between;align-items:center;padding:8px 20px 0}
+.rec-head .set{font-family:var(--font-label);font-weight:700;font-size:15px;letter-spacing:.1em}.rec-head .set b{color:var(--amber)}
+.rec-head .mid{font-family:var(--font-mono);font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.dotgrid{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.025) 1px,transparent 1px);background-size:16px 16px;pointer-events:none}
+.timerwrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+.timer{font-family:var(--font-mono);font-weight:800;font-size:64px;line-height:.92;letter-spacing:-.01em}
+.timer.red{color:var(--red);text-shadow:0 0 30px rgba(229,84,75,.25)}
+.timer.green{color:var(--green);text-shadow:0 0 30px rgba(67,192,106,.25)}
+.timer.amber{color:var(--amber);text-shadow:0 0 34px rgba(244,162,58,.34)}
+.timer.dim{color:var(--ink-3)}
+.timer-meta{font-family:var(--font-mono);font-size:14px;color:var(--ink-2);margin-top:4px}.timer-meta b{color:var(--ink)}
+.best4{margin-top:auto;border-top:1px solid var(--line);padding-top:9px;text-align:center}
+.best4 .v{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink)}
+.strrow{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line-soft)}
+.strrow .i{font-family:var(--font-label);font-weight:600;font-size:11px;color:var(--ink-3);width:14px}
+.strrow .tm{font-family:var(--font-mono);font-weight:600;font-size:15px;flex:1}
+.strrow .pc{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+.strrow.worst{border-color:#5e2a26;background:rgba(229,84,75,.08)}.strrow.worst .tm,.strrow.worst .pc{color:var(--red)}
+.strrow.pend{opacity:.32}.strrow.pend .tm{color:var(--ink-3)}
+.strrow.best{border-color:#2c5b3c}
+.hist{display:flex;align-items:center;gap:8px;padding:7px 9px;border-bottom:1px solid var(--line-soft)}
+.hist .tm{font-family:var(--font-mono);font-weight:600;font-size:14px;flex:1}.hist .pc{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3)}
+.targets{display:flex;gap:9px;justify-content:center;align-items:center}
+.plate{width:26px;height:26px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-family:var(--font-label);font-weight:700;font-size:12px;color:#0a1a0f}
+.plate.stop{background:var(--raised);color:var(--amber);border:2px solid var(--amber);border-radius:5px}.plate.miss{background:var(--red);color:#fff}
+.banner{margin:0 18px;background:rgba(229,84,75,.1);border:1px solid #5e2a26;border-radius:10px;padding:9px 13px;display:flex;align-items:center;gap:9px;font-family:var(--font-mono);font-size:12px;color:var(--red)}
+/* report */
+.rpt-hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:12px}
+.rpt-hd .lg{font-family:var(--font-label);font-weight:700;letter-spacing:.14em;font-size:16px}.rpt-hd .lg .dot{color:var(--amber)}
+.kv{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:12px;padding:5px 0;border-bottom:1px dotted var(--line)}.kv .k{color:var(--ink-3)}
+.watermark{font-family:var(--font-label);font-size:9px;letter-spacing:.2em;color:var(--ink-3);text-transform:uppercase;text-align:center;padding-top:6px}
+.tt{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:11px}
+.tt th{font-family:var(--font-label);font-weight:600;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:8px 4px;text-align:center;border-bottom:1px solid var(--line)}
+.tt th:first-child,.tt td:first-child{text-align:left;padding-left:10px}
+.tt td{padding:8px 4px;text-align:center;border-bottom:1px solid var(--line-soft)}
+.tt td .big{font-weight:600;color:var(--ink);font-size:12px}.tt td .ps{color:var(--ink-3);font-size:9.5px}
+.tt td.stg{font-family:var(--font-label);font-weight:500;color:var(--ink-2);font-size:10px}.tt .gmcol{color:var(--amber)}
+.rchip{font-family:var(--font-mono);font-size:11px;color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:4px 8px}
+.rstage{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:9px}
+.rstage>.h{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--panel-2);border-bottom:1px solid var(--line)}
+.rstage .h .nm{font-family:var(--font-label);font-weight:600;letter-spacing:.04em;font-size:13px}
+.rstage .h .ct{font-family:var(--font-label);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.rset{padding:8px 12px;border-bottom:1px solid var(--line-soft)}.rset:last-child{border-bottom:none}
+.rset .sh{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:12px;margin-bottom:4px}
+.rset .sh .sc{color:var(--ink-3)}.rset .sh b{color:var(--ink)}
+.rstr{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;padding:2px 0;color:var(--ink-2)}
+.rstr .si{width:18px;color:var(--ink-3)}
+.rstr .st{width:40px;font-weight:700;color:var(--ink)}
+.rstr .sp{flex:1;color:var(--ink-3);letter-spacing:.03em}
+.rstr .pcc{width:42px;text-align:right;color:var(--ink-3)}
+.rstr.drop{opacity:.65}.rstr.drop .st,.rstr.drop .pcc{color:var(--red)}
+/* sheet */
+.sheetdim{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;flex-direction:column;justify-content:flex-end}
+.sheet{background:var(--screen);border-top-left-radius:22px;border-top-right-radius:22px;border-top:1px solid var(--line);max-height:88%;display:flex;flex-direction:column;overflow:hidden}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--raised);margin:10px auto 4px}
+.sheet .body{padding:6px 18px 24px}
+/* splash */
+.splash{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(420px 300px at 50% 40%,rgba(244,162,58,.1),transparent 70%)}
+.splash .logo{font-family:var(--font-label);font-weight:700;font-size:34px;letter-spacing:.18em;text-transform:uppercase}
+.splash .logo .dot{color:var(--amber)}
+.splash .reticle{width:88px;height:88px;border-radius:50%;border:2px solid var(--amber);position:relative;display:flex;align-items:center;justify-content:center}
+.splash .reticle::before,.splash .reticle::after{content:"";position:absolute;background:var(--amber)}
+.splash .reticle::before{width:2px;height:30px}.splash .reticle::after{height:2px;width:30px}
+.splash .tag{font-family:var(--font-mono);font-size:12px;color:var(--ink-3);letter-spacing:.05em}
+.hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:11px;color:var(--ink-3);background:var(--panel);border:1px solid var(--line);padding:7px 14px;border-radius:20px;z-index:200}
+.hint b{color:var(--amber)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brandline"><span class="brandmark">GM<span class="dot">·</span>JUICE</span><span class="brandsub">full interactive prototype</span></div>
+  <div class="picker" id="picker">
+    <div class="pgroup"><span class="gl">Start</span><div class="chips">
+      <button class="chip" data-go="splash">Splash</button><button class="chip" data-go="terms">Terms</button><button class="chip" data-go="onboarding">Onboarding</button></div></div>
+    <div class="pgroup"><span class="gl">Main</span><div class="chips">
+      <button class="chip on" data-go="train">Train</button><button class="chip" data-go="profile">Profile</button><button class="chip" data-go="settings">Settings</button><button class="chip" data-go="targettimes">Target Times</button></div></div>
+    <div class="pgroup"><span class="gl">Log</span><div class="chips">
+      <button class="chip" data-go="log">Log</button><button class="chip" data-go="stagedetail">Stage Detail</button><button class="chip" data-go="editstring">Edit String</button><button class="chip" data-go="emptylog">Empty Log</button></div></div>
+    <div class="pgroup"><span class="gl">Recording</span><div class="chips">
+      <button class="chip" data-go="recready">Ready</button><button class="chip" data-go="reclive">Recording</button><button class="chip" data-go="recoffline">No Timer</button></div></div>
+    <div class="pgroup"><span class="gl">Settings</span><div class="chips">
+      <button class="chip" data-go="settimer">Timer</button><button class="chip" data-go="setvoice">Voice</button><button class="chip" data-go="setnotif">Notifs</button><button class="chip" data-go="setappear">Appearance</button><button class="chip" data-go="report">Report</button><button class="chip" data-go="help">Help</button></div></div>
+    <div class="pgroup"><span class="gl">Profile</span><div class="chips">
+      <button class="chip" data-go="uspsa">USPSA Sheet</button><button class="chip" data-go="emptyprofile">No Profile</button></div></div>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="screencap" id="cap"></div>
+
+  <!-- ============ PORTRAIT DEVICE ============ -->
+  <div class="device" id="devPortrait">
+    <div class="island"></div>
+    <div class="phoneface" id="facePortrait">
+
+      <!-- SPLASH -->
+      <section class="screen" id="s-splash">
+        <div class="splash" data-go="terms">
+          <div class="reticle"></div>
+          <div class="logo">GM<span class="dot">·</span>JUICE</div>
+          <div class="tag">shoot · score · improve</div>
+        </div>
+      </section>
+
+      <!-- TERMS -->
+      <section class="screen" id="s-terms">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons"></span></div>
+        <div class="bigtitle" style="padding:18px 22px 4px">Terms<small>Please review before continuing</small></div>
+        <div class="body scroll">
+          <div class="panel" style="font-size:12.5px;line-height:1.7;color:var(--ink-2)">
+            GMJuice is a training tool for tracking shooting-sports performance. It is not a substitute for firearms safety training. You are responsible for safe, legal handling of firearms at all times.<br><br>
+            Your data is stored on your device. Anonymous usage &amp; crash diagnostics help improve the app. We never collect your name or contact details.
+          </div>
+          <a class="note" style="color:var(--amber);text-align:center;cursor:pointer">Read full Privacy Policy →</a>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+            <button class="startbtn" data-go="onboarding">Accept &amp; Continue</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ONBOARDING -->
+      <section class="screen" id="s-onboarding">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons"></span></div>
+        <div class="body" style="padding-top:20px">
+          <div style="text-align:center;margin-bottom:6px"><div class="label" style="color:var(--amber)">Optional</div><div class="bigtitle" style="padding:8px 0">Connect SCSA</div><p class="note" style="max-width:250px;margin:0 auto">Pull your official classification &amp; standings. You can skip and use the timer right away.</p></div>
+          <div class="panel tight"><div class="list">
+            <div class="row" style="cursor:default"><div class="lead" style="color:var(--amber)"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 2l1.7 4.1 4.3.3-3.3 2.8 1 4.2L8 11.2 4.3 13.4l1-4.2L2 6.4l4.3-.3z" stroke="#f4a23a" stroke-width="1.2" fill="none"/></svg></div><div class="grow"><div class="ttl">Track classification</div><div class="sub" style="font-family:var(--font-body);text-transform:none">See your % and time-to-next-class</div></div></div>
+            <div class="row" style="cursor:default"><div class="lead" style="color:var(--steel)"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 12l3-4 2.5 2L11 4l3 3" stroke="#5e9bb0" stroke-width="1.4" fill="none"/></svg></div><div class="grow"><div class="ttl">Auto-sync weekly</div><div class="sub" style="font-family:var(--font-body);text-transform:none">Updates after each SCSA refresh</div></div></div>
+          </div></div>
+          <div class="panel" style="display:flex;flex-direction:column;gap:7px"><span class="label">USPSA / SCSA number</span><div class="mono" style="font-size:18px;color:var(--ink-3);border-bottom:1px solid var(--line);padding:6px 0">A_______</div></div>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+            <button class="startbtn" data-go="train">Connect Profile</button>
+            <button class="ghostbtn" data-go="train">Skip for now</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TRAIN -->
+      <section class="screen active" id="s-train">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="nav"><span class="bigtitle" style="padding:0">Train</span><div class="spacer"></div><div class="act"><span class="amber" data-go="log" style="font-family:var(--font-label);font-size:12px;letter-spacing:.06em">Log</span><span class="amber" data-go="targettimes" style="font-family:var(--font-label);font-size:12px;letter-spacing:.06em">Target Times</span></div></div>
+        <div class="body scroll">
+          <div class="sect"><span class="label">Division</span><span class="ln"></span></div>
+          <div class="hscroll"><div class="pillrow nowrap"><span class="pill on">RFPI</span><span class="pill">RFPO</span><span class="pill">CO</span><span class="pill">OPN</span><span class="pill">PROD</span><span class="pill">SS</span><span class="pill">ISR</span><span class="pill">OSR</span></div></div>
+          <div class="sect"><span class="label">Stage</span><span class="ln"></span></div>
+          <div class="panel tight"><div class="list">
+            <div class="row" data-go="recready"><div class="grow"><div class="ttl">SC-101 · 5 To Go</div></div><div class="goarrow"><svg width="9" height="14" viewBox="0 0 9 14"><path d="M1.5 1l6 6-6 6" stroke="#f4a23a" stroke-width="2" fill="none"/></svg></div></div>
+            <div class="row" data-go="recready"><div class="grow"><div class="ttl">SC-102 · Showdown</div></div><div class="goarrow"><svg width="9" height="14" viewBox="0 0 9 14"><path d="M1.5 1l6 6-6 6" stroke="#f4a23a" stroke-width="2" fill="none"/></svg></div></div>
+            <div class="row" data-go="recready"><div class="grow"><div class="ttl">SC-103 · Smoke &amp; Hope</div></div><div class="goarrow"><svg width="9" height="14" viewBox="0 0 9 14"><path d="M1.5 1l6 6-6 6" stroke="#f4a23a" stroke-width="2" fill="none"/></svg></div></div>
+            <div class="row" data-go="recready"><div class="grow"><div class="ttl">SC-104 · Outer Limits</div></div><div class="goarrow"><svg width="9" height="14" viewBox="0 0 9 14"><path d="M1.5 1l6 6-6 6" stroke="#f4a23a" stroke-width="2" fill="none"/></svg></div></div>
+            <div class="row" data-go="recready"><div class="grow"><div class="ttl">SC-105 · Accelerator</div></div><div class="goarrow"><svg width="9" height="14" viewBox="0 0 9 14"><path d="M1.5 1l6 6-6 6" stroke="#f4a23a" stroke-width="2" fill="none"/></svg></div></div>
+            <div class="row" data-go="recready"><div class="grow"><div class="ttl">SC-106 · The Pendulum</div></div><div class="goarrow"><svg width="9" height="14" viewBox="0 0 9 14"><path d="M1.5 1l6 6-6 6" stroke="#f4a23a" stroke-width="2" fill="none"/></svg></div></div>
+            <div class="row" data-go="recready"><div class="grow"><div class="ttl">SC-107 · Speed Option</div></div><div class="goarrow"><svg width="9" height="14" viewBox="0 0 9 14"><path d="M1.5 1l6 6-6 6" stroke="#f4a23a" stroke-width="2" fill="none"/></svg></div></div>
+            <div class="row" data-go="recready"><div class="grow"><div class="ttl">SC-108 · Roundabout</div></div><div class="goarrow"><svg width="9" height="14" viewBox="0 0 9 14"><path d="M1.5 1l6 6-6 6" stroke="#f4a23a" stroke-width="2" fill="none"/></svg></div></div>
+          </div></div>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- LOG -->
+      <section class="screen" id="s-log">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="nav"><h1>Training Log</h1><div class="spacer"></div><div class="act"><span class="amber" data-go="report"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 13V3M6 7l4-4 4 4M3 13v3a1 1 0 001 1h12a1 1 0 001-1v-3" stroke="#f4a23a" stroke-width="1.5"/></svg></span></div></div>
+        <div class="body scroll">
+          <div class="sect"><span class="label">Today · 23 Jun</span><span class="ln"></span></div>
+          <div class="panel tight"><div class="list">
+            <div class="row" data-go="stagedetail"><div class="lead" style="color:var(--amber)"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="#f4a23a" stroke-width="1.4" fill="none"/><circle cx="8" cy="8" r="1.5" fill="#f4a23a"/></svg></div><div class="grow"><div class="ttl">SC-101 · 5 To Go</div><div class="sub">RFPI · 3 stages</div></div><div class="rt"><div class="big" style="color:var(--green)">9.50</div><div class="sm">best</div></div></div>
+            <div class="row" data-go="stagedetail"><div class="lead"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="#5e9bb0" stroke-width="1.4" fill="none"/><circle cx="8" cy="8" r="1.5" fill="#5e9bb0"/></svg></div><div class="grow"><div class="ttl">SC-102 · Showdown</div><div class="sub">RFPI · 2 stages</div></div><div class="rt"><div class="big">8.12</div><div class="sm">best</div></div></div>
+          </div></div>
+          <div class="sect"><span class="label">Yesterday · 22 Jun</span><span class="ln"></span></div>
+          <div class="panel tight"><div class="list">
+            <div class="row" data-go="stagedetail"><div class="lead"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="#9aa6ad" stroke-width="1.4" fill="none"/><circle cx="8" cy="8" r="1.5" fill="#9aa6ad"/></svg></div><div class="grow"><div class="ttl">SC-104 · Outer Limits</div><div class="sub">RFPI · 4 stages</div></div><div class="rt"><div class="big">11.40</div><div class="sm">best</div></div></div>
+            <div class="row" data-go="stagedetail"><div class="lead"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="#9aa6ad" stroke-width="1.4" fill="none"/><circle cx="8" cy="8" r="1.5" fill="#9aa6ad"/></svg></div><div class="grow"><div class="ttl">SC-106 · Pendulum</div><div class="sub">RFPI · 5 stages</div></div><div class="rt"><div class="big">15.91</div><div class="sm">best</div></div></div>
+          </div></div>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- EMPTY LOG -->
+      <section class="screen" id="s-emptylog">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="nav"><h1>Training Log</h1></div>
+        <div class="empty">
+          <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#5d6970" stroke-width="1.4"/><circle cx="12" cy="12" r="2.5" fill="#5d6970"/></svg></div>
+          <h3>No sessions yet</h3>
+          <p>Connect your timer and record a stage — your training history shows up here, by day.</p>
+          <button class="startbtn" data-go="train" style="width:auto;padding:14px 28px">Start Training</button>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- STAGE DETAIL -->
+      <section class="screen" id="s-stagedetail">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="nav"><span class="back" data-go="log"><svg width="8" height="13" viewBox="0 0 8 13"><path d="M7 1L1.5 6.5 7 12" stroke="#f4a23a" stroke-width="1.6" fill="none"/></svg>Log</span><h1 style="font-size:14px">SC-101 · 23 Jun</h1></div>
+        <div class="body scroll">
+          <div class="stats"><div class="stat"><div class="v">3</div><div class="k">Stages</div></div><div class="stat"><div class="v" style="color:var(--green)">9.50</div><div class="k">Best</div></div><div class="stat"><div class="v">9.71</div><div class="k">Avg</div></div><div class="stat"><div class="v">.98</div><div class="k">1st</div></div></div>
+          <div class="sect"><span class="label">Stage scores</span><span class="ln"></span></div>
+          <div class="panel" style="padding:0;overflow:hidden;cursor:pointer" data-go="editstring">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:rgba(67,192,106,.06)"><div><span class="label">Stage 1 · 14:02</span><div class="mono" style="font-size:20px;font-weight:700;color:var(--green);margin-top:3px">9.50</div></div><span class="cls a">A 76%</span></div>
+            <div style="display:flex;gap:6px;padding:11px 14px;border-top:1px solid var(--line-soft)"><div class="strrow" style="flex:1"><span class="i">1</span><span class="tm">2.41</span></div><div class="strrow" style="flex:1"><span class="i">2</span><span class="tm">2.55</span></div><div class="strrow worst" style="flex:1"><span class="i">3</span><span class="tm">2.61</span></div><div class="strrow" style="flex:1"><span class="i">4</span><span class="tm">2.38</span></div><div class="strrow" style="flex:1"><span class="i">5</span><span class="tm">2.16</span></div></div>
+            <div class="note" style="padding:0 14px 11px;display:flex;justify-content:space-between"><span>Best 4 of 5 — string 3 dropped.</span><span style="color:var(--amber)">Edit ›</span></div>
+          </div>
+          <div class="panel" style="padding:0;overflow:hidden;cursor:pointer" data-go="editstring"><div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px"><div><span class="label">Stage 2 · 14:09</span><div class="mono" style="font-size:20px;font-weight:700;margin-top:3px">9.74</div></div><span class="cls b">B 74%</span></div></div>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- EDIT STRING (sheet) -->
+      <section class="screen" id="s-editstring">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="sheetdim" data-go="stagedetail">
+          <div class="sheet" onclick="event.stopPropagation()">
+            <div class="grab"></div>
+            <div class="nav"><span class="back" data-go="stagedetail">Cancel</span><h1 style="font-size:14px;margin-left:8px">Edit · String 1</h1><div class="spacer"></div><div class="act"><span class="amber" data-go="stagedetail" style="font-family:var(--font-label)">Done</span></div></div>
+            <div class="body scroll">
+              <div class="sect"><span class="label">Targets — tap to toggle hit/miss</span><span class="ln"></span></div>
+              <div class="panel" style="display:flex;justify-content:space-around;align-items:center;padding:20px"><div class="targets"><div class="plate">1</div><div class="plate">2</div><div class="plate">3</div><div class="plate miss">4</div><div class="plate stop">S</div></div></div>
+              <div class="sect"><span class="label">Shots</span><span class="ln"></span></div>
+              <div class="panel tight"><div class="list">
+                <div class="row" style="cursor:default"><div class="grow"><div class="ttl">Shot 1</div></div><div class="rt"><div class="big">0.98</div><div class="sm">first</div></div></div>
+                <div class="row" style="cursor:default"><div class="grow"><div class="ttl">Shot 4 <span style="color:var(--red);font-family:var(--font-mono);font-size:11px">miss +3.0</span></div></div><div class="rt"><div class="big">1.74</div><div class="sm">split .31</div></div></div>
+              </div></div>
+              <div class="sect"><span class="label">Adjusted total</span><span class="ln"></span></div>
+              <div class="panel" style="display:flex;justify-content:space-between;align-items:center"><span class="mono" style="font-size:22px;font-weight:700;color:var(--red)">5.41</span><span class="note">incl. 1 miss penalty</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TARGET TIMES -->
+      <section class="screen" id="s-targettimes">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="nav"><span class="back" data-go="train"><svg width="8" height="13" viewBox="0 0 8 13"><path d="M7 1L1.5 6.5 7 12" stroke="#f4a23a" stroke-width="1.6" fill="none"/></svg>Train</span><h1 style="font-size:15px">Target Times</h1></div>
+        <div class="body">
+          <div class="pillrow"><span class="pill on">RFPI</span><span class="pill">RFPO</span><span class="pill">CO</span><span class="pill">OPN</span><span class="pill">SS</span></div>
+          <div class="note">Total &amp; <span style="color:var(--ink-2)">per-string</span> targets. Your range card — no personal data.</div>
+          <div class="panel" style="padding:4px 2px">
+            <table class="tt"><thead><tr><th>Stage</th><th>C</th><th>B</th><th>A</th><th>M</th><th class="gmcol">GM</th></tr></thead><tbody>
+              <tr><td class="stg">101</td><td><div class="big">26.3</div><div class="ps">6.6</div></td><td><div class="big">17.5</div><div class="ps">4.4</div></td><td><div class="big">14.0</div><div class="ps">3.5</div></td><td><div class="big">12.4</div><div class="ps">3.1</div></td><td class="gmcol"><div class="big">11.1</div><div class="ps">2.8</div></td></tr>
+              <tr><td class="stg">102</td><td><div class="big">22.5</div><div class="ps">5.6</div></td><td><div class="big">15.0</div><div class="ps">3.8</div></td><td><div class="big">12.0</div><div class="ps">3.0</div></td><td><div class="big">10.6</div><div class="ps">2.6</div></td><td class="gmcol"><div class="big">9.5</div><div class="ps">2.4</div></td></tr>
+              <tr><td class="stg">103</td><td><div class="big">20.0</div><div class="ps">5.0</div></td><td><div class="big">13.3</div><div class="ps">3.3</div></td><td><div class="big">10.7</div><div class="ps">2.7</div></td><td><div class="big">9.4</div><div class="ps">2.4</div></td><td class="gmcol"><div class="big">8.0</div><div class="ps">2.0</div></td></tr>
+              <tr><td class="stg">104</td><td><div class="big">32.5</div><div class="ps">10.8</div></td><td><div class="big">21.7</div><div class="ps">7.2</div></td><td><div class="big">17.3</div><div class="ps">5.8</div></td><td><div class="big">15.3</div><div class="ps">5.1</div></td><td class="gmcol"><div class="big">13.0</div><div class="ps">4.3</div></td></tr>
+              <tr><td class="stg">105</td><td><div class="big">23.1</div><div class="ps">5.8</div></td><td><div class="big">15.4</div><div class="ps">3.9</div></td><td><div class="big">12.3</div><div class="ps">3.1</div></td><td><div class="big">10.9</div><div class="ps">2.7</div></td><td class="gmcol"><div class="big">9.3</div><div class="ps">2.3</div></td></tr>
+              <tr><td class="stg">106</td><td><div class="big">27.5</div><div class="ps">6.9</div></td><td><div class="big">18.3</div><div class="ps">4.6</div></td><td><div class="big">14.7</div><div class="ps">3.7</div></td><td><div class="big">12.9</div><div class="ps">3.2</div></td><td class="gmcol"><div class="big">11.0</div><div class="ps">2.8</div></td></tr>
+            </tbody></table>
+          </div>
+          <div class="note" style="text-align:center">Big = stage total · small = per string</div>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- PROFILE -->
+      <section class="screen" id="s-profile">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="nav"><span class="bigtitle" style="padding:0">Profile</span><div class="spacer"></div><div class="act"><span class="amber" data-go="uspsa" style="font-family:var(--font-mono);font-size:12px">A102938 ›</span></div></div>
+        <div class="body scroll">
+          <div class="pillrow"><span class="pill on">RFPI</span><span class="pill">RFPO</span><span class="pill">CO</span></div>
+          <div class="panel">
+            <div style="display:flex;justify-content:space-between;align-items:center"><div><span class="label">Classification</span><div style="display:flex;align-items:baseline;gap:9px;margin-top:5px"><span class="cls b" style="font-size:18px;padding:5px 12px">B</span><span class="mono" style="font-size:26px;font-weight:700">71<span style="font-size:14px;color:var(--ink-3)">%</span></span></div></div><div style="text-align:right"><span class="label">To A-class</span><div class="mono" style="font-size:14px;color:var(--ink-2);margin-top:6px">need <b style="color:var(--amber)">75%</b></div><div class="mono" style="font-size:11px;color:var(--ink-3)">−1.84s total</div></div></div>
+            <div class="prog"><i style="width:71%"></i></div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px"><span class="mono" style="font-size:9px;color:var(--ink-3)">C 40</span><span class="mono" style="font-size:9px;color:var(--ink-3)">B 60</span><span class="mono" style="font-size:9px;color:var(--amber)">A 75</span><span class="mono" style="font-size:9px;color:var(--ink-3)">M 85</span></div>
+          </div>
+          <div class="callout"><span class="label">Why B?</span><p>Your class is <b>peak time ÷ your time</b>, averaged across all 8 stages. You're shooting <b>71%</b> of GM pace — that's <b>B (60–75%)</b>. Trim <b>1.84s</b> off your totals to reach <b>A</b>.</p></div>
+          <div class="panel" style="display:flex;gap:12px;align-items:center;border-color:#4a3a1d"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.6 6.3 6.8.5-5.2 4.4 1.7 6.6L12 16.7 6.1 20.3l1.7-6.6L2.6 8.8l6.8-.5z" stroke="#f4a23a" stroke-width="1.4"/></svg><div><span class="label" style="color:var(--amber)">Focus next</span><div style="font-size:13.5px;margin-top:3px">Weakest — <b style="font-family:var(--font-mono)">SC-106 Pendulum</b> at <b style="font-family:var(--font-mono);color:var(--red)">58%</b></div></div></div>
+          <div class="sect"><span class="label">Classification trend</span><span class="ln"></span></div>
+          <div class="panel"><div class="spark"><i style="height:42%"></i><i style="height:48%"></i><i style="height:46%"></i><i style="height:55%"></i><i style="height:60%"></i><i style="height:58%"></i><i style="height:67%"></i><i class="up" style="height:71%"></i></div><div style="display:flex;justify-content:space-between;margin-top:7px"><span class="mono" style="font-size:10px;color:var(--ink-3)">Mar</span><span class="mono" style="font-size:10px;color:var(--ink-3)">Jun</span></div></div>
+          <div class="sect"><span class="label">Stage breakdown</span><span class="ln"></span></div>
+          <div class="panel tight"><div class="list"><div class="row" style="cursor:default"><div class="grow"><div class="ttl" style="font-size:13px">SC-101 5 To Go</div></div><div class="rt"><div class="big">9.87</div></div><span class="cls b" style="margin-left:8px">74%</span></div><div class="row" style="cursor:default"><div class="grow"><div class="ttl" style="font-size:13px">SC-106 Pendulum</div></div><div class="rt"><div class="big" style="color:var(--red)">15.91</div></div><span class="cls" style="margin-left:8px;color:var(--red);border-color:#5e2a26">58%</span></div></div></div>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- EMPTY PROFILE -->
+      <section class="screen" id="s-emptyprofile">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="bigtitle">Profile</div>
+        <div class="empty">
+          <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="9" r="4" stroke="#5d6970" stroke-width="1.4"/><path d="M5 20a7 7 0 0114 0" stroke="#5d6970" stroke-width="1.4"/></svg></div>
+          <h3>No SCSA profile</h3>
+          <p>Add your USPSA/SCSA number to see your classification, % to next class, and weakest stage.</p>
+          <button class="startbtn" data-go="uspsa" style="width:auto;padding:14px 28px">Connect Profile</button>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- USPSA SHEET -->
+      <section class="screen" id="s-uspsa">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="sheetdim" data-go="profile">
+          <div class="sheet" onclick="event.stopPropagation()">
+            <div class="grab"></div>
+            <div class="nav"><span class="back" data-go="profile">Cancel</span><h1 style="font-size:14px;margin-left:8px">SCSA Profile</h1><div class="spacer"></div><div class="act"><span class="amber" data-go="profile" style="font-family:var(--font-label)">Save</span></div></div>
+            <div class="body scroll">
+              <div class="panel" style="display:flex;flex-direction:column;gap:7px"><span class="label">USPSA / SCSA number</span><div class="mono" style="font-size:20px;border-bottom:1px solid var(--amber);padding:6px 0">A102938</div></div>
+              <div class="row" style="background:var(--panel);border:1px solid var(--line);border-radius:12px;cursor:default"><div class="grow"><div class="ttl">Auto-sync weekly</div><div class="sub" style="font-family:var(--font-body);text-transform:none">After each SCSA refresh (Thu)</div></div><div class="toggle on"><span></span></div></div>
+              <button class="startbtn" data-go="profile" style="margin-top:6px">↻ Sync Now</button>
+              <div class="note" style="text-align:center">Last synced 2h ago · 18 matches</div>
+              <div class="sect"><span class="label">Visible divisions</span><span class="ln"></span></div>
+              <div class="pillrow"><span class="pill on">RFPI</span><span class="pill on">RFPO</span><span class="pill">CO</span><span class="pill">OPN</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="screen" id="s-settings">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="bigtitle">Settings</div>
+        <div class="body scroll">
+          <div class="sect"><span class="label">Hardware</span><span class="ln"></span></div>
+          <div class="panel tight"><div class="list"><div class="row" data-go="settimer"><div class="lead"><svg width="17" height="17" viewBox="0 0 17 17"><path d="M5 5l7 7-3.5 3.5v-13L12 5 5 12" stroke="#9aa6ad" stroke-width="1.4" fill="none"/></svg></div><div class="grow"><div class="ttl">Timer</div></div><div class="rt"><div class="big" style="font-size:13px;color:var(--green)">AMG · connected</div></div><svg class="chev" width="8" height="13" viewBox="0 0 8 13"><path d="M1 1l5.5 5.5L1 12" stroke="#5d6970" stroke-width="1.6" fill="none"/></svg></div></div></div>
+          <div class="sect"><span class="label">Feedback</span><span class="ln"></span></div>
+          <div class="panel tight"><div class="list">
+            <div class="row" data-go="setvoice"><div class="lead"><svg width="17" height="17" viewBox="0 0 17 17"><path d="M3 6v5h3l4 3V3L6 6H3z" stroke="#9aa6ad" stroke-width="1.4" fill="none"/><path d="M12 6c1 1 1 4 0 5" stroke="#9aa6ad" stroke-width="1.4" fill="none"/></svg></div><div class="grow"><div class="ttl">Voice announcer</div><div class="sub" style="font-family:var(--font-body);text-transform:none">Samantha</div></div><svg class="chev" width="8" height="13" viewBox="0 0 8 13"><path d="M1 1l5.5 5.5L1 12" stroke="#5d6970" stroke-width="1.6" fill="none"/></svg></div>
+            <div class="row" data-go="setnotif"><div class="lead"><svg width="17" height="17" viewBox="0 0 17 17"><path d="M8.5 2a5 5 0 015 5v3l1.5 2h-13L3.5 10V7a5 5 0 015-5zM6.5 14a2 2 0 004 0" stroke="#9aa6ad" stroke-width="1.4" fill="none"/></svg></div><div class="grow"><div class="ttl">Notifications</div><div class="sub" style="font-family:var(--font-body);text-transform:none">Mon–Fri · 8:00</div></div><svg class="chev" width="8" height="13" viewBox="0 0 8 13"><path d="M1 1l5.5 5.5L1 12" stroke="#5d6970" stroke-width="1.6" fill="none"/></svg></div>
+          </div></div>
+          <div class="sect"><span class="label">Data</span><span class="ln"></span></div>
+          <div class="panel tight"><div class="list">
+            <div class="row" data-go="report"><div class="lead" style="color:var(--amber)"><svg width="17" height="17" viewBox="0 0 17 17"><path d="M8.5 11V2M5 6l3.5-4L12 6M3 11v3a1 1 0 001 1h9a1 1 0 001-1v-3" stroke="#f4a23a" stroke-width="1.4" fill="none"/></svg></div><div class="grow"><div class="ttl">Export &amp; share report</div></div><svg class="chev" width="8" height="13" viewBox="0 0 8 13"><path d="M1 1l5.5 5.5L1 12" stroke="#5d6970" stroke-width="1.6" fill="none"/></svg></div>
+            <div class="row" data-go="setappear"><div class="lead"><svg width="17" height="17" viewBox="0 0 17 17"><circle cx="8.5" cy="8.5" r="6" stroke="#9aa6ad" stroke-width="1.4" fill="none"/><path d="M8.5 2.5v12" stroke="#9aa6ad" stroke-width="1.4"/></svg></div><div class="grow"><div class="ttl">Appearance</div><div class="sub" style="font-family:var(--font-body);text-transform:none">Dark</div></div><svg class="chev" width="8" height="13" viewBox="0 0 8 13"><path d="M1 1l5.5 5.5L1 12" stroke="#5d6970" stroke-width="1.6" fill="none"/></svg></div>
+            <div class="row" data-go="help"><div class="lead"><svg width="17" height="17" viewBox="0 0 17 17"><circle cx="8.5" cy="8.5" r="6" stroke="#9aa6ad" stroke-width="1.4" fill="none"/><path d="M6.8 6.5a1.7 1.7 0 113 1.1c-.7.5-1.3.8-1.3 1.7M8.5 12h.01" stroke="#9aa6ad" stroke-width="1.4"/></svg></div><div class="grow"><div class="ttl">Help &amp; about</div></div><svg class="chev" width="8" height="13" viewBox="0 0 8 13"><path d="M1 1l5.5 5.5L1 12" stroke="#5d6970" stroke-width="1.6" fill="none"/></svg></div>
+          </div></div>
+          <div class="watermark" style="margin-top:auto">GMJuice v1.0 · build 142</div>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- SETTINGS: TIMER -->
+      <section class="screen" id="s-settimer">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="nav"><span class="back" data-go="settings"><svg width="8" height="13" viewBox="0 0 8 13"><path d="M7 1L1.5 6.5 7 12" stroke="#f4a23a" stroke-width="1.6" fill="none"/></svg>Settings</span><h1 style="font-size:15px">Timer</h1></div>
+        <div class="body scroll">
+          <div class="panel" style="display:flex;justify-content:space-between;align-items:center;border-color:#2c5b3c">
+            <div><span class="label" style="color:var(--green)">Connected</span><div style="font-size:15px;margin-top:4px">AMG Commander</div><div class="sub mono" style="color:var(--ink-3);margin-top:2px">B4:99:4C:2A</div></div>
+            <span class="amber" style="font-family:var(--font-label);font-size:12px;cursor:pointer">Forget</span>
+          </div>
+          <div class="row" style="background:var(--panel);border:1px solid var(--line);border-radius:12px;cursor:default"><div class="grow"><div class="ttl">Auto-reconnect</div></div><div class="toggle on"><span></span></div></div>
+          <div class="sect"><span class="label">Nearby devices</span><span class="ln"></span><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" stroke="#f4a23a" stroke-width="1.4" fill="none" stroke-dasharray="3 3"/></svg></div>
+          <div class="panel tight"><div class="list">
+            <div class="row"><div class="lead"><svg width="16" height="16" viewBox="0 0 17 17"><path d="M5 5l7 7-3.5 3.5v-13L12 5 5 12" stroke="#9aa6ad" stroke-width="1.4" fill="none"/></svg></div><div class="grow"><div class="ttl">AMG Commander #2</div></div><div class="sig"><i class="a" style="height:5px"></i><i class="a" style="height:8px"></i><i class="a" style="height:11px"></i><i style="height:14px"></i></div></div>
+            <div class="row"><div class="lead"><svg width="16" height="16" viewBox="0 0 17 17"><path d="M5 5l7 7-3.5 3.5v-13L12 5 5 12" stroke="#9aa6ad" stroke-width="1.4" fill="none"/></svg></div><div class="grow"><div class="ttl">PACT Club Timer</div></div><div class="sig"><i class="a" style="height:5px"></i><i class="a" style="height:8px"></i><i style="height:11px"></i><i style="height:14px"></i></div></div>
+          </div></div>
+          <div class="note" style="text-align:center">Scanning… tap a device to connect</div>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- SETTINGS: VOICE -->
+      <section class="screen" id="s-setvoice">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="nav"><span class="back" data-go="settings"><svg width="8" height="13" viewBox="0 0 8 13"><path d="M7 1L1.5 6.5 7 12" stroke="#f4a23a" stroke-width="1.6" fill="none"/></svg>Settings</span><h1 style="font-size:15px">Voice</h1></div>
+        <div class="body scroll">
+          <div class="panel tight"><div class="list">
+            <div class="row" style="cursor:default"><div class="grow"><div class="ttl">Announce times</div></div><div class="toggle on"><span></span></div></div>
+            <div class="row" style="cursor:default"><div class="grow"><div class="ttl">Speak on silent</div><div class="sub" style="font-family:var(--font-body);text-transform:none">Ignore the mute switch</div></div><div class="toggle"><span></span></div></div>
+          </div></div>
+          <div class="sect"><span class="label">Voice</span><span class="ln"></span></div>
+          <div class="panel tight"><div class="list">
+            <div class="row"><div class="grow"><div class="ttl">Samantha</div><div class="sub" style="font-family:var(--font-body);text-transform:none">English (US) · Enhanced</div></div><svg width="15" height="13" viewBox="0 0 15 13"><path d="M2 7l4 4 7-9" stroke="#f4a23a" stroke-width="1.8" fill="none"/></svg></div>
+            <div class="row"><div class="grow"><div class="ttl">Daniel</div><div class="sub" style="font-family:var(--font-body);text-transform:none">English (UK)</div></div></div>
+            <div class="row"><div class="grow"><div class="ttl">Karen</div><div class="sub" style="font-family:var(--font-body);text-transform:none">English (AU)</div></div></div>
+          </div></div>
+          <div class="note">Tip: add more voices in iOS Settings → Accessibility → Spoken Content.</div>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- SETTINGS: NOTIFICATIONS -->
+      <section class="screen" id="s-setnotif">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="nav"><span class="back" data-go="settings"><svg width="8" height="13" viewBox="0 0 8 13"><path d="M7 1L1.5 6.5 7 12" stroke="#f4a23a" stroke-width="1.6" fill="none"/></svg>Settings</span><h1 style="font-size:15px">Notifications</h1></div>
+        <div class="body scroll">
+          <div class="sect"><span class="label">Daily reminder</span><span class="ln"></span></div>
+          <div class="panel" style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center"><div class="ttl">Practice reminder</div><div class="toggle on"><span></span></div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span class="note">Time</span><span class="mono" style="font-size:18px">08:00</span></div>
+            <div class="days"><div class="day on">M</div><div class="day on">T</div><div class="day on">W</div><div class="day on">T</div><div class="day on">F</div><div class="day">S</div><div class="day">S</div></div>
+          </div>
+          <div class="sect"><span class="label">Weekly summary</span><span class="ln"></span></div>
+          <div class="panel" style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center"><div class="ttl">Weekly recap</div><div class="toggle on"><span></span></div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span class="note">Friday</span><span class="mono" style="font-size:18px">09:00</span></div>
+          </div>
+          <div class="note">We keep it positive — progress &amp; bests, never guilt-trips for missed days.</div>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- SETTINGS: APPEARANCE -->
+      <section class="screen" id="s-setappear">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="nav"><span class="back" data-go="settings"><svg width="8" height="13" viewBox="0 0 8 13"><path d="M7 1L1.5 6.5 7 12" stroke="#f4a23a" stroke-width="1.6" fill="none"/></svg>Settings</span><h1 style="font-size:15px">Appearance</h1></div>
+        <div class="body">
+          <div class="sect"><span class="label">Theme</span><span class="ln"></span></div>
+          <div class="seg"><b>Light</b><b class="on">Dark</b><b>System</b></div>
+          <div class="note">Dark is tuned for low-light ranges and outdoor sun glare.</div>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- HELP -->
+      <section class="screen" id="s-help">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="nav"><span class="back" data-go="settings"><svg width="8" height="13" viewBox="0 0 8 13"><path d="M7 1L1.5 6.5 7 12" stroke="#f4a23a" stroke-width="1.6" fill="none"/></svg>Settings</span><h1 style="font-size:15px">Help &amp; About</h1></div>
+        <div class="body scroll">
+          <div class="panel" style="display:flex;flex-direction:column;gap:11px">
+            <div style="display:flex;gap:11px;align-items:flex-start"><span class="mono" style="color:var(--amber)">1</span><span style="font-size:13px;color:var(--ink-2);line-height:1.5">Pair your AMG timer in <b style="color:var(--ink)">Settings → Timer</b>.</span></div>
+            <div style="display:flex;gap:11px;align-items:flex-start"><span class="mono" style="color:var(--amber)">2</span><span style="font-size:13px;color:var(--ink-2);line-height:1.5">Pick a division &amp; stage, then <b style="color:var(--ink)">Start Recording</b>.</span></div>
+            <div style="display:flex;gap:11px;align-items:flex-start"><span class="mono" style="color:var(--amber)">3</span><span style="font-size:13px;color:var(--ink-2);line-height:1.5">Shoot 5 strings — the worst drops, best 4 is your stage score.</span></div>
+            <div style="display:flex;gap:11px;align-items:flex-start"><span class="mono" style="color:var(--amber)">4</span><span style="font-size:13px;color:var(--ink-2);line-height:1.5">Review by day in <b style="color:var(--ink)">Log</b>; share a report from <b style="color:var(--ink)">Settings</b>.</span></div>
+          </div>
+          <div class="panel tight"><div class="list">
+            <div class="row" style="cursor:default"><div class="grow"><div class="ttl">Privacy Policy</div></div><svg class="chev" width="8" height="13" viewBox="0 0 8 13"><path d="M1 1l5.5 5.5L1 12" stroke="#5d6970" stroke-width="1.6" fill="none"/></svg></div>
+            <div class="row" style="cursor:default"><div class="grow"><div class="ttl">Terms of Use</div></div><svg class="chev" width="8" height="13" viewBox="0 0 8 13"><path d="M1 1l5.5 5.5L1 12" stroke="#5d6970" stroke-width="1.6" fill="none"/></svg></div>
+          </div></div>
+          <div class="watermark" style="margin-top:auto">GMJuice v1.0 · build 142 · gmjuice.app</div>
+        </div>
+        <div class="tabbar" data-tabs></div>
+      </section>
+
+      <!-- REPORT -->
+      <section class="screen" id="s-report">
+        <div class="statusbar"><span class="t">9:41</span><span class="icons">STAT</span></div>
+        <div class="nav"><span class="back" data-go="settings"><svg width="8" height="13" viewBox="0 0 8 13"><path d="M7 1L1.5 6.5 7 12" stroke="#f4a23a" stroke-width="1.6" fill="none"/></svg></span><h1 style="font-size:15px">Session Report</h1><div class="spacer"></div><div class="act"><span class="amber" style="display:flex;align-items:center;gap:5px;font-family:var(--font-label);font-size:13px"><svg width="15" height="15" viewBox="0 0 15 15"><path d="M7.5 10V2M4 5l3.5-3L11 5M2.5 10v2.5a1 1 0 001 1h8a1 1 0 001-1V10" stroke="#f4a23a" stroke-width="1.4" fill="none"/></svg>Share</span></div></div>
+        <div class="body scroll" style="background:#0a0d10">
+          <div class="panel" style="padding:16px">
+            <div class="rpt-hd"><div><div class="lg">GM<span class="dot">·</span>JUICE</div><div class="mono" style="font-size:10px;color:var(--ink-3);margin-top:4px">SESSION REPORT</div></div><div style="text-align:right"><div class="mono" style="font-size:12px;color:var(--ink-2)">23 Jun 2026</div><div class="mono" style="font-size:11px;color:var(--ink-3)">RFPI · 13:42–14:11</div></div></div>
+
+            <div class="sect" style="margin-top:14px"><span class="label">Runs per stage</span><span class="ln"></span></div>
+            <div class="pillrow" style="gap:6px"><span class="rchip">SC-101 · 3 sets</span><span class="rchip">SC-102 · 2 sets</span><span class="rchip">SC-104 · 2 sets</span></div>
+            <div class="kv" style="margin-top:8px;border:none"><span class="k">Session total</span><span>3 stages · 7 sets · 35 strings · 175 shots</span></div>
+
+            <div class="sect" style="margin-top:6px"><span class="label">Session detail</span><span class="ln"></span></div>
+
+            <div class="rstage">
+              <div class="h"><span class="nm">SC-101 · 5 To Go</span><span class="ct">3 sets</span></div>
+              <div class="rset">
+                <div class="sh"><span class="sc">Set 1 · 14:02</span><span>best 4 <b>9.50</b> · <span style="color:var(--steel)">A 76%</span></span></div>
+                <div class="rstr"><span class="si">1</span><span class="st">2.41</span><span class="sp">.98 .39 .37 .35 .32</span><span class="pcc">B 71%</span></div>
+                <div class="rstr"><span class="si">2</span><span class="st">2.55</span><span class="sp">.99 .42 .40 .39 .35</span><span class="pcc">C 64%</span></div>
+                <div class="rstr drop"><span class="si">3</span><span class="st">2.61</span><span class="sp">1.02 .43 .41 .40 .35</span><span class="pcc">drop</span></div>
+                <div class="rstr"><span class="si">4</span><span class="st">2.38</span><span class="sp">.96 .38 .37 .35 .32</span><span class="pcc">B 74%</span></div>
+                <div class="rstr"><span class="si">5</span><span class="st">2.16</span><span class="sp">.92 .33 .32 .31 .28</span><span class="pcc">A 81%</span></div>
+              </div>
+              <div class="rset">
+                <div class="sh"><span class="sc">Set 2 · 14:05</span><span>best 4 <b>9.74</b> · <span style="color:var(--green)">B 74%</span></span></div>
+                <div class="rstr"><span class="si">1</span><span class="st">2.52</span><span class="sp">1.01 .41 .39 .37 .34</span><span class="pcc">C 68%</span></div>
+                <div class="rstr"><span class="si">2</span><span class="st">2.44</span><span class="sp">.97 .39 .38 .36 .34</span><span class="pcc">B 70%</span></div>
+                <div class="rstr"><span class="si">3</span><span class="st">2.39</span><span class="sp">.95 .38 .37 .35 .34</span><span class="pcc">B 73%</span></div>
+                <div class="rstr drop"><span class="si">4</span><span class="st">2.71</span><span class="sp">1.05 .45 .42 .42 .37</span><span class="pcc">drop</span></div>
+                <div class="rstr"><span class="si">5</span><span class="st">2.39</span><span class="sp">.96 .38 .36 .35 .34</span><span class="pcc">B 73%</span></div>
+              </div>
+              <div class="rset">
+                <div class="sh"><span class="sc">Set 3 · 14:09</span><span>best 4 <b>9.92</b> · <span style="color:var(--green)">B 71%</span></span></div>
+                <div class="rstr"><span class="si">1</span><span class="st">2.58</span><span class="sp">1.00 .42 .40 .39 .37</span><span class="pcc">C 66%</span></div>
+                <div class="rstr"><span class="si">2</span><span class="st">2.47</span><span class="sp">.98 .39 .38 .37 .35</span><span class="pcc">B 69%</span></div>
+                <div class="rstr drop"><span class="si">3</span><span class="st">2.79</span><span class="sp">1.08 .46 .44 .43 .38</span><span class="pcc">drop</span></div>
+                <div class="rstr"><span class="si">4</span><span class="st">2.43</span><span class="sp">.96 .39 .37 .36 .35</span><span class="pcc">B 70%</span></div>
+                <div class="rstr"><span class="si">5</span><span class="st">2.44</span><span class="sp">.97 .39 .38 .36 .34</span><span class="pcc">B 70%</span></div>
+              </div>
+            </div>
+
+            <div class="rstage">
+              <div class="h"><span class="nm">SC-102 · Showdown</span><span class="ct">2 sets</span></div>
+              <div class="rset">
+                <div class="sh"><span class="sc">Set 1 · 13:51</span><span>best 4 <b>8.12</b> · <span style="color:var(--green)">B 74%</span></span></div>
+                <div class="rstr"><span class="si">1</span><span class="st">2.05</span><span class="sp">.91 .31 .29 .28 .26</span><span class="pcc">A 78%</span></div>
+                <div class="rstr"><span class="si">2</span><span class="st">2.01</span><span class="sp">.89 .30 .29 .28 .25</span><span class="pcc">A 80%</span></div>
+                <div class="rstr drop"><span class="si">3</span><span class="st">2.22</span><span class="sp">.98 .33 .31 .31 .29</span><span class="pcc">drop</span></div>
+                <div class="rstr"><span class="si">4</span><span class="st">2.03</span><span class="sp">.90 .31 .29 .28 .25</span><span class="pcc">A 79%</span></div>
+                <div class="rstr"><span class="si">5</span><span class="st">2.03</span><span class="sp">.90 .30 .29 .29 .25</span><span class="pcc">A 79%</span></div>
+              </div>
+              <div class="rset"><div class="sh"><span class="sc">Set 2 · 13:55</span><span>best 4 <b>8.34</b> · <span style="color:var(--green)">B 72%</span></span></div><div class="note" style="font-family:var(--font-mono);color:var(--ink-3)">2.11 · 2.08 · 2.31 (drop) · 2.07 · 2.08 — full splits in app</div></div>
+            </div>
+
+            <div class="note" style="text-align:center;margin-top:10px">SC-104 · Outer Limits (2 sets) follows the same format ↓</div>
+            <div class="watermark" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">Recorded with AMG timer · gmjuice.app</div>
+          </div>
+          <div class="note" style="text-align:center">Branded PDF · one tap to email your coach</div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ============ LANDSCAPE DEVICE (recording states) ============ -->
+  <div class="device land" id="devLand" style="display:none">
+    <div class="island"></div>
+    <div class="phoneface">
+
+      <!-- READY -->
+      <section class="screen" id="s-recready">
+        <div class="dotgrid"></div>
+        <div class="rec-head"><div class="set">SET <b>1</b>/5</div><div class="mid"><span style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)"></span>SC-101 · RFPI</span></div><div class="mid"><span class="back" data-go="train" style="color:var(--amber);cursor:pointer;font-family:var(--font-label)">✕ End</span></div></div>
+        <div class="rec"><div class="rec-main">
+          <div class="rec-col"><span class="label">Current set</span><div class="strrow pend"><span class="i">1</span><span class="tm">— · —</span></div><div class="strrow pend"><span class="i">2</span><span class="tm">— · —</span></div><div class="strrow pend"><span class="i">3</span><span class="tm">— · —</span></div><div class="strrow pend"><span class="i">4</span><span class="tm">— · —</span></div><div class="strrow pend"><span class="i">5</span><span class="tm">— · —</span></div></div>
+          <div class="rec-col timerwrap" data-go="reclive"><div class="label" style="color:var(--green)">● Ready</div><div class="timer green">0.00</div><div class="note" style="margin-top:10px;color:var(--ink-3)">(tap to simulate)</div></div>
+          <div class="rec-col"><span class="label">Last 5 stages</span><div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden"><div class="hist"><span class="tm" style="color:var(--green)">9.50</span><span class="pc">14:02</span><span class="cls a">A 76%</span></div><div class="hist"><span class="tm">9.74</span><span class="pc">13:58</span><span class="cls b">B 74%</span></div><div class="hist" style="border-bottom:none"><span class="tm">10.12</span><span class="pc">13:51</span><span class="cls b">B 68%</span></div></div></div>
+        </div></div>
+      </section>
+
+      <!-- RECORDING (live) -->
+      <section class="screen" id="s-reclive">
+        <div class="dotgrid"></div>
+        <div class="rec-head"><div class="set">SET <b>3</b>/5</div><div class="mid"><span style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)"></span>SC-101 · 5 To Go · RFPI</span></div><div class="mid"><span class="back" data-go="train" style="color:var(--amber);cursor:pointer;font-family:var(--font-label)">✕ End</span></div></div>
+        <div class="rec">
+          <div class="rec-main">
+            <div class="rec-col"><span class="label">Current set</span><div class="strrow"><span class="i">1</span><span class="tm">2.41</span><span class="pc">B 71%</span></div><div class="strrow"><span class="i">2</span><span class="tm">2.55</span><span class="pc">C 64%</span></div><div class="strrow worst"><span class="i">3</span><span class="tm">2.61</span><span class="pc">◀ worst</span></div><div class="strrow pend"><span class="i">4</span><span class="tm">— · —</span></div><div class="strrow pend"><span class="i">5</span><span class="tm">— · —</span></div></div>
+            <div class="rec-col timerwrap"><div class="label" style="color:var(--ink-3)">String 3</div><div class="timer red">2.61</div><div class="timer-meta">first <b>0.98</b> · 5 shots</div><div class="targets" style="margin-top:14px"><div class="plate">1</div><div class="plate">2</div><div class="plate">3</div><div class="plate miss">4</div><div class="plate stop">S</div></div></div>
+            <div class="rec-col"><span class="label">Last 5 stages</span><div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden"><div class="hist"><span class="tm" style="color:var(--green)">9.50</span><span class="pc">14:02</span><span class="cls a">A 76%</span></div><div class="hist"><span class="tm">9.74</span><span class="pc">13:58</span><span class="cls b">B 74%</span></div><div class="hist"><span class="tm">10.12</span><span class="pc">13:51</span><span class="cls b">B 68%</span></div><div class="hist"><span class="tm">9.88</span><span class="pc">13:47</span><span class="cls b">B 71%</span></div><div class="hist" style="border-bottom:none"><span class="tm">10.40</span><span class="pc">13:42</span><span class="cls" style="color:var(--ink-2)">C 66%</span></div></div></div>
+          </div>
+          <div class="splits"><span class="label">Shots / splits — string 3</span><div class="shots"><div class="splitcell"><div class="ix">1</div><div class="now">0.98</div><div class="sp">.98</div></div><div class="splitcell"><div class="ix">2</div><div class="now">1.42</div><div class="sp">.44</div></div><div class="splitcell"><div class="ix">3</div><div class="now">1.88</div><div class="sp">.46</div></div><div class="splitcell"><div class="ix">4</div><div class="now">2.30</div><div class="sp">.42</div></div><div class="splitcell"><div class="ix">S</div><div class="now">2.61</div><div class="sp">.31</div></div></div></div>
+        </div>
+      </section>
+
+      <!-- OFFLINE / NO TIMER -->
+      <section class="screen" id="s-recoffline">
+        <div class="dotgrid"></div>
+        <div class="rec-head"><div class="set">SET <b>1</b>/5</div><div class="mid"><span style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:var(--red)"></span>SC-101 · RFPI</span></div><div class="mid"><span class="back" data-go="train" style="color:var(--amber);cursor:pointer;font-family:var(--font-label)">✕ End</span></div></div>
+        <div class="banner" style="margin-top:8px"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v8M7 12h.01" stroke="#e5544b" stroke-width="1.6"/></svg>Timer disconnected — shots won't be captured</div>
+        <div class="rec"><div class="rec-main">
+          <div class="rec-col"><span class="label">Current set</span><div class="strrow pend"><span class="i">1</span><span class="tm">— · —</span></div><div class="strrow pend"><span class="i">2</span><span class="tm">— · —</span></div><div class="strrow pend"><span class="i">3</span><span class="tm">— · —</span></div></div>
+          <div class="rec-col timerwrap"><div class="label" style="color:var(--red)">● Disconnected</div><div class="timer dim">--.--</div><button class="startbtn" data-go="settimer" style="margin-top:16px;width:auto;padding:12px 22px;font-size:13px">Reconnect Timer</button></div>
+          <div class="rec-col"><span class="label">Last 5 stages</span><div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden"><div class="hist" style="border-bottom:none"><span class="tm">9.50</span><span class="pc">14:02</span><span class="cls a">A 76%</span></div></div></div>
+        </div></div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="hint">tap <b>tabs</b>, <b>rows</b>, <b>timer</b> &amp; the chips up top — everything navigates</div>
+
+<script>
+const TABS=`
+  <div class="tab" data-go="train"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="11" r="2.5" fill="currentColor"/><path d="M11 1v4M11 17v4M1 11h4M17 11h4" stroke="currentColor" stroke-width="1.5"/></svg>Train</div>
+  <div class="tab" data-go="profile"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 19a7.5 7.5 0 0115 0" stroke="currentColor" stroke-width="1.5"/></svg>Profile</div>
+  <div class="tab" data-go="settings"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M11 2v3M11 17v3M2 11h3M17 11h3M4.5 4.5l2 2M15.5 15.5l2 2M17.5 4.5l-2 2M6.5 15.5l-2 2" stroke="currentColor" stroke-width="1.5"/></svg>Settings</div>`;
+document.querySelectorAll('[data-tabs]').forEach(t=>t.innerHTML=TABS);
+// status bar icons
+const STAT=`<svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="1" fill="#e7ecef"/><rect x="4.5" y="5" width="3" height="6" rx="1" fill="#e7ecef"/><rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="#e7ecef"/><rect x="13.5" y="0" width="3" height="11" rx="1" fill="#e7ecef"/></svg><svg width="24" height="12" viewBox="0 0 24 12"><rect x=".5" y=".5" width="20" height="11" rx="3" fill="none" stroke="#e7ecef" opacity=".5"/><rect x="2" y="2" width="15" height="8" rx="1.5" fill="#43c06a"/></svg>`;
+document.querySelectorAll('.statusbar .icons').forEach(i=>{if(i.textContent==='STAT')i.innerHTML=STAT;});
+
+const LAND=new Set(['recready','reclive','recoffline']);
+const TABMAP={train:'train',log:'train',emptylog:'train',stagedetail:'train',editstring:'train',targettimes:'train',profile:'profile',emptyprofile:'profile',uspsa:'profile',settings:'settings',settimer:'settings',setvoice:'settings',setnotif:'settings',setappear:'settings',report:'settings',help:'settings'};
+const CAPS={splash:'<b>Splash</b> · launch',terms:'<b>Terms</b> · first-run gate',onboarding:'<b>Onboarding</b> · connect SCSA (optional)',train:'<b>Train</b> · home',log:'<b>Log</b> · sessions by day',emptylog:'<b>Log</b> · empty state',stagedetail:'<b>Stage Detail</b> · scores → strings',editstring:'<b>Edit String</b> · sheet',targettimes:'<b>Target Times</b> · range card',profile:'<b>Profile</b> · status · why-class · trend',emptyprofile:'<b>Profile</b> · empty state',uspsa:'<b>USPSA</b> · profile sheet',settings:'<b>Settings</b>',settimer:'<b>Settings</b> · Timer (BLE)',setvoice:'<b>Settings</b> · Voice',setnotif:'<b>Settings</b> · Notifications',setappear:'<b>Settings</b> · Appearance',help:'<b>Help &amp; About</b>',report:'<b>Session Report</b> · shareable PDF',recready:'<b>Recording</b> · ready',reclive:'<b>Recording</b> · set in progress',recoffline:'<b>Recording</b> · timer disconnected'};
+
+function go(name){
+  const land=LAND.has(name);
+  document.getElementById('devPortrait').style.display=land?'none':'block';
+  document.getElementById('devLand').style.display=land?'block':'none';
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('s-'+name); if(el)el.classList.add('active');
+  const b=el&&el.querySelector('.body.scroll'); if(b)b.scrollTop=0;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.go===name));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.go===TABMAP[name]));
+  document.getElementById('cap').innerHTML=CAPS[name]||'';
+}
+document.addEventListener('click',e=>{const el=e.target.closest('[data-go]');if(el){e.stopPropagation();go(el.dataset.go);}});
+go('train');
+</script>
+</body>
+</html>
