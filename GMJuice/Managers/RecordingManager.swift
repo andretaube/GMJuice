@@ -103,7 +103,8 @@ final class RecordingManager: ObservableObject {
     // MARK: - Set / String lifecycle
 
     /// On each beep: finalize the previous string, roll over a completed set, and start a new string.
-    private func handleBeep() {
+    /// Internal (not private) so tests can drive the set lifecycle without a live BLE timer.
+    func handleBeep() {
         // 1. finalize the in-progress string into the current set
         if let s = currentString, !s.stringShots.isEmpty {
             currentSet.append(s)

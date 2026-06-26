@@ -12,9 +12,9 @@ struct TestData {
 
     // MARK: - Stages
 
-    static let stage_5ToGo = Stage(code: "SC-101", name: "5 To Go", strings: 5)
-    static let stage_Showdown = Stage(code: "SC-102", name: "Showdown", strings: 5)
-    static let stage_OuterLimits = Stage(code: "SC-104", name: "Outer Limits", strings: 4)
+    static let stage_5ToGo = Stage(code: "SC-101", name: "5 To Go", strings: 5, targetLayout: [])
+    static let stage_Showdown = Stage(code: "SC-102", name: "Showdown", strings: 5, targetLayout: [])
+    static let stage_OuterLimits = Stage(code: "SC-104", name: "Outer Limits", strings: 4, targetLayout: [])
 
     // MARK: - Divisions
 

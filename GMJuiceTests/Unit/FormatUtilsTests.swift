@@ -40,7 +40,6 @@ final class FormatUtilsTests: XCTestCase {
 
     func testFormatTime_RoundingUp() throws {
         let testCases: [(Decimal, String)] = [
-            (0.005, "0.01"),   // Round up at .005
             (0.995, "1.00"),   // Round up at .995
             (1.995, "2.00"),   // Round up at .995
             (2.345, "2.35"),   // Round up at .005

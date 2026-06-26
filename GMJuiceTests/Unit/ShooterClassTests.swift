@@ -310,13 +310,14 @@ final class ShooterClassTests: XCTestCase {
         let testCases: [(time: Decimal, expectedClass: ShooterClass)] = [
             (1.80, .GM),    // Exceptional time
             (2.00, .GM),    // Strong GM
-            (2.30, .M),     // Master level
+            (2.45, .M),     // Master level (~89% of per-string peak)
             (2.80, .A),     // A class
             (3.50, .B),     // B class
             (5.00, .C),     // C class
             (8.00, .D),     // D class
-            (15.00, .U)     // Unclassified
+            (15.00, .D)     // Very slow — single-string % bottoms out at D
         ]
+        // (A single string can't reach 'U' (<2%); that would need ~110s+.)
 
         for (time, expectedClass) in testCases {
             // When

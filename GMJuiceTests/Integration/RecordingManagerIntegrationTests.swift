@@ -2,7 +2,8 @@
 //  RecordingManagerIntegrationTests.swift
 //  GMJuiceTests
 //
-//  Integration tests for RecordingManager workflow with mock BLE
+//  Integration tests for the set-based RecordingManager workflow.
+//  A "beep" is simulated via handleBeep(); shots via recordShot().
 //
 
 import XCTest
@@ -12,453 +13,129 @@ import SwiftData
 @MainActor
 final class RecordingManagerIntegrationTests: XCTestCase {
 
-    var recordingManager: RecordingManager!
-    var mockBLE: MockBLEManager!
-    var modelContainer: ModelContainer!
-    var modelContext: ModelContext!
+    var manager: RecordingManager!
+    var container: ModelContainer!
+    var context: ModelContext!
 
     override func setUp() async throws {
         try await super.setUp()
-
-        // Create in-memory model container for testing
         let schema = Schema([
-            StringRun.self,
             StringShot.self,
+            StringRun.self,
+            StageRun.self,
             DivisionProfile.self,
-            ShooterProfile.self
+            ShooterProfile.self,
+            MatchScore.self
         ])
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        modelContainer = try ModelContainer(for: schema, configurations: config)
-        modelContext = ModelContext(modelContainer)
+        container = try ModelContainer(for: schema, configurations: config)
+        context = ModelContext(container)
 
-        // Create recording manager and mock BLE
-        recordingManager = RecordingManager.shared
-        mockBLE = MockBLEManager()
+        manager = RecordingManager.shared
+        manager.startSession(stageId: "SC-101", divisionId: "RFPO", modelContext: context)
     }
 
     override func tearDown() async throws {
-        recordingManager.endSession()
-        recordingManager = nil
-        mockBLE = nil
-        modelContext = nil
-        modelContainer = nil
+        manager.endSession()
+        manager = nil
+        context = nil
+        container = nil
         try await super.tearDown()
     }
 
-    // MARK: - Session Management Tests
-
-    func testStartSession() throws {
-        // Given
-        let stageId = "SC-101"
-        let divisionId = "RFPO"
-
-        // When
-        recordingManager.startSession(
-            stageId: stageId,
-            divisionId: divisionId,
-            modelContext: modelContext
-        )
-
-        // Then
-        XCTAssertEqual(recordingManager.stringCounter, 0, "Should start with counter at 0")
-        XCTAssertEqual(recordingManager.allStrings.count, 0, "Should start with no strings")
-        XCTAssertFalse(recordingManager.isRecording, "Should not be recording yet")
-    }
-
-    func testEndSession() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        recordingManager.startString()
-
-        // When
-        recordingManager.endSession()
-
-        // Then
-        XCTAssertFalse(recordingManager.isRecording, "Should not be recording")
-        XCTAssertEqual(recordingManager.stringCounter, 0, "Counter should be reset")
-        XCTAssertEqual(recordingManager.allStrings.count, 0, "Strings should be cleared")
-        XCTAssertNil(recordingManager.currentString, "Current string should be nil")
-    }
-
-    // MARK: - String Recording Tests
-
-    func testStartString() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-
-        let expectation = expectation(description: "String started callback")
-        recordingManager.onStringStarted = { _ in
-            expectation.fulfill()
-        }
-
-        // When
-        recordingManager.startString()
-
-        // Then
-        wait(for: [expectation], timeout: 0.5)
-        XCTAssertTrue(recordingManager.isRecording, "Should be recording")
-        XCTAssertEqual(recordingManager.stringCounter, 1, "Should increment counter")
-        XCTAssertNotNil(recordingManager.currentString, "Should have current string")
-        XCTAssertEqual(recordingManager.allStrings.count, 1, "Should add to allStrings")
-    }
-
-    func testRecordShot() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        recordingManager.startString()
-
-        let expectation = expectation(description: "Shot recorded callback")
-        recordingManager.onShotRecorded = { shot, count in
-            if count == 1 {
-                expectation.fulfill()
-            }
-        }
-
-        // When
-        recordingManager.recordShot(now: 0.50, split: 0.50, first: 0.50)
-
-        // Then
-        wait(for: [expectation], timeout: 0.5)
-        XCTAssertEqual(recordingManager.shotCount, 1, "Should have 1 shot")
-        XCTAssertEqual(recordingManager.currentString?.stringShots.count, 1, "String should have 1 shot")
-        XCTAssertEqual(recordingManager.currentString?.time, 0.50, "String time should be updated")
-    }
-
-    func testRecordMultipleShots() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        recordingManager.startString()
-
-        // When - record 5 shots
+    /// Shoots one string with the given total time (5 shots, no misses → adjustedTime == total).
+    private func shootString(total: Double) {
+        manager.handleBeep() // finalize the previous string (if any) and start a new one
         for i in 1...5 {
-            let time = Decimal(i) * 0.5
-            recordingManager.recordShot(now: time, split: 0.5, first: 0.5)
+            let now = Decimal(total * Double(i) / 5.0)
+            manager.recordShot(now: now, split: Decimal(total / 5.0), first: Decimal(total / 5.0))
         }
-
-        // Then
-        XCTAssertEqual(recordingManager.shotCount, 5, "Should have 5 shots")
-        XCTAssertEqual(recordingManager.currentString?.stringShots.count, 5, "String should have 5 shots")
-        XCTAssertEqual(recordingManager.currentString?.time, 2.5, "String time should be 2.5")
     }
 
-    func testFinishString_WithEnoughShots() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        recordingManager.startString()
+    // MARK: - Session
 
-        let expectation = expectation(description: "String completed callback")
-        recordingManager.onStringCompleted = { _ in
-            expectation.fulfill()
+    func testStartSessionInitialState() {
+        XCTAssertEqual(manager.currentSet.count, 0)
+        XCTAssertNil(manager.currentString)
+        XCTAssertFalse(manager.isRecording)
+        XCTAssertTrue(manager.completedStages.isEmpty)
+        XCTAssertEqual(manager.setSize, 5, "SC-101 has 5 strings per set")
+    }
+
+    func testEndSessionClearsState() {
+        manager.handleBeep()
+        manager.recordShot(now: 1.0, split: 1.0, first: 1.0)
+        manager.endSession()
+        XCTAssertNil(manager.currentString)
+        XCTAssertEqual(manager.currentSet.count, 0)
+        XCTAssertFalse(manager.isRecording)
+    }
+
+    // MARK: - String lifecycle
+
+    func testBeepStartsString() {
+        manager.handleBeep()
+        XCTAssertTrue(manager.isRecording)
+        XCTAssertNotNil(manager.currentString)
+        XCTAssertEqual(manager.stringIndex, 1)
+    }
+
+    func testRecordShotsAccumulate() {
+        manager.handleBeep()
+        manager.recordShot(now: 0.90, split: 0.90, first: 0.90)
+        manager.recordShot(now: 1.30, split: 0.40, first: 0.90)
+        XCTAssertEqual(manager.shotCount, 2)
+        XCTAssertEqual(manager.currentString?.stringShots.count, 2)
+    }
+
+    func testStringRollsIntoSetOnNextBeep() {
+        shootString(total: 2.5)
+        XCTAssertEqual(manager.currentSet.count, 0, "Not finalized until the next beep")
+        manager.handleBeep()
+        XCTAssertEqual(manager.currentSet.count, 1, "Previous string is now in the set")
+        XCTAssertEqual(manager.stringIndex, 2)
+    }
+
+    // MARK: - Set scoring
+
+    func testSetCompletesScoresBest4Of5AndPersists() throws {
+        let totals = [2.5, 2.6, 2.4, 3.0, 2.3] // 3.0 is the worst → dropped
+        for t in totals { shootString(total: t) }
+        manager.handleBeep() // finalize the 5th string → set complete → score + persist
+
+        XCTAssertEqual(manager.completedStages.count, 1, "Set should be scored once complete")
+        XCTAssertEqual(manager.currentSet.count, 0, "Set resets for the next attempt")
+
+        let stage = try XCTUnwrap(manager.completedStages.last)
+        let best4 = 2.5 + 2.6 + 2.4 + 2.3
+        XCTAssertEqual(NSDecimalNumber(decimal: stage.bestNTime).doubleValue, best4, accuracy: 0.001)
+        XCTAssertEqual(stage.stringCount, 5)
+        XCTAssertEqual(stage.strings.count, 5)
+
+        let saved = try context.fetch(FetchDescriptor<StageRun>())
+        XCTAssertEqual(saved.count, 1, "StageRun should be persisted")
+    }
+
+    func testOuterLimitsUsesFourStringsBest3() throws {
+        manager.endSession()
+        manager.startSession(stageId: "SC-104", divisionId: "RFPO", modelContext: context)
+        XCTAssertEqual(manager.setSize, 4, "Outer Limits has 4 strings per set")
+
+        let totals = [3.0, 3.5, 4.5, 3.2] // 4.5 worst → dropped, best 3 counted
+        for t in totals { shootString(total: t) }
+        manager.handleBeep()
+
+        let stage = try XCTUnwrap(manager.completedStages.last)
+        XCTAssertEqual(stage.stringCount, 4)
+        let best3 = 3.0 + 3.5 + 3.2
+        XCTAssertEqual(NSDecimalNumber(decimal: stage.bestNTime).doubleValue, best3, accuracy: 0.001)
+    }
+
+    func testHistoryGrowsAcrossSets() throws {
+        for _ in 0..<2 {
+            for t in [2.5, 2.5, 2.5, 2.5, 2.5] { shootString(total: t) }
+            manager.handleBeep() // finalize each set
         }
-
-        // Record 5 shots
-        for i in 1...5 {
-            let time = Decimal(i) * 0.5
-            recordingManager.recordShot(now: time, split: 0.5, first: 0.5)
-        }
-
-        // When
-        recordingManager.finishString()
-
-        // Then
-        wait(for: [expectation], timeout: 0.5)
-        XCTAssertFalse(recordingManager.isRecording, "Should not be recording")
-
-        // Verify saved to database
-        let descriptor = FetchDescriptor<StringRun>()
-        let savedRuns = try modelContext.fetch(descriptor)
-        XCTAssertEqual(savedRuns.count, 1, "Should save 1 run to database")
-        XCTAssertEqual(savedRuns.first?.stringShots.count, 5, "Saved run should have 5 shots")
-    }
-
-    func testFinishString_WithoutEnoughShots() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        recordingManager.startString()
-
-        // Record only 3 shots (not enough)
-        for i in 1...3 {
-            let time = Decimal(i) * 0.5
-            recordingManager.recordShot(now: time, split: 0.5, first: 0.5)
-        }
-
-        // When
-        recordingManager.finishString()
-
-        // Then
-        XCTAssertFalse(recordingManager.isRecording, "Should not be recording")
-
-        // Verify NOT saved to database
-        let descriptor = FetchDescriptor<StringRun>()
-        let savedRuns = try modelContext.fetch(descriptor)
-        XCTAssertEqual(savedRuns.count, 0, "Should not save incomplete string")
-    }
-
-    func testCancelString() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        recordingManager.startString()
-        recordingManager.recordShot(now: 0.50, split: 0.50, first: 0.50)
-
-        let expectation = expectation(description: "String cancelled callback")
-        recordingManager.onStringCancelled = {
-            expectation.fulfill()
-        }
-
-        // When
-        recordingManager.cancelString()
-
-        // Then
-        wait(for: [expectation], timeout: 0.5)
-        XCTAssertFalse(recordingManager.isRecording, "Should not be recording")
-        XCTAssertEqual(recordingManager.stringCounter, 0, "Counter should be decremented")
-        XCTAssertEqual(recordingManager.allStrings.count, 0, "String should be removed")
-        XCTAssertNil(recordingManager.currentString, "Current string should be nil")
-    }
-
-    // MARK: - Target Miss Tracking Tests
-
-    func testToggleTargetMiss_AddMiss() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        recordingManager.startString()
-
-        // When
-        recordingManager.toggleTargetMiss(2)
-
-        // Then
-        XCTAssertTrue(
-            recordingManager.currentString?.missedTargets.contains(2) ?? false,
-            "Should mark target 2 as missed"
-        )
-    }
-
-    func testToggleTargetMiss_RemoveMiss() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        recordingManager.startString()
-        recordingManager.toggleTargetMiss(2)
-
-        // When - toggle again to remove
-        recordingManager.toggleTargetMiss(2)
-
-        // Then
-        XCTAssertFalse(
-            recordingManager.currentString?.missedTargets.contains(2) ?? true,
-            "Should remove target 2 from misses"
-        )
-    }
-
-    func testToggleTargetMiss_MultipleMisses() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        recordingManager.startString()
-
-        // When
-        recordingManager.toggleTargetMiss(2)
-        recordingManager.toggleTargetMiss(4)
-        recordingManager.toggleTargetMiss(5)
-
-        // Then
-        let misses = recordingManager.currentString?.missedTargets ?? []
-        XCTAssertEqual(misses.count, 3, "Should have 3 misses")
-        XCTAssertTrue(misses.contains(2), "Should contain target 2")
-        XCTAssertTrue(misses.contains(4), "Should contain target 4")
-        XCTAssertTrue(misses.contains(5), "Should contain target 5")
-    }
-
-    func testToggleTargetMiss_InvalidTarget() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        recordingManager.startString()
-
-        // When - try invalid targets
-        recordingManager.toggleTargetMiss(0)   // Invalid
-        recordingManager.toggleTargetMiss(6)   // Invalid
-        recordingManager.toggleTargetMiss(-1)  // Invalid
-
-        // Then
-        let misses = recordingManager.currentString?.missedTargets ?? []
-        XCTAssertEqual(misses.count, 0, "Should not add invalid targets")
-    }
-
-    // MARK: - Multiple Strings Workflow Tests
-
-    func testMultipleStringsWorkflow() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-
-        // When - record 3 complete strings
-        for stringNum in 1...3 {
-            recordingManager.startString()
-
-            for shotNum in 1...5 {
-                let time = Decimal(shotNum) * 0.5
-                recordingManager.recordShot(now: time, split: 0.5, first: 0.5)
-            }
-
-            recordingManager.finishString()
-        }
-
-        // Then
-        XCTAssertEqual(recordingManager.stringCounter, 3, "Should have recorded 3 strings")
-
-        let descriptor = FetchDescriptor<StringRun>()
-        let savedRuns = try modelContext.fetch(descriptor)
-        XCTAssertEqual(savedRuns.count, 3, "Should save 3 runs to database")
-    }
-
-    func testStartNewString_AutoFinishesPrevious() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        recordingManager.startString()
-
-        // Record 5 shots in first string
-        for i in 1...5 {
-            let time = Decimal(i) * 0.5
-            recordingManager.recordShot(now: time, split: 0.5, first: 0.5)
-        }
-
-        // When - start new string without explicitly finishing
-        // (This simulates BLE beep triggering new string)
-        if recordingManager.isRecording {
-            recordingManager.finishString()
-        }
-        recordingManager.startString()
-
-        // Then
-        XCTAssertTrue(recordingManager.isRecording, "Should be recording new string")
-        XCTAssertEqual(recordingManager.stringCounter, 2, "Should be on string 2")
-        XCTAssertEqual(recordingManager.shotCount, 0, "New string should have 0 shots")
-
-        let descriptor = FetchDescriptor<StringRun>()
-        let savedRuns = try modelContext.fetch(descriptor)
-        XCTAssertEqual(savedRuns.count, 1, "Should have saved first string")
-    }
-
-    // MARK: - Error Handling Tests
-
-    func testRecordShot_NotRecording() throws {
-        // Given - no active session
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        // Don't start string
-
-        // When
-        recordingManager.recordShot(now: 0.50, split: 0.50, first: 0.50)
-
-        // Then
-        XCTAssertEqual(recordingManager.shotCount, 0, "Shot should be ignored")
-    }
-
-    func testFinishString_NoCurrentString() throws {
-        // Given - no active string
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-
-        // When
-        recordingManager.finishString()
-
-        // Then - should not crash, just log warning
-        XCTAssertFalse(recordingManager.isRecording, "Should not be recording")
-    }
-
-    func testStartString_NoSession() throws {
-        // Given - no session started
-
-        // When
-        recordingManager.startString()
-
-        // Then - should not crash, just log warning
-        XCTAssertFalse(recordingManager.isRecording, "Should not start recording")
-        XCTAssertNil(recordingManager.currentString, "Should not have current string")
-    }
-
-    // MARK: - Cleanup Tests
-
-    func testEndSession_ClearsCallbacks() throws {
-        // Given
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-
-        var callbackFired = false
-        recordingManager.onStringStarted = { _ in
-            callbackFired = true
-        }
-
-        // When
-        recordingManager.endSession()
-
-        // Callbacks should be cleared, so trying to start string shouldn't fire them
-        recordingManager.startSession(
-            stageId: "SC-101",
-            divisionId: "RFPO",
-            modelContext: modelContext
-        )
-        recordingManager.startString()
-
-        // Then
-        XCTAssertFalse(callbackFired, "Callback should be cleared after endSession")
+        XCTAssertEqual(manager.completedStages.count, 2, "Two completed sets in history")
     }
 }
